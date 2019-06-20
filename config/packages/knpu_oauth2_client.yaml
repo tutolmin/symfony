@@ -1,0 +1,63 @@
+knpu_oauth2_client:
+    clients:
+        # configure your clients as described here: https://github.com/knpuniversity/oauth2-client-bundle#configuration
+        # the key "facebook_main" can be anything, it
+        # will create a service: "knpu.oauth2.client.facebook_main"
+        facebook_main:
+            # this will be one of the supported types
+            type: facebook
+            client_id: '%env(OAUTH_FACEBOOK_ID)%'
+            client_secret: '%env(OAUTH_FACEBOOK_SECRET)%'
+            # the route that you're redirected to after
+            # see the controller example below
+            redirect_route: connect_facebook_check
+            redirect_params: {}
+            graph_api_version: v2.12
+
+        # will create service: "knpu.oauth2.client.google"
+        # an instance of: KnpU\OAuth2ClientBundle\Client\Provider\GoogleClient
+        # composer require league/oauth2-google
+        google:
+            # must be "google" - it activates that type!
+            type: google
+            # add and configure client_id and client_secret in parameters.yml
+            client_id: '%env(OAUTH_GOOGLE_CLIENT_ID)%'
+            client_secret: '%env(OAUTH_GOOGLE_CLIENT_SECRET)%'
+            # a route name you'll create
+            redirect_route: connect_google_check
+            redirect_params: {}
+            # Optional value for sending access_type parameter. More detail: https://developers.google.com/identity/protocols/OpenIDConnect#authenticationuriparameters
+            # access_type: ''
+            # Optional value for sending hd parameter. More detail: https://developers.google.com/identity/protocols/OpenIDConnect#hd-param
+            # hosted_domain: ''
+            # Optional value for additional fields to be requested from the user profile. If set, these values will be included with the defaults. More details: https://developers.google.com/+/web/api/rest/latest/people
+            # user_fields: {}
+            # Optional value if you don't want or need to enable Google+ API access.
+            # use_oidc_mode: false
+            # whether to check OAuth2 "state": defaults to true
+            # use_state: true
+
+        # will create service: "knpu.oauth2.client.foo_bar_oauth"
+        # an instance of: KnpU\OAuth2ClientBundle\Client\OAuth2Client
+        lichess_oauth:
+            type: generic
+#            provider_class: Some\Class\FooBarProvider
+#            provider_class: App\Provider\Lichess
+            provider_class: App\Provider\LichessProvider
+
+            # optional: a class that extends OAuth2Client
+            # client_class: Some\Custom\Client
+#            client_class: App\Client\Provider\LichessClient
+
+            # optional: if your provider has custom constructor options
+            provider_options:
+               urlAuthorize: '%env(OAUTH_LICHESS_AUTHORIZE_URL)%' 
+               urlAccessToken: '%env(OAUTH_LICHESS_ACCESS_TOKEN_URL)%' 
+               urlResourceOwnerDetails: '%env(OAUTH_LICHESS_RESOURCE_OWNER_URL)%' 
+
+            # now, all the normal options!
+            client_id: '%env(OAUTH_LICHESS_CLIENT_ID)%'
+            client_secret: '%env(OAUTH_LICHESS_CLIENT_SECRET)%'
+            redirect_route: connect_lichess_check
+            redirect_params: {}
+

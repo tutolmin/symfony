@@ -44,6 +44,10 @@ class GameDetailsController extends AbstractController
       */
     public function getGameDetails()
     {
+
+    // or add an optional message - seen by developers
+    $this->denyAccessUnlessGranted('ROLE_USER', null, 'User tried to access a page without having ROLE_USER');
+
 	// starts event
 	$this->stopwatch->start('getGameDetails');
 
@@ -349,7 +353,7 @@ foreach( $this->moves as $key => $move) {
 // CASE WHEN NOT exists(p.ECO) AND p.score<>t.score AND (NOT exists(p.eval) OR (exists(p.eval) AND NOT p.eval="T1")) THEN path ELSE 
 // CASE WHEN NOT exists(p.ECO) AND (p.mark="Sound") THEN path_T2 ELSE null END END AS path
  $params = ["move" => $move, "node_id" => intval( $this->neo4j_node_id)];
-        $query = 'MATCH (a:Position)-[p:Ply{move: $move }]->(b:Position) WHERE id(a) = $node_id 
+        $query = 'MATCH (a:Position)-[p:Ply{move: $move}]->(b:Position) WHERE id(a) = $node_id 
  OPTIONAL MATCH path=(a)-[t:Ply{eval:"T1"}]->(:Position)-[:Ply*0..5]->(:Position) WITH *, length(path) as L 
  OPTIONAL MATCH path_T2=(a)-[r:Ply{eval:"T2"}]->(:Position)
  RETURN a, b, p, 

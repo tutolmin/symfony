@@ -1,0 +1,176 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}ChessCheat{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+<link rel="stylesheet" href="css/chessboard-0.3.0.min.css" />
+<link rel="stylesheet" href="css/jquery.tagsinput-revisited.min.css" />
+<link rel="stylesheet" href="css/chesscheat.css" />
+{% endblock %}
+
+{% block body %}
+
+<!-- Tab links -->
+<div class="tab">
+  <button onclick="openTab(event, 'Analyze')">
+<table style="border:1px;margin:0;padding:0;">
+<tr>
+<td><img src="img/32star.png"/></td><td><span style="font-size:26pt">CHE</span></td>
+<td><span style="font-size:12pt;">SS<br/>AT</span></td></tr>
+</table>
+  </button>
+  <button class="tablinks" onclick="openTab(event, 'Upload')" id="uploadTab">
+<img src="img/upload.png" style="float:left"/>&nbsp;&nbsp;Upload Game(s)</button>
+  <button class="tablinks" onclick="openTab(event, 'Select')" id="defaultTab">
+<img src="img/search.png" style="float:left"/>&nbsp;&nbsp;Select Game</button>
+  <button class="tablinks" onclick="openTab(event, 'Analyze')" id="analysisTab">
+<img src="img/analysis.png" style="float:left"/>&nbsp;&nbsp;Analyze Game</button>
+</div>
+
+<div style="float:right;"><a href="/connect">Login</a>&nbsp;|&nbsp;<a href="/logout">Logout</a></div>
+
+<!-- Tab content -->
+<div id="Upload" class="tabcontent">
+  <h3>Upload Game(s)</h3>
+<!-- 
+<form method="post" enctype="multipart/form-data">
+-->
+<form action="/upload.php" method="post" enctype="multipart/form-data">
+<p>You can upload your own games into our database. Then you will be able to submit your games for processing. Once it is complete you can analyze your games.<br/>
+Use the form below to upload your games.</p>
+<p>Maximum file size is 100KB</p>
+<p>Allowed file types are .pgn .txt or archives .zip .gz</p>
+    Select <abbr title='Portable Game Notation is a plain text computer-processible format for recording chess games'>PGN</abbr> file to upload:
+    <input type="file" name="fileToUpload" id="fileToUpload">
+
+<p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
+
+    <input type="submit" value="Upload PGN" name="submit">
+</form>
+</div>
+
+<div id="Select" class="tabcontent">
+<table><tr><td style="vertical-align:top">
+  <h3>Predefined Tags</h3>
+<div class="predefinedTags">
+<b>Game result</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1-0');" checked="checked">White wins<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '0-1');">Black wins<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1/2-1/2');">Draw<br/>
+<b>Game status</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Pending');">Pending<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Loaded');">Loaded<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Partly');">Partly<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Complete');">Complete<br/>
+<b>Special tags</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'effectiveResult');">effective result<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'resultMismatch');">result mismatch<br/>
+<b>Engines</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Stockfish 051117');">Stockfish 051117<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Houdini 6.02');">Houdini 6.02<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Deep Fritz 10');">Deep Fritz 10<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Comp Deep Blue');">Comp Deep Blue<br/>
+<b>Players</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Anand, Viswanathan');">Anand, Viswanathan<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Kramnik, Vladimir');">Kramnik, Vladimir<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Kasparov, Gary');">Kasparov, Gary<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'lemon79');">lemon79<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Tutolmin,A');">Tutolmin,A<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '');"><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '');"><br/>
+<b>Cheaters</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'lnechessm');">lnechessm<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Daldrup');">Daldrup<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Fili1981');">Fili1981<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'bss180');">bss180<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'snukerok');">snukerok<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'DNISTER62');">DNISTER62<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Magic2240');">Magic2240<br/>
+<b># of moves</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 moves');">10 moves<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '20 moves');">20 moves<br/>
+<b># of deltas</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '5 deltas');">5 deltas<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 deltas');">10 deltas<br/>
+<b># of analyzed plies</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 qplies');">10 qplies<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 qplies');">20 qplies<br/>
+<b><abbr title='Encyclopedia of Chess Openings'>ECO</abbr> codes</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'D44');">D44<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'E99');">E99<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'A41');">A41<br/>
+<b>ELO range</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1000+');">1000+<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '2000+');">2000+<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1500-');">1500-<br/>
+</div>
+</td>
+<td style="vertical-align:top">
+  <p>Enter player name, event, result or start typing to select tag from the dropdown list. You can also select from a predefined list of tags below.</p>
+  <span style="font-size:22pt;float:left;">Tags:&nbsp;
+  <button style="float:right;" onclick="$('.tagsinput#form-tags').importTags( '');">Delete all tags</button>
+  </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text" value="1-0"></form>
+  <div class="gameList" id="gameList"></div>
+</td>
+</tr>
+</table>
+</div>
+
+<!-- Tab content -->
+<div id="Analyze" class="tabcontent">
+
+<table border=0><tr><td valign=top>
+<div id="header" style="width: 525px">Game header</div>
+<!-- start example HTML -->
+<div id="board" style="width: 500px"></div>
+<div style="float: left;">
+<input type="button" id="setStartBtn" value="Start Position" />
+<input type="button" id="setPrevMove" value="Prev Move" />
+<input type="button" id="setNextMove" value="Next Move" />
+</div>
+<div style="float: right;">
+<input type="button" id="flipBoard" value="Flip Board" />
+</div>
+<br style="clear:all" />
+<!-- end example HTML -->
+<div id="position" style="width: 525px;">Position details</div>
+<div>
+<select style="float:left;" name="sideToAnalyze" id="sideToAnalyze">
+<option value="">Both sides</option>
+<option value="WhiteOnly">White Only</option>
+<option value="BlackOnly">Black Only</option>
+</select>
+<div id="analysis_submit">
+     <button type="submit" 
+             class="input_submit" 
+             style="margin-right: 15px;" 
+             onClick="processGame()">Submit for analysis
+     </button>
+</div>
+</div>
+</td><td valign=top>
+<div id="movelist" style="width: 600px; overflow:auto; height:700px;">Move list</div>
+<br/>
+<div id="legend" style="width: 400px"><h3>Legend</h3>
+<b><span class='mark_Best'>Best move</span></b>: first T-line move or equal evaluation to the first line<br/>
+<b><span class='mark_Sound'>Sound move</span></b>: Forced move, obvious recapture, single reasonable move, one of equal lines in drawish position<br/>
+</div>
+</td><td valign=top>
+<div id="counters" style="width: 400px">Game details</div>
+</td></tr></table>
+
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> 
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js"></script>
+<script src="js/chessboard-0.3.0.min.js"></script>
+<script src="js/jquery.tagsinput-revisited.min.js"></script>
+<script src="js/chesscheat.js"></script>
+{% endblock %}
+
