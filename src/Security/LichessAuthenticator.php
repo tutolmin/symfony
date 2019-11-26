@@ -47,8 +47,8 @@ class LichessAuthenticator extends SocialAuthenticator
 
 var_dump( $credentials->getToken());
 
-/*
 
+/*
         $client = $clientRegistry->getClient('lichess_oauth');
 
 var_dump( $client);
@@ -80,7 +80,7 @@ var_dump( $email);
             ->fetchUserFromToken($credentials)->getId();
 */
 
-//	$client=$this->getLichessClient();
+	$client=$this->getLichessClient();
 
 //var_dump( $client);
 // get the access token and then user
@@ -89,7 +89,7 @@ $lichessUser = $client->fetchUserFromToken($accessToken);
 
 // get the access token and then user
 var_dump( $credentials);
-var_dump( $acecssToken);
+var_dump( $accessToken);
 var_dump( $lichessUser); 
 die;
         $email = $lichessUser->getEmail();

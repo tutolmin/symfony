@@ -9,7 +9,7 @@
         "league/oauth2-facebook": "^2.0",
         "league/oauth2-google": "^3.0",
         "neo4j/neo4j-bundle": "^0.4.2",
-        "sensio/framework-extra-bundle": "^5.2",
+        "sensio/framework-extra-bundle": "5.2.1",
         "symfony/apache-pack": "^1.0",
         "symfony/asset": "4.2.*",
         "symfony/console": "4.2.*",

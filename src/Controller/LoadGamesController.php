@@ -12,6 +12,8 @@ class LoadGamesController extends AbstractController
     // Number of games to load and display
     const RECORDS_PER_PAGE = 15;
 
+    const _DEBUG = FALSE;
+
     /**
       * @Route("/loadGames")
       */
@@ -68,17 +70,31 @@ class LoadGamesController extends AbstractController
 	$tags=explode(';', json_decode( $query_tags));
 
         // Order condition
-        $known_tags = [ "player", "white", "black", "wins", "loses", "draws", 
-		"result", 
+        $known_tags = [ "player", 
+			"result", 
+			"white", "black", 
+			"wins", "loses", "draws", 
 		"start_year", "start_month", "start_day", "end_year", "end_month", "end_day" ];
 
-	// Results array
-	$first_results  = [];
-	$second_results = [];
+	// Opposite arrays
+	$opposite_color	 = [ "white" => "black", "black" => "white"];
+	$opposite_result = [ "wins" => "loses", "draws" => "draws", "loses" => "wins" ];
 
-	// Side present flag
-	$first_side  = "";
-	$second_side = "";
+	// Neo4j entiries
+	$side_colors	 = [ "white" => "White", "black" => "Black"];
+	$side_results	 = [ "wins" => "Win", "draws" => "Draw", "loses" => "Loss"];
+
+	// If player color has been specified
+	$color_specification_flag=FALSE;
+
+	// Players arays
+	$players = [];
+
+	// Sides array
+	$sides = [];
+
+	// Results array
+	$results = [];
 
 	// Parse each tag
 	foreach( $tags as $tag)
@@ -87,77 +103,60 @@ class LoadGamesController extends AbstractController
 	if( strlen($tag) && strpos($tag, ":") !== FALSE) {
 	    
 	    $tag_name_value=explode(':', $tag);
+            $tag_name = $tag_name_value[0];
 
 	    // Check if we accept the parameter
-	    if (in_array( $tag_name_value[0], $known_tags)) {
+	    if (in_array( $tag_name, $known_tags)) {
 	
-		// Parse the parameter
-		switch( $tag_name_value[0]) {
+		$tag_value = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
 
+		// Parse the parameter
+		switch( $tag_name) {
+
+		  // Set second player name only if not equal to first one and first does not exist
 		  case "player":
-		    if( array_key_exists( "first", $params))
-		      $params["second"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
+		    if( array_key_exists( "first", $players) && $tag_value != $players["first"])
+		      $players["second"] = $tag_value;
 		    else
-		      $params["first"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
+		      $players["first"] = $tag_value;
 		    break;
 
 		  case "white":
-		    if( array_key_exists( "first", $params)) {
-		      $params["second"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_side  = ":Black";
-		      $second_side = ":White";
-		    } else {
-		      $params["first"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_side  = ":White";
-		      $second_side = ":Black";
-		    }
-		    break;
-
 		  case "black":
-		    if( array_key_exists( "first", $params)) {
-		      $params["second"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_side  = ":White";
-		      $second_side = ":Black";
+		    $color_specification_flag=TRUE;
+		    if( array_key_exists( "first", $players) && $tag_value != $players["first"]) {
+		      $players["second"] = $tag_value;
+		      if( !array_key_exists( "first", $sides)) {
+		        $sides["second"] = $tag_name;
+		        $sides["first"] = $opposite_color[$tag_name];
+		      }
 		    } else {
-		      $params["first"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_side  = ":Black";
-		      $second_side = ":White";
+		      $players["first"] = $tag_value;
+		      if( !array_key_exists( "first", $sides)) {
+		        $sides["first"] = $tag_name;
+		        $sides["second"] = $opposite_color[$tag_name];
+		      }
 		    }
 		    break;
 
 		  case "wins":
-		    if( array_key_exists( "first", $params)) {
-		      $params["second"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_results[]  = "Loss";
-		      $second_results[] = "Win";
+		  case "draws":
+		  case "loses":
+		    $color_specification_flag=TRUE;
+		    if( array_key_exists( "first", $players) && $tag_value != $players["first"]) {
+		      $players["second"] = $tag_value;
+		      if( !array_key_exists( "first", $results)) {
+		        $results["second"] = $tag_name;
+		        $results["first"] = $opposite_result[$tag_name];
+		      }
 		    } else {
-		      $params["first"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_results[]  = "Win";
-		      $second_results[] = "Loss";
+		      $players["first"] = $tag_value;
+		      if( !array_key_exists( "first", $results)) {
+		        $results["first"] = $tag_name;
+		        $results["second"] = $opposite_result[$tag_name];
+		      }
 		    }
 		    break;
-
-		  case "draws":
-		    if( array_key_exists( "first", $params)) {
-		      $params["second"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_results[]  = "Draw";
-		      $second_results[] = "Draw";
-		    } else {
-		      $params["first"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_results[]  = "Draw";
-		      $second_results[] = "Draw";
-		    }
-
-		  case "loses":
-		    if( array_key_exists( "first", $params)) {
-		      $params["second"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_results[]  = "Win";
-		      $second_results[] = "Loss";
-		    } else {
-		      $params["first"] = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
-		      $first_results[]  = "Loss";
-		      $second_results[] = "Win";
-		    }
 
 		  case "start_year":
 		    $params["start_year"] = intval( filter_var($tag_name_value[1], FILTER_SANITIZE_NUMBER_INT));
@@ -190,50 +189,95 @@ class LoadGamesController extends AbstractController
 		    break;
 
 		  case "result":
-		    switch( $tag_name_value[1]) {
+		    if( !array_key_exists( "first", $results)) {
+		      switch( $tag_value) {
 			case "1-0":
-		    	  if( !array_key_exists( "first", $params) && $first_side == "") {
-			    $first_side  = ":White";
-			    $second_side = ":Black";
-			  }
-			  if( $first_side == ":White") {
-			    $first_results[]  = "Win";
-			    $second_results[] = "Loss";
+		          if( array_key_exists( "first", $sides)) {
+			    if( $sides["first"] == "white") {
+			      $results["first"] = "wins";
+			      $results["second"] = "loses";
+			    } else {
+			      $results["first"] = "loses";
+			      $results["second"] = "wins";
+			    }
 			  } else {
-			    $first_results[]  = "Loss";
-			    $second_results[] = "Win";
+			    $results["first"] = "wins";
+			    $results["second"] = "loses";
 			  }
 			  break;
 			case "0-1":
-		    	  if( !array_key_exists( "first", $params) && $first_side == "") {
-			    $first_side  = ":Black";
-			    $second_side = ":White";
-			  }
-			  if( $first_side == ":Black") {
-			    $first_results[]  = "Win";
-			    $second_results[] = "Loss";
+		          if( array_key_exists( "first", $sides)) {
+			    if( $sides["first"] == "white") {
+			      $results["first"] = "loses";
+			      $results["second"] = "wins";
+			    } else {
+			      $results["first"] = "loses";
+			      $results["second"] = "wins";
+			    }
 			  } else {
-			    $first_results[]  = "Loss";
-			    $second_results[] = "Win";
+			      $results["first"] = "loses";
+			      $results["second"] = "wins";
 			  }
 			  break;
 		 	default:
-			  $first_results[]  = "Draw";
-			  $second_results[] = "Draw";
+			  $results["first"] = "draws";
+			  $results["second"] = "draws";
 			  break;
+		      }
 		    }
 		    break;
 
 		  default:
 		    break;
 		}
+if( self::_DEBUG) {
+print_r($players);
+print_r($sides);
+print_r($results);
+echo "<br/>\n";
+}
 	    }
 	}
 
-	// Non-empty array of selected results
-	if( !count( $first_results)) array_push($first_results, "Win", "Draw", "Loss");
+// If player color has not been specified we need equal results for the query
+if( !$color_specification_flag && count( $results))
+  $results["second"]=$results["first"];
+if( self::_DEBUG) {
+print_r($players);
+print_r($sides);
+print_r($results);
+echo "<br/>\n";
+}
+// Empty sides array, set defaults
+if( !count( $sides))
+  $sides["first"]=$sides["second"]="white";
+$sides["first"]=$side_colors[$sides["first"]];
+$sides["second"]=$side_colors[$sides["second"]];
+
+// Results
+$first_results = array();
+$second_results = array();
+
+// Push all values if empty results array
+if( !count( $results)) {
+  array_push( $first_results, "Win", "Draw", "Loss");
+  $second_results=$first_results;
+} else {
+  array_push( $first_results, $side_results[$results["first"]]);
+  array_push( $second_results, $side_results[$results["second"]]);
+}
+if( self::_DEBUG) {
+print_r($players);
+print_r($sides);
+print_r($first_results);
+print_r($second_results);
+echo "<br/>\n";
+}
+	if( array_key_exists( "first", $players)) $params["first"] = $players["first"];
+	if( array_key_exists( "second", $players)) $params["second"] = $players["second"];
+	$params["first_side"] = $sides["first"];
+	$params["second_side"] = $sides["second"];
 	$params["first_results"] = $first_results;
-	if( !count( $second_results)) array_push($second_results, "Win", "Draw", "Loss");
 	$params["second_results"] = $second_results;
 
 	// Set default param values
@@ -246,21 +290,40 @@ class LoadGamesController extends AbstractController
 
 	$first_param = "";
 	$second_param ="";
-	if( array_key_exists( "first", $params)) $first_param  = "{name:{first}}";
-	if( array_key_exists( "second", $params)) $second_param = "{name:{second}}";
+	if( array_key_exists( "first", $players)) $first_param  = "{name:{first}}";
+	if( array_key_exists( "second", $players)) $second_param = "{name:{second}}";
 
 	// We have different types of query if player name has been specified
 	if( array_key_exists( "first", $params) || array_key_exists( "second", $params))
-	  $query = "MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game:Game) 
-MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side$first_side)<-[:PLAYED_AS]-(first_player:Player$first_param) 
-MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side$second_side)<-[:PLAYED_AS]-(second_player:Player$second_param) 
-WITH year,month,day,game,first_result,second_result,first_player,second_player, 
-CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str, 
-CASE WHEN {start_year}=0 THEN '0000' ELSE toString({start_year}) END+CASE WHEN {start_month}<10 THEN '0'+{start_month} ELSE toString({start_month}) END+CASE WHEN {start_day}<10 THEN '0'+{start_day} ELSE toString({start_day}) END AS start_date_str, 
-CASE WHEN {end_year}=0 THEN '0000' ELSE toString({end_year}) END+CASE WHEN {end_month}<10 THEN '0'+{end_month} ELSE toString({end_month}) END+CASE WHEN {end_day}<10 THEN '0'+{end_day} ELSE toString({end_day}) END AS end_date_str
-  WHERE [x IN labels(first_result) WHERE x IN {first_results}] 
-    AND [x IN labels(second_result) WHERE x IN {second_results}] 
-    AND start_date_str <= date_str <= end_date_str
+	  $query = "MATCH (game:Game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(first_side:Side)<-[:PLAYED_AS]-(first_player:Player$first_param) 
+MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(second_side:Side)<-[:PLAYED_AS]-(second_player:Player$second_param) 
+  WITH game,second_player,first_player,second_result,first_result,second_side,first_side
+  WHERE 
+      first_player <> second_player
+    AND (
+      (
+	[x IN labels(first_result) WHERE x IN {first_results}]
+	AND {first_side} IN labels(first_side)
+      )
+      OR
+      (
+	[x IN labels(second_result) WHERE x IN {second_results}]
+	AND {second_side} IN labels(second_side)
+      )
+    )
+MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
+  WITH game,second_player,first_player,second_result,first_result,second_side,first_side,
+    CASE WHEN year.year=0	THEN '0000'		ELSE toString(year.year) END +
+    CASE WHEN month.month<10	THEN '0'+month.month	ELSE toString(month.month) END +
+    CASE WHEN day.day<10	THEN '0'+day.day	ELSE toString(day.day) END AS date_str, 
+    CASE WHEN {start_year}=0	THEN '0000'		ELSE toString({start_year}) END +
+    CASE WHEN {start_month}<10	THEN '0'+{start_month}	ELSE toString({start_month}) END +
+    CASE WHEN {start_day}<10	THEN '0'+{start_day}	ELSE toString({start_day}) END AS start_date_str, 
+    CASE WHEN {end_year}=0	THEN '0000'		ELSE toString({end_year}) END +
+    CASE WHEN {end_month}<10	THEN '0'+{end_month}	ELSE toString({end_month}) END +
+    CASE WHEN {end_day}<10	THEN '0'+{end_day}	ELSE toString({end_day}) END AS end_date_str  
+  WHERE
+      start_date_str <= date_str <= end_date_str
 RETURN DISTINCT id(game) AS gid, date_str 
 $order_condition 
 $skip_records
@@ -270,14 +333,14 @@ LIMIT ".self::RECORDS_PER_PAGE;
 "MATCH (:Year{year:{start_year}})<-[:OF]-(:Month{month:{start_month}})<-[:OF]-(:Day{day:{start_day}})-[:NEXT*0..]->(:Day)<-[:PLAYED_DATE]-(game:Game) ":
 "MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-(:Day)<-[:PLAYED_DATE]-(game:Game) ";
 	  $query .= "
-MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side$first_side) 
-MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side$second_side) 
+MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White) 
+MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black) 
   WHERE [x IN labels(first_result) WHERE x IN {first_results}] 
-    AND [x IN labels(second_result) WHERE x IN {second_results}] 
 RETURN DISTINCT id(game) AS gid 
 $skip_records
 LIMIT ".self::RECORDS_PER_PAGE;
 	}
+//    AND [x IN labels(second_result) WHERE x IN {second_results}] 
 
 //print_r( $params);
 //echo $query;

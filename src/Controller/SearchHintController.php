@@ -48,9 +48,11 @@ RETURN player.name LIMIT ".self::RECORDS_PER_PAGE;
 	    $hints[] = $record->value('player.name');  
 	    $hints[] = $record->value('player.name'). " as white";
 	    $hints[] = $record->value('player.name'). " as black";
+/*
 	    $hints[] = $record->value('player.name'). " wins";
 	    $hints[] = $record->value('player.name'). " draws";
 	    $hints[] = $record->value('player.name'). " loses";
+*/
 	  }
 
 	}
