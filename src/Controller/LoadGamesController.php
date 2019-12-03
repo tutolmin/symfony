@@ -110,6 +110,12 @@ class LoadGamesController extends AbstractController
 	
 		$tag_value = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
 
+if( self::_DEBUG) {
+print_r($players);
+print_r($sides);
+print_r($results);
+echo "<br/>\n";
+}
 		// Parse the parameter
 		switch( $tag_name) {
 
@@ -123,28 +129,34 @@ class LoadGamesController extends AbstractController
 		    break;
 
 		  case "black":
-/*
+
  		    // Reverse result for black player
 		    if(array_key_exists( "first", $results)) {
 		      $results["second"] = $results["first"];
 		      $results["first"] = $opposite_result[$results["first"]];
 		    }
-*/
+
 		  case "white":
 
-		    $color_specification_flag=TRUE;
 		    $sides["first"] = $tag_name;
 		    $sides["second"] = $opposite_color[$tag_name];
 
 		    // Replace first player with new one and keep it as a second
 		    if( array_key_exists( "first", $players) && $tag_value != $players["first"]) {
 		      $players["second"] = $players["first"];
-		      if( array_key_exists( "first", $results)) {
+
+		      // Reverse result for white player only
+		      if( array_key_exists( "first", $results) && $color_specification_flag
+			&& $tag_name == "white") {
+//			&& $tag_name == "white" && $results["first"] == "loses") {
 		        $results["second"] = $results["first"];
 		        $results["first"] = $opposite_result[$results["first"]];
 		      }
 		    }
 		    $players["first"] = $tag_value;
+
+		    $color_specification_flag=TRUE;
+
 		    break;
 
 		  case "wins":
@@ -236,12 +248,6 @@ class LoadGamesController extends AbstractController
 		  default:
 		    break;
 		}
-if( self::_DEBUG) {
-print_r($players);
-print_r($sides);
-print_r($results);
-echo "<br/>\n";
-}
 	    }
 	}
 

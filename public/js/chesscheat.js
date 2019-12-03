@@ -116,15 +116,15 @@ tags_arr.forEach(function(item, i, arr) {
   } else {
 
     // Has a color specification
-    var re = /([\w,\.\ ]+)(\ as\ (white|black))$/i;
+    var re = /([\w,\.\ ]+)((\ |_)as(\ |_)(white|black))$/i;
     var found_color = item.match(re);
-    if( found_color) tags_str += found_color[3].toLowerCase() + ":" + found_color[1] + ";";
+    if( found_color) tags_str += found_color[5].toLowerCase() + ":" + found_color[1] + ";";
 //    console.log( found_color);
 
     // Has a result specification
-    var re = /([\w,\.\ ]+)(\ (wins|loses|draws))$/i;
+    var re = /([\w,\.\ ]+)((\ |_)(wins|loses|draws))$/i;
     var found_result = item.match(re);
-    if( found_result) tags_str += found_result[3].toLowerCase() + ":" + found_result[1] + ";";
+    if( found_result) tags_str += found_result[4].toLowerCase() + ":" + found_result[1] + ";";
 //    console.log( found_result);
 
     // Just a player
