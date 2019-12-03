@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cffeb8686f57a91b111a2f3692ff713f",
+    "content-hash": "bca948efc75e148637a9d8dd4ab897b1",
     "packages": [
         {
             "name": "clue/stream-filter",
@@ -4842,16 +4842,16 @@
         },
         {
             "name": "symfony/security-http",
-            "version": "v4.2.4",
+            "version": "v4.2.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/security-http.git",
-                "reference": "7af0b23cfa8c1a6f858be7d8bb4579c4df26f208"
+                "reference": "8024422eeaca7b0b33ce2900b2f75e20259de7aa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/security-http/zipball/7af0b23cfa8c1a6f858be7d8bb4579c4df26f208",
-                "reference": "7af0b23cfa8c1a6f858be7d8bb4579c4df26f208",
+                "url": "https://api.github.com/repos/symfony/security-http/zipball/8024422eeaca7b0b33ce2900b2f75e20259de7aa",
+                "reference": "8024422eeaca7b0b33ce2900b2f75e20259de7aa",
                 "shasum": ""
             },
             "require": {
@@ -4904,7 +4904,7 @@
             ],
             "description": "Symfony Security Component - HTTP Integration",
             "homepage": "https://symfony.com",
-            "time": "2019-02-23T15:17:42+00:00"
+            "time": "2019-11-12T13:02:45+00:00"
         },
         {
             "name": "symfony/serializer",

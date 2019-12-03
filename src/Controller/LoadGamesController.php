@@ -113,36 +113,44 @@ class LoadGamesController extends AbstractController
 		// Parse the parameter
 		switch( $tag_name) {
 
-		  // Set second player name only if not equal to first one and first does not exist
 		  case "player":
+
+		    // Set second player name only if not equal to first one or first does not exist
 		    if( array_key_exists( "first", $players) && $tag_value != $players["first"])
 		      $players["second"] = $tag_value;
 		    else
 		      $players["first"] = $tag_value;
 		    break;
 
-		  case "white":
 		  case "black":
+/*
+ 		    // Reverse result for black player
+		    if(array_key_exists( "first", $results)) {
+		      $results["second"] = $results["first"];
+		      $results["first"] = $opposite_result[$results["first"]];
+		    }
+*/
+		  case "white":
+
 		    $color_specification_flag=TRUE;
+		    $sides["first"] = $tag_name;
+		    $sides["second"] = $opposite_color[$tag_name];
+
+		    // Replace first player with new one and keep it as a second
 		    if( array_key_exists( "first", $players) && $tag_value != $players["first"]) {
-		      $players["second"] = $tag_value;
-		      if( !array_key_exists( "first", $sides)) {
-		        $sides["second"] = $tag_name;
-		        $sides["first"] = $opposite_color[$tag_name];
-		      }
-		    } else {
-		      $players["first"] = $tag_value;
-		      if( !array_key_exists( "first", $sides)) {
-		        $sides["first"] = $tag_name;
-		        $sides["second"] = $opposite_color[$tag_name];
+		      $players["second"] = $players["first"];
+		      if( array_key_exists( "first", $results)) {
+		        $results["second"] = $results["first"];
+		        $results["first"] = $opposite_result[$results["first"]];
 		      }
 		    }
+		    $players["first"] = $tag_value;
 		    break;
 
 		  case "wins":
 		  case "draws":
 		  case "loses":
-		    $color_specification_flag=TRUE;
+//		    $color_specification_flag=TRUE;
 		    if( array_key_exists( "first", $players) && $tag_value != $players["first"]) {
 		      $players["second"] = $tag_value;
 		      if( !array_key_exists( "first", $results)) {
@@ -189,41 +197,39 @@ class LoadGamesController extends AbstractController
 		    break;
 
 		  case "result":
-		    if( !array_key_exists( "first", $results)) {
-		      switch( $tag_value) {
-			case "1-0":
-		          if( array_key_exists( "first", $sides)) {
-			    if( $sides["first"] == "white") {
-			      $results["first"] = "wins";
-			      $results["second"] = "loses";
-			    } else {
-			      $results["first"] = "loses";
-			      $results["second"] = "wins";
-			    }
-			  } else {
+		    switch( $tag_value) {
+		      case "1-0":
+		        if( array_key_exists( "first", $sides)) {
+			  if( $sides["first"] == "white") {
 			    $results["first"] = "wins";
 			    $results["second"] = "loses";
-			  }
-			  break;
-			case "0-1":
-		          if( array_key_exists( "first", $sides)) {
-			    if( $sides["first"] == "white") {
-			      $results["first"] = "loses";
-			      $results["second"] = "wins";
-			    } else {
-			      $results["first"] = "loses";
-			      $results["second"] = "wins";
-			    }
 			  } else {
-			      $results["first"] = "loses";
-			      $results["second"] = "wins";
+			    $results["first"] = "loses";
+			    $results["second"] = "wins";
 			  }
-			  break;
-		 	default:
-			  $results["first"] = "draws";
-			  $results["second"] = "draws";
-			  break;
-		      }
+			} else {
+			  $results["first"] = "wins";
+			  $results["second"] = "loses";
+			}
+			break;
+		      case "0-1":
+		        if( array_key_exists( "first", $sides)) {
+			  if( $sides["first"] == "black") {
+			    $results["first"] = "wins";
+			    $results["second"] = "loses";
+			  } else {
+			    $results["first"] = "loses";
+			    $results["second"] = "wins";
+			  }
+			} else {
+			    $results["first"] = "loses";
+			    $results["second"] = "wins";
+			}
+			break;
+		      default:
+			$results["first"] = "draws";
+			$results["second"] = "draws";
+			break;
 		    }
 		    break;
 
@@ -242,12 +248,14 @@ echo "<br/>\n";
 // If player color has not been specified we need equal results for the query
 if( !$color_specification_flag && count( $results))
   $results["second"]=$results["first"];
+
 if( self::_DEBUG) {
 print_r($players);
 print_r($sides);
 print_r($results);
 echo "<br/>\n";
 }
+
 // Empty sides array, set defaults
 if( !count( $sides))
   $sides["first"]=$sides["second"]="white";
@@ -266,6 +274,7 @@ if( !count( $results)) {
   array_push( $first_results, $side_results[$results["first"]]);
   array_push( $second_results, $side_results[$results["second"]]);
 }
+
 if( self::_DEBUG) {
 print_r($players);
 print_r($sides);

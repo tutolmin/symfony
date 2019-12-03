@@ -21,6 +21,7 @@
         "symfony/http-foundation": "4.2.7",
         "symfony/orm-pack": "^1.0",
         "symfony/security-bundle": "4.2.*",
+        "symfony/security-http": "4.2.12",
         "symfony/serializer": "4.2.*",
         "symfony/stopwatch": "4.2.*",
         "symfony/swiftmailer-bundle": "^3.2",
