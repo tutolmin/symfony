@@ -40,10 +40,10 @@ class LoadGamesController extends AbstractController
 	// Order condition
 	$order_by = [
 	"Date"		=>	"date_str",
+	"Moves"		=>	"plycount",
 	""		=>	"date_str"
 	];
 /*
-	"Moves"		=>	"g.plycount",
 	"Status"	=>	"g.status",
 	"ScoreW"	=>	"g.W_cheat_score",
 	"ScoreB"	=>	"g.B_cheat_score",
@@ -339,14 +339,27 @@ MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
     CASE WHEN {end_day}<10	THEN '0'+{end_day}	ELSE toString({end_day}) END AS end_date_str  
   WHERE
       start_date_str <= date_str <= end_date_str
-RETURN DISTINCT id(game) AS gid, date_str 
+MATCH (game)-[:FINISHED_ON]->(:Line)-[:LENGTH]->(plycount:PlyCount)
+RETURN DISTINCT id(game) AS gid, date_str, plycount
 $order_condition 
 $skip_records
 LIMIT ".self::RECORDS_PER_PAGE;
 	else {
-	  $query = strlen( $descending)==0?
+
+	// Game ordering
+	switch( $sort_cond) {
+	  case "Moves":
+	    $query = strlen( $descending)==0?
+"MATCH (:PlyCount{counter:0})-[:LONGER*0..]->(plycount:PlyCount)<-[:LENGTH]-(:Line)<-[:FINISHED_ON]-(game:Game)":
+"MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-(plycount:PlyCount)<-[:LENGTH]-(:Line)<-[:FINISHED_ON]-(game:Game)";
+	    break;
+	  default:
+	    $query = strlen( $descending)==0?
 "MATCH (:Year{year:{start_year}})<-[:OF]-(:Month{month:{start_month}})<-[:OF]-(:Day{day:{start_day}})-[:NEXT*0..]->(:Day)<-[:PLAYED_DATE]-(game:Game) ":
 "MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-(:Day)<-[:PLAYED_DATE]-(game:Game) ";
+	    break;
+	}
+
 	  $query .= "
 MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White) 
 MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black) 

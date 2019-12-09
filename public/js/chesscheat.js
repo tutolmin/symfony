@@ -152,7 +152,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
         '#" onclick="setCookie(\'sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Moves&nbsp;'+
         '<a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'sort\',\'MovesDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
-        '<td><a href="' + window.location.pathname + 
+        '<!-- <td><a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'sort\',\'ScoreW\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Score&nbsp;W&nbsp;'+
         '<a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'sort\',\'ScoreWDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
@@ -168,7 +168,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
         '#" onclick="setCookie(\'sort\',\'DeltaB\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;B&nbsp;ELO&nbsp;&#x0394&nbsp;'+
         '<a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'sort\',\'DeltaBDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
-        '<td></td></tr>');
+        '--><td></td></tr>');
   $.each(data, function(key, val){
 
     var status_image="loaded";
@@ -203,13 +203,13 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
         '.png" title="' + status_descr + '"/></td><td>' + val["White"] + "</td><td>" + val["Black"] + '</td><td class="centered">' + 
         val["Result"] + "</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
         '<td class="centered">' + val["Moves"] + 
-        '</td><td class="centered">' + val["W_cheat_score"] + 
+        '</td><!--<td class="centered">' + val["W_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["W_cheat_score"]-val["White_ELO"]) + 
         '</td><td class="centered">' + val["B_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["B_cheat_score"]-val["Black_ELO"]) + 
-        '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
+        '</td>--><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
   });
-    items.push('<tr><td colspan="7">' +
+    items.push('<tr><td colspan="5">' +
 '<select style="float:left;" name="sideToAnalyzeGroup" id="sideToAnalyzeGroup">'+
 '<option value="">Both sides</option>'+
 '<option value="WhiteOnly">White Only</option>'+
