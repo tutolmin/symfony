@@ -15,7 +15,7 @@ URI_arr.shift();
 URI_arr.pop();
 //console.log( parser + " " + URI_arr.join("/"));
 
-var Game = new Object();
+//var Game = new Object();
 var Positions;
 var W_baselines, B_baselines;
 
@@ -59,10 +59,9 @@ $.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
   Positions = Game["Positions"];
   W_baselines = Game["W_baselines"];
   B_baselines = Game["B_baselines"];
-//  positionIndex=0;
-//  updateMovelist();
   init();
-
+//  positionIndex=0;
+  updateMovelist2();
 });
 document.getElementById("analysisTab").click();
 }
@@ -328,7 +327,7 @@ var boardEl = $('#board'),
     current_FEN = Positions[positionIndex+1][_T1_FEN][variationIndex-1];
     current_move= Positions[positionIndex+1][_T1_MOVE][variationIndex-1];
   }
-
+/*
   // Get move Long Algebraic Notation
   game.load( current_FEN);
   var move = game.move( current_move, {sloppy: true});
@@ -357,10 +356,12 @@ var boardEl = $('#board'),
     boardEl.find('.square-' + bmove.from).addClass('highlight-best');
     boardEl.find('.square-' + bmove.to).addClass('highlight-best');
   }
+*/
   }
 };
 
 //--- start example JS ---
+var currentGame = new Chess();
 var cfg = {
   showNotation: true,
   position: 'start',
@@ -371,9 +372,9 @@ var board = ChessBoard('board', cfg);
 const _MOVE     = 0;
 const _FEN      = 1;
 const _ZKEY     = 2;
-const _ECO      = 3;
-const _OPENING  = 4;
-const _VARIATION= 5;
+const _ECO      = 1;
+const _OPENING  = 2;
+const _VARIATION= 3;
 const _EVAL     = 6;
 const _MARK     = 7;
 const _SCORE    = 8;
@@ -386,10 +387,23 @@ const _T1_SCORE = 14;
 const _T1_DEPTH = 15;
 const _T1_TIME  = 16;
 
+// New game has been loaded for analysis
 var init = function() {
+
 positionIndex=0;
 variationIndex=0;
+currentGame.reset();
+board.position( currentGame.fen());
 
+// Replay the game and convert LAN to SAN
+for (index = 1; index < Positions.length; index++) {
+  var cmove = currentGame.move( Positions[index][_MOVE], {sloppy: true});
+  Positions[index][_MOVE] = cmove.san;
+//  console.log( Positions[index][_MOVE]);
+}
+currentGame.reset();
+
+/*
 // Reinitializing for the new game load
 cfg = {
   showNotation: true,
@@ -399,7 +413,8 @@ cfg = {
 board = ChessBoard('board', cfg);
 
 // Show initial movelist
-updateMovelist();
+updateMovelist2();
+*/
 
 // Show game header
 var WhiteELO = "";
@@ -515,37 +530,65 @@ $('#flipBoard').on('click', function() {
 $('#setStartBtn').on('click', function() {
   positionIndex=0;
   variationIndex=0;
-  board.position( neo4j_root_FEN);
-  updateMovelist();
+//  board.position( neo4j_root_FEN);
+//  updateMovelist2();
+
+  currentGame.reset();
+  board.position( currentGame.fen());
 });
 
 $('#setNextMove').on('click', function() {
 //console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+/*
   if( variationIndex > 0)
     board.position( Positions[positionIndex+1][_T1_FEN][++variationIndex]);
   else
     board.position( Positions[++positionIndex][_FEN]);
-  updateMovelist();
+  updateMovelist2();
+*/
+  currentGame.move( Positions[++positionIndex][_MOVE]);
+  board.position( currentGame.fen());
 });
 
 $('#setPrevMove').on('click', function() {
 //console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+/*
   if( variationIndex > 0)
     board.position( Positions[positionIndex+1][_T1_FEN][--variationIndex]);
   else
     board.position( Positions[--positionIndex][_FEN]);
-  updateMovelist();
+  updateMovelist2();
+*/
+  --positionIndex;
+  currentGame.undo();
+  board.position( currentGame.fen());
 });
 
-function setMove( index, vindex) {
-  positionIndex=index;
-  variationIndex=vindex;
+function setMove( pIndex, vIndex) {
+
+  positionIndex = pIndex;
+  variationIndex = vIndex;
+
+  // Start from the beginning
+  currentGame.reset();
+
+  // Replay the game up to current move
+  for (index = 1; index <= positionIndex; index++)
+    currentGame.move( Positions[index][_MOVE]);
+
+  board.position( currentGame.fen());
+
+console.log( positionIndex + " " + variationIndex);
+  
 //console.log( "Pos: " + index + " Var: " + vindex + " FEN: " + Positions[positionIndex+1][_T1_FEN][variationIndex]);
+/*
   if( variationIndex > 0)
     board.position( Positions[positionIndex+1][_T1_FEN][variationIndex]);
   else
     board.position( Positions[++positionIndex][_FEN]);
-  updateMovelist();
+  updateMovelist2();
+*/
+
 }
 
 // Update Position details area
@@ -604,6 +647,46 @@ var updatePosition = function() {
   positionStr += "</span>" + " (depth: " + p_depth + 
         "ply, time: " + p_time + "ms)";
   document.getElementById('position').innerHTML = positionStr;
+}
+
+// Update movelist (new model) on button click
+var updateMovelist2 = function() {
+  moveList="";
+  if( Game['analyze'] != "") moveList = "<h3>Side analysis condition: " + Game['analyze'] + "</h3>";
+  moveList += "<table cellspacing=0 cellpadding=0 border=0 class='mlTable'>";
+  moveList += "<tr><th>#</th><th colspan=4>White moves</th><th>Eval</th><th colspan=4>Black moves</th></tr>";
+
+  for (index = 0; index < Positions.length-1; index++) {
+
+        // Add move number
+        if( index%2 == 0) {
+                moveList += "<tr class='mlRow" + index%4 + "'><td>" + (~~(index/2)+1) + ".</td>";
+        }
+
+//  console.log( Positions[index+1][_MOVE]);
+
+        // Current move
+        if( index === positionIndex-1 && variationIndex == 0) {
+                moveList += "<td><b><span class='mark_" + Positions[index+1][_MARK] + "'>" + Positions[index+1][_MOVE] + "</span></b></td><td><b>" + 
+                Positions[index+1][_EVAL] + "</b></td><td><b><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">" 
+                + Positions[index+1][_ECO] + "</abbr></b></td>";
+        // Any other regular move
+        } else {
+                moveList += "<td><a href=" + window.location.pathname + "#" + (index+1) + " onclick='return setMove( " + (index+1) + ", 0);'>"
+                + "<span class='mark_" + Positions[index+1][_MARK] + "'>" + Positions[index+1][_MOVE] + "</span></a></td><td>" + 
+                Positions[index+1][_EVAL] + "</td><td><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">"
+                + Positions[index+1][_ECO] + "</abbr></td>";
+        }
+
+        if( index%2 != 0) { 
+		moveList += "</tr>"; 
+	}
+  }
+
+  document.getElementById('movelist').innerHTML = moveList;
+
+  // Show position details
+  updatePosition();
 }
 
 // Update movelist on button click

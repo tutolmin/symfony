@@ -11,6 +11,8 @@ use Symfony\Component\Stopwatch\Stopwatch;
 
 class GameDetailsController extends AbstractController
 {
+    const _DEBUG = FALSE;
+
     // Initial position properties
     const ROOT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     const ROOT_ZOBRIST = "463b96181691fc9c";
@@ -63,7 +65,15 @@ class GameDetailsController extends AbstractController
 	  // Get baselines
 	  $this->getBaselines();
 
-	  // Lap, Baselines fetched
+	  // Lap, baselines fetched
+	  $this->stopwatch->lap('getGameDetails');
+
+	  // Get movelist
+	  $this->getMoveList( $request->query->getInt('gid', 0));
+if( self::_DEBUG) {
+print_r( $this->moves);
+}
+	  // Lap, Movelist fetched
 	  $this->stopwatch->lap('getGameDetails');
 
 	  // Get Position nodes data
@@ -82,11 +92,27 @@ class GameDetailsController extends AbstractController
     private function getRootId()
     {
 	$params["ZOBRIST"] = self::ROOT_ZOBRIST;
-	$query = 'MATCH (a:Position { zobrist: $ZOBRIST }) RETURN id(a) AS id LIMIT 1';
+	$query = 'MATCH (l:Line)-[:COMES_TO]->(:Position {zobrist: {ZOBRIST}}) RETURN id(l) AS id LIMIT 1';
         $result = $this->neo4j_client->run($query, $params);
 
 	foreach ($result->records() as $record) {
   	  $this->neo4j_node_id = $record->value('id');
+	}
+    }
+
+    // Get move list
+    private function getMoveList( $gid)
+    {
+	// Fetch game move list 
+	$params = ["gid" => $gid];
+	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
+MATCH (game)-[:FINISHED_ON]->(:Line)-[:ROOT*0..]->(l:Line)-[:LEAF]->(ply:Ply)
+RETURN REVERSE( COLLECT( ply.san)) as movelist, LAST( COLLECT( id(l))) as id LIMIT 1";
+	$result = $this->neo4j_client->run( $query, $params);
+
+	foreach ($result->records() as $record) {
+  	  $this->moves = $record->value('movelist');
+//  	  $this->neo4j_node_id = $record->value('id');
 	}
     }
 
@@ -97,26 +123,36 @@ class GameDetailsController extends AbstractController
 
 	// Fetch game details 
 	$params = ["gid" => $gid];
-	$query = 'MATCH (plb:Player)-[b:Black]->(g:Game)<-[w:White]-(plw:Player)
-		 WHERE id(g) = $gid MATCH (g)<--(e:Event)
-		 RETURN e.name, plb.name, plw.name, b.ELO, w.ELO, g LIMIT 1';
+	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
+MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
+WITH game, CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str 
+ MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
+  MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
+  MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
+  MATCH (game)-[:PLAYED_IN]->(round:Round)-[:PART_OF]->(event:Event)-[:TOOK_PLACE_AT]->(site:Site)
+ RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game LIMIT 1";
 	$result = $this->neo4j_client->run( $query, $params);
 
 	foreach ($result->records() as $record) {
 
 // Fetch game object
-$gameObj = $record->get('g');
+$gameObj = $record->get('game');
 $this->game['ID'] = $gameObj->identity();
-$this->game['White']  = $record->value('plw.name');
-$this->game['W_ELO']  = $record->value('w.ELO');
-$this->game['Black']  = $record->value('plb.name');
-$this->game['B_ELO']  = $record->value('b.ELO');
-$this->game['Event']  = $record->value('e.name');
-$this->game['Result'] = $gameObj->value('result');
-$this->game['Date']   = $gameObj->value('date');
+$this->game['White']  = $record->value('player_w.name');
+$this->game['W_ELO']  = $record->value('elo_w.rating');
+$this->game['Black']  = $record->value('player_b.name');
+$this->game['B_ELO']  = $record->value('elo_b.rating');
+$this->game['Event']  = $record->value('event.name');
+$this->game['Date']   = $record->value('date_str');
 
-// Get the list of moves
-$this->moves = explode(" ", $gameObj->value('movelist'));
+        $labelsObj = $record->get('result_w');
+        $labelsArray = $labelsObj->labels();
+        if( in_array( "Draw", $labelsArray))
+          $this->game['Result'] = "1/2-1/2";
+        else if( in_array( "Win", $labelsArray))
+          $this->game['Result'] = "1-0";
+        else
+          $this->game['Result'] = "0-1";
 
 // Optional game properties
 $this->game['eResult']="";
@@ -347,12 +383,13 @@ $T1_times  = array();
 // Lets go through all the moves in the movelist
 foreach( $this->moves as $key => $move) {
 
-// how to select longest best (mark=Best, eval=T1) variation path? No we only select arbitrary move chain [:Ply*0..5]
+// how to select longest best (mark=Best, eval=T1) variation path? Now we only select arbitrary move chain [:Ply*0..5]
 // how to skip variation path selection for move matching T1? We will not show it anyway
 // WHERE id(a)=%s OPTIONAL MATCH path=(a)-[:Ply*1..6{eval:\"T1\"}]->(c:Position) WITH *, length(path) as L 
 // CASE WHEN NOT exists(p.ECO) AND p.score<>t.score AND (NOT exists(p.eval) OR (exists(p.eval) AND NOT p.eval="T1")) THEN path ELSE 
 // CASE WHEN NOT exists(p.ECO) AND (p.mark="Sound") THEN path_T2 ELSE null END END AS path
  $params = ["move" => $move, "node_id" => intval( $this->neo4j_node_id)];
+/*
         $query = 'MATCH (a:Position)-[p:Ply{move: $move}]->(b:Position) WHERE id(a) = $node_id 
  OPTIONAL MATCH path=(a)-[t:Ply{eval:"T1"}]->(:Position)-[:Ply*0..5]->(:Position) WITH *, length(path) as L 
  OPTIONAL MATCH path_T2=(a)-[r:Ply{eval:"T2"}]->(:Position)
@@ -365,9 +402,31 @@ foreach( $this->moves as $key => $move) {
   END ELSE null 
  END AS path
  ORDER BY L DESC LIMIT 1';
+*/
+/*
+	$query = 'MATCH (:Ply{san: {move}})<-[:LEAF]-(l1:Line)-[:ROOT]->(l2:Line) 
+WHERE id(l1) = {node_id}
+OPTIONAL MATCH (l1)-[:COMES_TO]->(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode)
+RETURN id(l2) as id, o.opening, o.variation, e.code';
+*/
+	$query = 'MATCH (l1:Line)<-[:ROOT]-(l2:Line)-[:LEAF]->(:Ply{san: {move}}) 
+WHERE id(l1) = {node_id}
+OPTIONAL MATCH (l2)-[:COMES_TO]->(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode)
+RETURN id(l2) as id, o.opening, o.variation, e.code';
 $result = $this->neo4j_client->run( $query, $params);
 
 	foreach ($result->records() as $record) {
+ $this->neo4j_node_id  = $record->value('id');
+ $ECOs[$key] = $record->value('e.code');
+ $openings[$key] = $record->value('o.opening');
+ $variations[$key] = $record->value('o.variation');
+ $scores[$key] = "";
+ $depths[$key] = "";
+ $times[$key] = "";
+ $evals[$key] = "";
+ $marks[$key] = "";
+
+/*
         // All we need is the two nodes and T1 path
  $positionObj           = $record->get('a');
  $relationObj           = $record->get('p');
@@ -461,6 +520,7 @@ $result = $this->neo4j_client->run( $query, $params);
  }
 
  $this->neo4j_node_id  = $endPositionObj->identity();
+*/
 	}
 }
 
@@ -469,8 +529,6 @@ array_push( $positions, array( "", self::ROOT_FEN, self::ROOT_ZOBRIST, "", "", "
 foreach( $this->moves as $key => $move) {
         $position = array();
         $position[] = $move;
-        $position[] = $FENs[$key];
-        $position[] = $zkeys[$key];
         $position[] = $ECOs[$key];
         $position[] = $openings[$key];
         $position[] = $variations[$key];
@@ -480,13 +538,17 @@ foreach( $this->moves as $key => $move) {
         $position[] = $depths[$key];
         $position[] = $times[$key];
 
+/*
+        $position[] = $FENs[$key];
+        $position[] = $zkeys[$key];
+
         $position[] = $T1_moves[$key];
         $position[] = $T1_FENs[$key];
         $position[] = $T1_zkeys[$key];
         $position[] = $T1_scores[$key];
         $position[] = $T1_depths[$key];
         $position[] = $T1_times[$key];
-
+*/
         $positions[] = $position;
 }
 $this->game["Positions"] = $positions;
