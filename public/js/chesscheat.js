@@ -126,6 +126,12 @@ tags_arr.forEach(function(item, i, arr) {
     if( found_result) tags_str += found_result[4].toLowerCase() + ":" + found_result[1] + ";";
 //    console.log( found_result);
 
+    // Simply numeric (game ID in the DB)
+    var re = /(\d+)$/i;
+    var found_result = item.match(re);
+    if( found_result) tags_str += "id:" + found_result[1] + ";";
+//    console.log( found_result);
+
     // Just a player
     if( !found_color && !found_result) {
       tags_str += "player:" + item + ";";

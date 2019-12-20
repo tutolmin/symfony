@@ -70,7 +70,8 @@ class LoadGamesController extends AbstractController
 	$tags=explode(';', json_decode( $query_tags));
 
         // Order condition
-        $known_tags = [ "player", 
+        $known_tags = [ "id", 
+			"player", 
 			"result", 
 			"white", "black", 
 			"wins", "loses", "draws", 
@@ -118,6 +119,11 @@ echo "<br/>\n";
 }
 		// Parse the parameter
 		switch( $tag_name) {
+
+		  case "id":
+		    $params["id"] = intval( filter_var($tag_name_value[1], FILTER_SANITIZE_NUMBER_INT));
+//		    if( $params["end_month"] > 12 || $params["end_month"] < 1) $params["end_month"] = 0;
+		    break;
 
 		  case "player":
 
@@ -308,8 +314,15 @@ echo "<br/>\n";
 	if( array_key_exists( "first", $players)) $first_param  = "{name:{first}}";
 	if( array_key_exists( "second", $players)) $second_param = "{name:{second}}";
 
-	// We have different types of query if player name has been specified
-	if( array_key_exists( "first", $params) || array_key_exists( "second", $params))
+	// Game ID has been specified, simple query
+	if( array_key_exists( "id", $params)) {
+
+	  $query = "MATCH (game:Game) WHERE id(game) = {id}
+RETURN DISTINCT id(game) AS gid LIMIT 1";
+
+	} else if( array_key_exists( "first", $params) || array_key_exists( "second", $params))
+
+	  // We have different types of query if player name has been specified
 	  $query = "MATCH (game:Game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(first_side:Side)<-[:PLAYED_AS]-(first_player:Player$first_param) 
 MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(second_side:Side)<-[:PLAYED_AS]-(second_player:Player$second_param) 
   WITH game,second_player,first_player,second_result,first_result,second_side,first_side
