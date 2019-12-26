@@ -412,8 +412,17 @@ RETURN id(l2) as id, o.opening, o.variation, e.code';
 	$query = 'MATCH (l1:Line)<-[:ROOT]-(l2:Line)-[:LEAF]->(:Ply{san: {move}}) 
 WHERE id(l1) = {node_id}
 OPTIONAL MATCH (l2)-[:COMES_TO]->(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode)
-RETURN id(l2) as id, o.opening, o.variation, e.code';
+OPTIONAL MATCH (l2:Line)-[:HAS_GOT]->(v:Evaluation)-[:RECEIVED]->(s:Score)
+OPTIONAL MATCH (sd:SelDepth)<-[:REACHED]-(v)-[:REACHED]->(d:Depth)
+OPTIONAL MATCH (msec:MilliSecond)<-[:TOOK]-(v)-[:TOOK]->(second:Second)-[:OF]->(m:Minute)-[:OF]->(h:Hour)
+RETURN id(l2) as id, o.opening, o.variation, e.code, s, d.level, sd.level, m.minute + ":" + second.second + "." + msec.ms as time
+ORDER BY d.level DESC LIMIT 1';
 $result = $this->neo4j_client->run( $query, $params);
+
+if( self::_DEBUG) {
+	echo $query;
+	print_r( $params);
+}
 
 	foreach ($result->records() as $record) {
  $this->neo4j_node_id  = $record->value('id');
@@ -421,8 +430,8 @@ $result = $this->neo4j_client->run( $query, $params);
  $openings[$key] = $record->value('o.opening');
  $variations[$key] = $record->value('o.variation');
  $scores[$key] = "";
- $depths[$key] = "";
- $times[$key] = "";
+ $depths[$key] = $record->value('d.level');
+ $times[$key] = $record->value('time');
  $evals[$key] = "";
  $marks[$key] = "";
 

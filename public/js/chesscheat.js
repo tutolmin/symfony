@@ -132,6 +132,12 @@ tags_arr.forEach(function(item, i, arr) {
     if( found_result) tags_str += "id:" + found_result[1] + ";";
 //    console.log( found_result);
 
+    // Game ending type
+    var re = /(stale)?mate$/i;
+    var found_result = item.match(re);
+    if( found_result) tags_str += "ending:" + found_result[0] + ";";
+    console.log( found_result);
+
     // Just a player
     if( !found_color && !found_result) {
       tags_str += "player:" + item + ";";

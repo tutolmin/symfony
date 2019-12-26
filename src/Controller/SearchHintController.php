@@ -34,7 +34,8 @@ class SearchHintController extends AbstractController
 //        if( $term = $request->query->getAlpha('term', 0)) {
         if( $term = urldecode( $request->query->get('term'))) {
 
-	  if( $term == "1-0" || $term == "1/2-1/2" || $term == "0-1")
+	  if( $term == "1-0" || $term == "1/2-1/2" || $term == "0-1"
+		|| $term == "mate" || $term == "stalemate")
 	    $hints[] = $term;
 	  else {
 

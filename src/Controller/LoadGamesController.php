@@ -72,7 +72,7 @@ class LoadGamesController extends AbstractController
         // Order condition
         $known_tags = [ "id", 
 			"player", 
-			"result", 
+			"result", "ending",
 			"white", "black", 
 			"wins", "loses", "draws", 
 		"start_year", "start_month", "start_day", "end_year", "end_month", "end_day" ];
@@ -96,6 +96,9 @@ class LoadGamesController extends AbstractController
 
 	// Results array
 	$results = [];
+
+	// Game Ending type lable
+	$ending_label = "";
 
 	// Parse each tag
 	foreach( $tags as $tag)
@@ -212,6 +215,11 @@ echo "<br/>\n";
 		  case "end_day":
 		    $params["end_day"] = intval( filter_var($tag_name_value[1], FILTER_SANITIZE_NUMBER_INT));
 		    if( $params["end_day"] > 31 || $params["end_day"] < 1) $params["end_day"] = 0;
+		    break;
+		
+		  case "ending":
+		    if( $tag_value == "mate") $ending_label=":Mate";
+		    if( $tag_value == "stalemate") $ending_label=":StaleMate";
 		    break;
 
 		  case "result":
@@ -352,7 +360,7 @@ MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
     CASE WHEN {end_day}<10	THEN '0'+{end_day}	ELSE toString({end_day}) END AS end_date_str  
   WHERE
       start_date_str <= date_str <= end_date_str
-MATCH (game)-[:FINISHED_ON]->(:Line)-[:LENGTH]->(plycount:PlyCount)
+MATCH (game)-[:FINISHED_ON]->(:Line$ending_label)-[:LENGTH]->(plycount:PlyCount)
 RETURN DISTINCT id(game) AS gid, date_str, plycount
 $order_condition 
 $skip_records
@@ -363,13 +371,14 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	switch( $sort_cond) {
 	  case "Moves":
 	    $query = strlen( $descending)==0?
-"MATCH (:PlyCount{counter:0})-[:LONGER*0..]->(plycount:PlyCount)<-[:LENGTH]-(:Line)<-[:FINISHED_ON]-(game:Game)":
-"MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-(plycount:PlyCount)<-[:LENGTH]-(:Line)<-[:FINISHED_ON]-(game:Game)";
+"MATCH (:PlyCount{counter:0})-[:LONGER*0..]->(plycount:PlyCount)<-[:LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game)":
+"MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-(plycount:PlyCount)<-[:LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game)";
 	    break;
 	  default:
 	    $query = strlen( $descending)==0?
 "MATCH (:Year{year:{start_year}})<-[:OF]-(:Month{month:{start_month}})<-[:OF]-(:Day{day:{start_day}})-[:NEXT*0..]->(:Day)<-[:PLAYED_DATE]-(game:Game) ":
 "MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-(:Day)<-[:PLAYED_DATE]-(game:Game) ";
+	    if( strlen( $ending_label)) $query .= "-[:FINISHED_ON]->(:Line$ending_label)";
 	    break;
 	}
 
