@@ -365,24 +365,52 @@ RETURN DISTINCT id(game) AS gid, date_str, plycount
 $order_condition 
 $skip_records
 LIMIT ".self::RECORDS_PER_PAGE;
+
+	else if( strlen( $ending_label))
+
+	  // Final position type
+	  $query = "MATCH (game:Game)-[:FINISHED_ON]->($ending_label)-[:LENGTH]->(plycount:PlyCount)";
+
+	  $query .= " WITH game, plycount
+MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
+	WITH game, plycount,
+    CASE WHEN year.year=0       THEN '0000'             ELSE toString(year.year) END +
+    CASE WHEN month.month<10    THEN '0'+month.month    ELSE toString(month.month) END +
+    CASE WHEN day.day<10        THEN '0'+day.day        ELSE toString(day.day) END AS date_str, 
+    CASE WHEN {start_year}=0    THEN '0000'             ELSE toString({start_year}) END +
+    CASE WHEN {start_month}<10  THEN '0'+{start_month}  ELSE toString({start_month}) END +
+    CASE WHEN {start_day}<10    THEN '0'+{start_day}    ELSE toString({start_day}) END AS start_date_str, 
+    CASE WHEN {end_year}=0      THEN '0000'             ELSE toString({end_year}) END +
+    CASE WHEN {end_month}<10    THEN '0'+{end_month}    ELSE toString({end_month}) END +
+    CASE WHEN {end_day}<10      THEN '0'+{end_day}      ELSE toString({end_day}) END AS end_date_str  
+  WHERE
+      start_date_str <= date_str <= end_date_str
+MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White) 
+MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black) 
+  WHERE [x IN labels(first_result) WHERE x IN {first_results}] 
+RETURN DISTINCT id(game) AS gid, date_str, plycount
+$order_condition 
+$skip_records
+LIMIT ".self::RECORDS_PER_PAGE;
+	
 	else {
 
 	// Game ordering
 	switch( $sort_cond) {
 	  case "Moves":
 	    $query = strlen( $descending)==0?
-"MATCH (:PlyCount{counter:0})-[:LONGER*0..]->(plycount:PlyCount)<-[:LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game)":
-"MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-(plycount:PlyCount)<-[:LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game)";
+"MATCH (:PlyCount{counter:0})-[:LONGER*0..]->(plycount:PlyCount)<-[:LENGTH]-(:Line)<-[:FINISHED_ON]-(game:Game)":
+"MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-(plycount:PlyCount)<-[:LENGTH]-(:Line)<-[:FINISHED_ON]-(game:Game)";
 	    break;
 	  default:
 	    $query = strlen( $descending)==0?
-"MATCH (:Year{year:{start_year}})<-[:OF]-(:Month{month:{start_month}})<-[:OF]-(:Day{day:{start_day}})-[:NEXT*0..]->(:Day)<-[:PLAYED_DATE]-(game:Game) ":
-"MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-(:Day)<-[:PLAYED_DATE]-(game:Game) ";
-	    if( strlen( $ending_label)) $query .= "-[:FINISHED_ON]->(:Line$ending_label)";
+"MATCH (:Year{year:{start_year}})<-[:OF]-(:Month{month:{start_month}})<-[:OF]-(:Day{day:{start_day}})-[:NEXT*0..]->(:Day)<-[:PLAYED_DATE]-(game:Game)":
+"MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-(:Day)<-[:PLAYED_DATE]-(game:Game)";
+//	    if( strlen( $ending_label)) $query .= "-[:FINISHED_ON]->(:Line$ending_label)";
 	    break;
 	}
 
-	  $query .= "
+	  $query .= " WITH game
 MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White) 
 MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black) 
   WHERE [x IN labels(first_result) WHERE x IN {first_results}] 
