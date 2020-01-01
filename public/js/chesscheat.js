@@ -128,18 +128,24 @@ tags_arr.forEach(function(item, i, arr) {
 
     // Simply numeric (game ID in the DB)
     var re = /(\d+)$/i;
-    var found_result = item.match(re);
-    if( found_result) tags_str += "id:" + found_result[1] + ";";
+    var found_id = item.match(re);
+    if( found_id) tags_str += "id:" + found_id[1] + ";";
 //    console.log( found_result);
 
     // Game ending type
     var re = /(stale)?mate$/i;
-    var found_result = item.match(re);
-    if( found_result) tags_str += "ending:" + found_result[0] + ";";
-    console.log( found_result);
+    var found_final = item.match(re);
+    if( found_final) tags_str += "ending:" + found_final[0] + ";";
+//    console.log( found_result);
+
+    // Game status label
+    var re = /(complete|processing|pending)$/i;
+    var found_status = item.match(re);
+    if( found_status) tags_str += "status:" + found_status[0] + ";";
+//    console.log( found_result);
 
     // Just a player
-    if( !found_color && !found_result) {
+    if( !found_color && !found_result && !found_id && !found_status && !found_final) {
       tags_str += "player:" + item + ";";
     }
   }
@@ -328,7 +334,7 @@ var boardEl = $('#board'),
   } else {
 
   // Get current/best move LALG and FEN
-  current_FEN   = Positions[positionIndex-1][_FEN];
+//  current_FEN   = Positions[positionIndex-1][_FEN];
   current_move  = Positions[positionIndex][_MOVE];
   best_move     = null;
   if( Positions[positionIndex][_T1_MOVE] && variationIndex == 0)
@@ -336,7 +342,7 @@ var boardEl = $('#board'),
 
   // Variation move/FEN
   if( variationIndex > 0) {
-    current_FEN = Positions[positionIndex+1][_T1_FEN][variationIndex-1];
+//    current_FEN = Positions[positionIndex+1][_T1_FEN][variationIndex-1];
     current_move= Positions[positionIndex+1][_T1_MOVE][variationIndex-1];
   }
 /*
@@ -382,22 +388,22 @@ var cfg = {
 var board = ChessBoard('board', cfg);
 
 const _MOVE     = 0;
-const _FEN      = 1;
-const _ZKEY     = 2;
+//const _FEN      = 1;
+//const _ZKEY     = 2;
 const _ECO      = 1;
 const _OPENING  = 2;
 const _VARIATION= 3;
-const _EVAL     = 6;
-const _MARK     = 7;
-const _SCORE    = 8;
-const _DEPTH    = 9;
-const _TIME     = 10;
-const _T1_MOVE  = 11;
-const _T1_FEN   = 12;
-const _T1_ZKEY  = 13;
-const _T1_SCORE = 14;
-const _T1_DEPTH = 15;
-const _T1_TIME  = 16;
+//const _EVAL     = 6;
+const _MARK     = 5;		// Forced / Sound / Best
+const _SCORE    = 6;
+const _DEPTH    = 7;
+const _TIME     = 8;
+const _T1_MOVE  = 9;
+//const _T1_FEN   = 12;
+//const _T1_ZKEY  = 13;
+const _T1_SCORE = 10;
+const _T1_DEPTH = 11;
+const _T1_TIME  = 12;
 
 // New game has been loaded for analysis
 var init = function() {
@@ -409,10 +415,23 @@ board.position( currentGame.fen());
 
 // Replay the game and convert LAN to SAN
 for (index = 1; index < Positions.length; index++) {
+
+  // Chess game for variation replay
+  var moveVar = new Chess( currentGame.fen());
+
   var cmove = currentGame.move( Positions[index][_MOVE], {sloppy: true});
   Positions[index][_MOVE] = cmove.san;
 //  console.log( Positions[index][_MOVE]);
+
+  // Go through the variation array
+  for (vindex = 0; vindex < Positions[index][_T1_MOVE].length; vindex++) {
+
+    cmove = moveVar.move( Positions[index][_T1_MOVE][vindex], {sloppy: true});
+    Positions[index][_T1_MOVE][vindex] = cmove.san;
+//    console.log( Positions[index][_T1_MOVE][vindex]);
+  }
 }
+
 currentGame.reset();
 
 /*
@@ -542,38 +561,41 @@ $('#flipBoard').on('click', function() {
 $('#setStartBtn').on('click', function() {
   positionIndex=0;
   variationIndex=0;
-//  board.position( neo4j_root_FEN);
-//  updateMovelist2();
 
   currentGame.reset();
   board.position( currentGame.fen());
+
+  updateMovelist2();
 });
 
 $('#setNextMove').on('click', function() {
-//console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
-/*
+
+  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+
   if( variationIndex > 0)
-    board.position( Positions[positionIndex+1][_T1_FEN][++variationIndex]);
+    currentGame.move( Positions[positionIndex][_T1_MOVE][variationIndex++]);
   else
-    board.position( Positions[++positionIndex][_FEN]);
-  updateMovelist2();
-*/
-  currentGame.move( Positions[++positionIndex][_MOVE]);
+    currentGame.move( Positions[++positionIndex][_MOVE]);
+
   board.position( currentGame.fen());
+
+  updateMovelist2();
 });
 
 $('#setPrevMove').on('click', function() {
-//console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
-/*
+
+//  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+
+  // Update respective index
   if( variationIndex > 0)
-    board.position( Positions[positionIndex+1][_T1_FEN][--variationIndex]);
+    variationIndex--;
   else
-    board.position( Positions[--positionIndex][_FEN]);
-  updateMovelist2();
-*/
-  --positionIndex;
+    positionIndex--;
+
   currentGame.undo();
   board.position( currentGame.fen());
+
+  updateMovelist2();
 });
 
 function setMove( pIndex, vIndex) {
@@ -581,16 +603,27 @@ function setMove( pIndex, vIndex) {
   positionIndex = pIndex;
   variationIndex = vIndex;
 
+//  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+
   // Start from the beginning
   currentGame.reset();
 
   // Replay the game up to current move
-  for (index = 1; index <= positionIndex; index++)
-    currentGame.move( Positions[index][_MOVE]);
+  for (index = 0; index < positionIndex; index++)
+    currentGame.move( Positions[index+1][_MOVE]);
+
+  // Replay variation
+  if( variationIndex > 0) {
+    currentGame.undo();
+    for (index = 0; index < variationIndex; index++)
+      currentGame.move( Positions[pIndex][_T1_MOVE][index]);
+  }
+
+//  console.log( currentGame.fen());
 
   board.position( currentGame.fen());
 
-console.log( positionIndex + " " + variationIndex);
+  updateMovelist2();
   
 //console.log( "Pos: " + index + " Var: " + vindex + " FEN: " + Positions[positionIndex+1][_T1_FEN][variationIndex]);
 /*
@@ -598,27 +631,24 @@ console.log( positionIndex + " " + variationIndex);
     board.position( Positions[positionIndex+1][_T1_FEN][variationIndex]);
   else
     board.position( Positions[++positionIndex][_FEN]);
-  updateMovelist2();
 */
-
+//  updateMovelist2();
 }
 
 // Update Position details area
 var updatePosition = function() {
 
   // FEN to display
-  var FEN       = Positions[positionIndex][_FEN];
-  var zkey      = Positions[positionIndex][_ZKEY];
+  var FEN       = currentGame.fen();
   var p_eval    = Positions[positionIndex][_SCORE];
   var p_depth   = Positions[positionIndex][_DEPTH];
   var p_time    = Positions[positionIndex][_TIME];
 
   if( variationIndex > 0) { 
-        FEN     = Positions[positionIndex+1][_T1_FEN][variationIndex];
-        zkey    = Positions[positionIndex+1][_T1_ZKEY][variationIndex];
-        p_eval  = Positions[positionIndex+1][_T1_SCORE][variationIndex-1];
-        p_depth = Positions[positionIndex+1][_T1_DEPTH][variationIndex-1];
-        p_time  = Positions[positionIndex+1][_T1_TIME][variationIndex-1];
+        FEN     = currentGame.fen();
+        p_eval  = Positions[positionIndex][_T1_SCORE];
+        p_depth = Positions[positionIndex][_T1_DEPTH];
+        p_time  = Positions[positionIndex][_T1_TIME];
   }
 
   // Mate in X moves handling
@@ -629,11 +659,19 @@ var updatePosition = function() {
     p_eval = y;
   }
 
+  // CentiPawn 500+ handling
+  var pawnLine = 0;
+  if( p_eval.charAt(0)=="P") {
+    pawnLine = 1;
+    var y = p_eval.replace(/^P/, '');
+    p_eval = y;
+  }
+
   // Evaluation color (+White/-Black)
   var evalColor = "<span>";
 
   posInd = positionIndex;
-  if( variationIndex > 0) posInd = positionIndex + variationIndex;
+//  if( variationIndex > 0) posInd = positionIndex + variationIndex;
 
 //  console.log( positionIndex + " " + variationIndex + " " + p_eval + " " + p_eval.indexOf("-"));
 
@@ -649,11 +687,14 @@ var updatePosition = function() {
   }
 
   // FEN string
-  var positionStr = "<p><span class='FEN'>FEN: " + FEN + "<br/>Key: " + zkey + "</span></p>" + "Move evaluation: " + evalColor;
+  var positionStr = "<p><span class='FEN'>" + FEN + "</span></p>" + "Move evaluation: " + evalColor;
 
   // Eval string
-  if( mateLine) positionStr += "Mate in " + Math.abs( p_eval);
-  else if( p_eval !== "") positionStr += (p_eval/100).toFixed(2); else;
+  if( currentGame.in_checkmate()) positionStr += "Mate!";
+  else if( currentGame.in_stalemate()) positionStr += "Stalemate!";
+  else if( mateLine) positionStr += "Mate in " + Math.abs( p_eval);
+  else if ( pawnLine) positionStr += p_eval + "+";
+  else if( p_eval !== "") positionStr += (p_eval/100).toFixed(2);
 
   // Depth string
   positionStr += "</span>" + " (depth: " + p_depth + 
@@ -674,21 +715,48 @@ var updateMovelist2 = function() {
         if( index%2 == 0) {
                 moveList += "<tr class='mlRow" + index%4 + "'><td>" + (~~(index/2)+1) + ".</td>";
         }
-
-//  console.log( Positions[index+1][_MOVE]);
-
+/*
+  console.log( Positions[index+1][_MOVE]);
+  console.log( Positions[index+1][_T1_MOVE]);
+console.log( index);
+console.log( positionIndex);
+console.log( variationIndex);
+*/
         // Current move
-        if( index === positionIndex-1 && variationIndex == 0) {
+        if( index+1 === positionIndex && variationIndex == 0) {
                 moveList += "<td><b><span class='mark_" + Positions[index+1][_MARK] + "'>" + Positions[index+1][_MOVE] + "</span></b></td><td><b>" + 
-                Positions[index+1][_EVAL] + "</b></td><td><b><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">" 
-                + Positions[index+1][_ECO] + "</abbr></b></td>";
+                Positions[index+1][_SCORE] + "</b></td><td><b><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">" 
+                + (Positions[index+1][_ECO]?Positions[index+1][_ECO]:"") + "</abbr></b></td>";
+//		console.log( "Current move");
         // Any other regular move
         } else {
                 moveList += "<td><a href=" + window.location.pathname + "#" + (index+1) + " onclick='return setMove( " + (index+1) + ", 0);'>"
                 + "<span class='mark_" + Positions[index+1][_MARK] + "'>" + Positions[index+1][_MOVE] + "</span></a></td><td>" + 
-                Positions[index+1][_EVAL] + "</td><td><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">"
-                + Positions[index+1][_ECO] + "</abbr></td>";
+                Positions[index+1][_SCORE] + "</td><td><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">"
+                + (Positions[index+1][_ECO]?Positions[index+1][_ECO]:"") + "</abbr></td>";
         }
+        moveList += "<td><table cellspacing=0 cellpadding=0 border=0 style='font-size: 75%;'><tr>";
+        // Add T1, if present
+        if( Positions[index+1][_T1_MOVE] && Positions[index+1][_T1_MOVE].length) {
+        for (j = 0; j < Positions[index+1][_T1_MOVE].length; j++) {
+/*
+console.log( "Index: " + index);
+console.log( "Pos: " + positionIndex);
+console.log( "Var: " + variationIndex);
+console.log( "j: " + j);
+*/
+                if( index+1 === positionIndex && j+1 == variationIndex) {
+                  moveList += "<td><b>" + Positions[index+1][_T1_MOVE][j] + "</b></td>";
+//		  console.log( "Current variation move");
+                } else
+                moveList += "<td><a href=" + window.location.pathname + "#" + (index+1) + 
+                        " onclick='return setMove( " + (index+1) + ", " + (j+1) + ");'>" + Positions[index+1][_T1_MOVE][j] + "</a></td>";
+                if(j%2==1) moveList += "</tr><tr>";
+        }
+        if( Positions[index+1][_T1_MOVE].length%2==0) moveList += "<td></td>";
+        } else 
+                moveList += "<td></td>";
+        moveList += "</tr></table></td>";
 
         if( index%2 != 0) { 
 		moveList += "</tr>"; 
@@ -759,13 +827,13 @@ var updateMovelist = function() {
         // Current move
         if( index === positionIndex-1 && variationIndex == 0) {
                 moveList += "<td><b><span class='mark_" + Positions[index+1][_MARK] + "'>" + Positions[index+1][_MOVE] + "</span></b></td><td><b>" + 
-                Positions[index+1][_EVAL] + "</b></td><td><b><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">" 
+                Positions[index+1][_SCORE] + "</b></td><td><b><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">" 
                 + Positions[index+1][_ECO] + "</abbr></b></td>";
         // Any other regular move
         } else {
                 moveList += "<td><a href=" + window.location.pathname + "#" + index + " onclick='return setMove( " + index + ", 0);'>"
                 + "<span class='mark_" + Positions[index+1][_MARK] + "'>" + Positions[index+1][_MOVE] + "</span></a></td><td>" + 
-                Positions[index+1][_EVAL] + "</td><td><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">"
+                Positions[index+1][_SCORE] + "</td><td><abbr title=\"" + Positions[index+1][_OPENING] + " " + Positions[index+1][_VARIATION] + "\">"
                 + Positions[index+1][_ECO] + "</abbr></td>";
         }
         moveList += "<td><table cellspacing=0 cellpadding=0 border=0 style='font-size: 75%;'><tr>";

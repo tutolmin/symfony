@@ -73,6 +73,7 @@ class LoadGamesController extends AbstractController
         $known_tags = [ "id", 
 			"player", 
 			"result", "ending",
+			"status",
 			"white", "black", 
 			"wins", "loses", "draws", 
 		"start_year", "start_month", "start_day", "end_year", "end_month", "end_day" ];
@@ -84,6 +85,10 @@ class LoadGamesController extends AbstractController
 	// Neo4j entiries
 	$side_colors	 = [ "white" => "White", "black" => "Black"];
 	$side_results	 = [ "wins" => "Win", "draws" => "Draw", "loses" => "Loss"];
+
+	// Game Status Labels
+	$game_statuses	= [ "complete" => ":Complete", "processing" => ":Processing", "pending" => "Pending"];
+	$status_label = "";
 
 	// If player color has been specified
 	$color_specification_flag=FALSE;
@@ -217,6 +222,10 @@ echo "<br/>\n";
 		    if( $params["end_day"] > 31 || $params["end_day"] < 1) $params["end_day"] = 0;
 		    break;
 		
+		  case "status":
+		    if( array_key_exists( $tag_value, $game_statuses)) $status_label = $game_statuses[$tag_value];
+		    break;
+
 		  case "ending":
 		    if( $tag_value == "mate") $ending_label=":Mate";
 		    if( $tag_value == "stalemate") $ending_label=":StaleMate";
@@ -331,7 +340,7 @@ RETURN DISTINCT id(game) AS gid LIMIT 1";
 	} else if( array_key_exists( "first", $params) || array_key_exists( "second", $params))
 
 	  // We have different types of query if player name has been specified
-	  $query = "MATCH (game:Game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(first_side:Side)<-[:PLAYED_AS]-(first_player:Player$first_param) 
+	  $query = "MATCH (game:Game$status_label)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(first_side:Side)<-[:PLAYED_AS]-(first_player:Player$first_param) 
 MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(second_side:Side)<-[:PLAYED_AS]-(second_player:Player$second_param) 
   WITH game,second_player,first_player,second_result,first_result,second_side,first_side
   WHERE 
@@ -366,12 +375,11 @@ $order_condition
 $skip_records
 LIMIT ".self::RECORDS_PER_PAGE;
 
-	else if( strlen( $ending_label))
+	else if( strlen( $ending_label) || strlen( $status_label))
 
 	  // Final position type
-	  $query = "MATCH (game:Game)-[:FINISHED_ON]->($ending_label)-[:LENGTH]->(plycount:PlyCount)";
-
-	  $query .= " WITH game, plycount
+	  $query = "MATCH (game:Game$status_label)-[:FINISHED_ON]->($ending_label)-[:LENGTH]->(plycount:PlyCount)
+	  WITH game, plycount
 MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
 	WITH game, plycount,
     CASE WHEN year.year=0       THEN '0000'             ELSE toString(year.year) END +

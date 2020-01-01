@@ -70,9 +70,11 @@ class GameDetailsController extends AbstractController
 
 	  // Get movelist
 	  $this->getMoveList( $request->query->getInt('gid', 0));
-if( self::_DEBUG) {
-print_r( $this->moves);
-}
+
+	  if( self::_DEBUG) {
+	    print_r( $this->moves);
+	  }
+
 	  // Lap, Movelist fetched
 	  $this->stopwatch->lap('getGameDetails');
 
@@ -107,12 +109,11 @@ print_r( $this->moves);
 	$params = ["gid" => $gid];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
 MATCH (game)-[:FINISHED_ON]->(:Line)-[:ROOT*0..]->(l:Line)-[:LEAF]->(ply:Ply)
-RETURN REVERSE( COLLECT( ply.san)) as movelist, LAST( COLLECT( id(l))) as id LIMIT 1";
+RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
 	$result = $this->neo4j_client->run( $query, $params);
 
 	foreach ($result->records() as $record) {
   	  $this->moves = $record->value('movelist');
-//  	  $this->neo4j_node_id = $record->value('id');
 	}
     }
 
@@ -125,7 +126,10 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist, LAST( COLLECT( id(l))) as id LIM
 	$params = ["gid" => $gid];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
 MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
-WITH game, CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str 
+WITH game, 
+ CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
+ CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
+ CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str 
  MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
   MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
   MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
@@ -135,24 +139,25 @@ WITH game, CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+CA
 
 	foreach ($result->records() as $record) {
 
-// Fetch game object
-$gameObj = $record->get('game');
-$this->game['ID'] = $gameObj->identity();
-$this->game['White']  = $record->value('player_w.name');
-$this->game['W_ELO']  = $record->value('elo_w.rating');
-$this->game['Black']  = $record->value('player_b.name');
-$this->game['B_ELO']  = $record->value('elo_b.rating');
-$this->game['Event']  = $record->value('event.name');
-$this->game['Date']   = $record->value('date_str');
+	  // Fetch game object
+	  $gameObj = $record->get('game');
+	  $this->game['ID']	= $gameObj->identity();
+	  $this->game['White']  = $record->value('player_w.name');
+	  $this->game['W_ELO']  = $record->value('elo_w.rating');
+	  $this->game['Black']  = $record->value('player_b.name');
+	  $this->game['B_ELO']  = $record->value('elo_b.rating');
+	  $this->game['Event']  = $record->value('event.name');
+	  $this->game['Date']   = $record->value('date_str');
 
-        $labelsObj = $record->get('result_w');
-        $labelsArray = $labelsObj->labels();
-        if( in_array( "Draw", $labelsArray))
-          $this->game['Result'] = "1/2-1/2";
-        else if( in_array( "Win", $labelsArray))
-          $this->game['Result'] = "1-0";
-        else
-          $this->game['Result'] = "0-1";
+	  // Result in human readable format
+          $labelsObj = $record->get('result_w');
+          $labelsArray = $labelsObj->labels();
+          if( in_array( "Draw", $labelsArray))
+            $this->game['Result'] = "1/2-1/2";
+          else if( in_array( "Win", $labelsArray))
+            $this->game['Result'] = "1-0";
+          else
+            $this->game['Result'] = "0-1";
 
 // Optional game properties
 $this->game['eResult']="";
@@ -363,78 +368,227 @@ $this->game[$prefix.'baselines'] = $baselines;
 	// Lap, root position node details fetched
 	$this->stopwatch->lap('getGameDetails');
 
-// Get Positions data
-$FENs      = array();
-$zkeys     = array();
-$scores    = array();
-$evals     = array();
-$marks     = array();
-$ECOs      = array();
-$openings  = array();
-$variations= array();
-$depths    = array();
-$times     = array();
-$T1_moves  = array();
-$T1_FENs   = array();
-$T1_scores = array();
-$T1_depths = array();
-$T1_times  = array();
+	// Get Positions data
+	$FENs      = array();
+	$zkeys     = array();
+	$scores    = array();
+	$evals     = array();
+	$marks     = array();
+	$ECOs      = array();
+	$openings  = array();
+	$variations= array();
+	$depths    = array();
+	$times     = array();
+	$T1_moves  = array();
+	$T1_FENs   = array();
+	$T1_scores = array();
+	$T1_depths = array();
+	$T1_times  = array();
 
-// Lets go through all the moves in the movelist
-foreach( $this->moves as $key => $move) {
+	// Lets go through all the moves in the movelist
+	foreach( $this->moves as $key => $move) {
 
-// how to select longest best (mark=Best, eval=T1) variation path? Now we only select arbitrary move chain [:Ply*0..5]
-// how to skip variation path selection for move matching T1? We will not show it anyway
-// WHERE id(a)=%s OPTIONAL MATCH path=(a)-[:Ply*1..6{eval:\"T1\"}]->(c:Position) WITH *, length(path) as L 
-// CASE WHEN NOT exists(p.ECO) AND p.score<>t.score AND (NOT exists(p.eval) OR (exists(p.eval) AND NOT p.eval="T1")) THEN path ELSE 
-// CASE WHEN NOT exists(p.ECO) AND (p.mark="Sound") THEN path_T2 ELSE null END END AS path
- $params = ["move" => $move, "node_id" => intval( $this->neo4j_node_id)];
-/*
-        $query = 'MATCH (a:Position)-[p:Ply{move: $move}]->(b:Position) WHERE id(a) = $node_id 
- OPTIONAL MATCH path=(a)-[t:Ply{eval:"T1"}]->(:Position)-[:Ply*0..5]->(:Position) WITH *, length(path) as L 
- OPTIONAL MATCH path_T2=(a)-[r:Ply{eval:"T2"}]->(:Position)
- RETURN a, b, p, 
- CASE WHEN NOT exists(p.ECO) THEN 
-  CASE WHEN p.score<>t.score AND (NOT exists(p.eval) OR (exists(p.eval) AND NOT p.eval="T1")) THEN path ELSE 
-   CASE WHEN p.mark="Sound" THEN 
-    CASE WHEN NOT p.eval="T2" THEN path_T2 ELSE path END 
-   END
-  END ELSE null 
- END AS path
- ORDER BY L DESC LIMIT 1';
-*/
-/*
-	$query = 'MATCH (:Ply{san: {move}})<-[:LEAF]-(l1:Line)-[:ROOT]->(l2:Line) 
-WHERE id(l1) = {node_id}
-OPTIONAL MATCH (l1)-[:COMES_TO]->(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode)
-RETURN id(l2) as id, o.opening, o.variation, e.code';
-*/
-	$query = 'MATCH (l1:Line)<-[:ROOT]-(l2:Line)-[:LEAF]->(:Ply{san: {move}}) 
+	  $ECOs[$key]    = "";
+          $openings[$key]    = "";
+          $variations[$key]    = "";
+          $evals[$key]    = "";
+          $marks[$key]    = "";
+          $scores[$key]    = "";
+          $depths[$key]    = "";
+          $times[$key]    = "";
+          $T1_moves[$key]    = "";
+          $T1_scores[$key]    = "";
+          $T1_depths[$key]    = "";
+          $T1_times[$key]    = "";
+
+	  // :Score indexes
+	  $move_score_idx = -1;
+	  $best_score_idx = -1;
+
+	  // Best evaluation path
+	  $best_eval_id = null;
+	  $var_start_id = null;
+	  $var_end_id = null;
+
+	  // Forced move flag
+	  $forced_move_flag = FALSE;
+
+	  $params = ["move" => $move, "node_id" => intval( $this->neo4j_node_id)];
+
+	  // Get best :Evaluation :Score for the actual game move
+	  $query = 'MATCH (l1:Line)<-[:ROOT]-(l2:Line)-[:LEAF]->(:Ply{san: {move}}) 
 WHERE id(l1) = {node_id}
 OPTIONAL MATCH (l2)-[:COMES_TO]->(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode)
-OPTIONAL MATCH (l2:Line)-[:HAS_GOT]->(v:Evaluation)-[:RECEIVED]->(s:Score)
+OPTIONAL MATCH (l2)-[:HAS_GOT]->(v:Evaluation)-[:RECEIVED]->(score:Score)
 OPTIONAL MATCH (sd:SelDepth)<-[:REACHED]-(v)-[:REACHED]->(d:Depth)
 OPTIONAL MATCH (msec:MilliSecond)<-[:TOOK]-(v)-[:TOOK]->(second:Second)-[:OF]->(m:Minute)-[:OF]->(h:Hour)
-RETURN id(l2) as id, o.opening, o.variation, e.code, s, d.level, sd.level, m.minute + ":" + second.second + "." + msec.ms as time
-ORDER BY d.level DESC LIMIT 1';
-$result = $this->neo4j_client->run( $query, $params);
+RETURN l2, o.opening, o.variation, e.code, score, d.level, sd.level, m.minute, second.second, msec.ms
+ORDER BY score.idx LIMIT 1';
+	  $result = $this->neo4j_client->run( $query, $params);
 
-if( self::_DEBUG) {
-	echo $query;
-	print_r( $params);
-}
+	  if( self::_DEBUG) {
+	    echo $query;
+	    print_r( $params);
+	  }
 
-	foreach ($result->records() as $record) {
- $this->neo4j_node_id  = $record->value('id');
- $ECOs[$key] = $record->value('e.code');
- $openings[$key] = $record->value('o.opening');
- $variations[$key] = $record->value('o.variation');
- $scores[$key] = "";
- $depths[$key] = $record->value('d.level');
- $times[$key] = $record->value('time');
- $evals[$key] = "";
- $marks[$key] = "";
+	  // Get actual move data
+	  foreach ($result->records() as $record) {
 
+//            $this->neo4j_node_id  = $record->value('id');
+            $ECOs[$key] = $record->value('e.code');
+            $openings[$key] = $record->value('o.opening');
+            $variations[$key] = $record->value('o.variation');
+            $scores[$key] = "";
+            $depths[$key] = $record->value('d.level');
+            $times[$key] = str_pad( $record->value('m.minute'), 2, '0', STR_PAD_LEFT) . ":" .
+	      str_pad( $record->value('second.second'), 2, '0', STR_PAD_LEFT) . "." .
+	      str_pad( $record->value('msec.ms'), 3, '0', STR_PAD_LEFT);
+            $evals[$key] = "";
+
+	    // Check for special mark labels
+            $marks[$key] = "";
+	    $lineObj = $record->get('l2');
+            $this->neo4j_node_id  = $lineObj->identity();
+            $lineLabelsArray = $lineObj->labels();
+            if( in_array( "Forced", $lineLabelsArray)) {
+              $marks[$key] = "Forced";
+	      $forced_move_flag = TRUE;
+	    }
+
+	    // If we have an :Evaluation :Score for the move
+	    if( $scoreObj = $record->get('score')) {
+
+	      if( self::_DEBUG) {
+	        echo $move;
+	        print_r( $scoreObj);
+	      }
+
+	      // Save :Score idx for later comparison
+	      $move_score_idx = $scoreObj->value('idx');
+
+	      // Parse :Score labels
+              $scoreLabelsArray = $scoreObj->labels();
+              if( in_array( "MateLine", $scoreLabelsArray))
+                $scores[$key] = "M" . $scoreObj->value('score');
+	      else if ( in_array( "Pawn", $scoreLabelsArray))
+                $scores[$key] = "P" . $scoreObj->value('score');
+	      else
+                $scores[$key] = "" . $scoreObj->value('score');
+	    }
+	  }
+
+	  if( self::_DEBUG) {
+	    echo $move_score_idx." ".$best_score_idx."</br>\n";
+	  }
+
+	// No need to check for alternative moves if we have forced line
+	if( !$forced_move_flag) {
+
+	  // Get best evaluation for the alternative moves
+	  $query = 'MATCH (l:Line) WHERE id(l) = {node_id}
+OPTIONAL MATCH (l)<-[:ROOT]-(vl:Line)-[:HAS_GOT]->(v:Evaluation)-[:RECEIVED]->(score:Score)
+RETURN score.idx, id(vl) AS var_start_id, id(v) AS best_eval_id
+ORDER BY score.idx LIMIT 1';
+	  $result = $this->neo4j_client->run( $query, $params);
+
+	  if( self::_DEBUG) {
+	    echo $query;
+	    print_r( $params);
+	  }
+
+	  // Get Best Move data
+	  // Save :Score idx for later comparison
+	  foreach ($result->records() as $record) {
+            $best_score_idx = $record->value('score.idx');
+	    $var_start_id = $record->value('var_start_id');
+	    $best_eval_id = $record->value('best_eval_id');
+	  }
+	}
+
+	if( self::_DEBUG) {
+	  echo $move_score_idx." ".$best_score_idx."</br>\n";
+	}
+
+	// Actual move better than best line score
+	if( $best_score_idx >= $move_score_idx)
+          $marks[$key] = "Best";
+	
+	else {	// If the scores do NOT match add better variation
+
+	  $params["best_eval_id"] = intval( $best_eval_id);
+	  $params["var_start_id"] = intval( $var_start_id);
+
+	  $query = 'MATCH (v:Evaluation)-[:RECEIVED]->(score:Score) 
+WHERE id(v) = {best_eval_id}
+MATCH (l:Line) WHERE id(l) = {var_start_id}
+OPTIONAL MATCH (v)-[:PROPOSED]->(vl:Line)
+OPTIONAL MATCH (sd:SelDepth)<-[:REACHED]-(v)-[:REACHED]->(d:Depth)
+OPTIONAL MATCH (msec:MilliSecond)<-[:TOOK]-(v)-[:TOOK]->(second:Second)-[:OF]->(m:Minute)-[:OF]->(h:Hour)
+RETURN id(vl) AS var_end_id, score, d.level, sd.level, m.minute, second.second, msec.ms
+LIMIT 1';
+	  $result = $this->neo4j_client->run( $query, $params);
+
+	  if( self::_DEBUG) {
+	    echo $query;
+	    print_r( $params);
+	  }
+
+	  foreach ($result->records() as $record) {
+
+            $var_end_id = $record->get('var_end_id');
+	    $params["var_end_id"] = intval( $var_end_id);
+            $T1_depths[$key] = $record->value('d.level');
+            $T1_times[$key] = str_pad( $record->value('m.minute'), 2, '0', STR_PAD_LEFT) . ":" .
+	      str_pad( $record->value('second.second'), 2, '0', STR_PAD_LEFT) . "." .
+	      str_pad( $record->value('msec.ms'), 3, '0', STR_PAD_LEFT);
+
+	    // If we have an :Evaluation :Score for the move
+	    if( $scoreObj = $record->get('score')) {
+
+	      // Parse :Score labels
+              $scoreLabelsArray = $scoreObj->labels();
+              if( in_array( "MateLine", $scoreLabelsArray))
+                $T1_scores[$key] = "M" . $scoreObj->value('score');
+	      else if ( in_array( "Pawn", $scoreLabelsArray))
+                $T1_scores[$key] = "P" . $scoreObj->value('score');
+	      else
+                $T1_scores[$key] = "" . $scoreObj->value('score');
+	    }
+	  }
+//	  print_r( $T1_moves[$key]);
+
+	// Fetch the variation path
+	if( $var_end_id)
+
+	  $query = 'MATCH (l:Line) WHERE id(l) = {var_start_id}
+MATCH (vl:Line) WHERE id(vl) = {var_end_id}
+MATCH path = (l)<-[:ROOT*1..9]-(vl) 
+UNWIND nodes(path) AS n MATCH (n)-[:LEAF]->(ply:Ply)
+RETURN COLLECT( ply.san) AS variationLine
+LIMIT 1';
+	
+	else
+
+	  $query = 'MATCH (l:Line) WHERE id(l) = {var_start_id}
+MATCH (l)-[:LEAF]->(ply:Ply)
+RETURN COLLECT( ply.san) AS variationLine
+LIMIT 1';
+
+	  $result = $this->neo4j_client->run( $query, $params);
+
+	  foreach ($result->records() as $record) {
+
+            $variationArr = $record->get('variationLine');
+
+	    if( self::_DEBUG) {
+	      print_r( $variationArr);
+	    }
+
+	    $T1_moves[$key]       = $variationArr;
+	  }
+	}
+
+	}
 /*
         // All we need is the two nodes and T1 path
  $positionObj           = $record->get('a');
@@ -530,38 +684,39 @@ if( self::_DEBUG) {
 
  $this->neo4j_node_id  = $endPositionObj->identity();
 */
-	}
-}
 
-$positions = array();
-array_push( $positions, array( "", self::ROOT_FEN, self::ROOT_ZOBRIST, "", "", "", "", "", "" ,"" ,"", "" ,""));
-foreach( $this->moves as $key => $move) {
-        $position = array();
-        $position[] = $move;
-        $position[] = $ECOs[$key];
-        $position[] = $openings[$key];
-        $position[] = $variations[$key];
-        $position[] = $evals[$key];
-        $position[] = $marks[$key];
-        $position[] = $scores[$key];
-        $position[] = $depths[$key];
-        $position[] = $times[$key];
+	// Initialize positions array wit hfirst element
+	$positions = array();
+	array_push( $positions, array( "", self::ROOT_FEN, self::ROOT_ZOBRIST, "", "", "", "", "", "" ,"" ,"", "" ,""));
+
+	// Add position info for each move
+	foreach( $this->moves as $key => $move) {
+          $position = array();
+          $position[] = $move;
+          $position[] = $ECOs[$key];
+          $position[] = $openings[$key];
+          $position[] = $variations[$key];
+          $position[] = $evals[$key];
+          $position[] = $marks[$key];
+          $position[] = $scores[$key];
+          $position[] = $depths[$key];
+          $position[] = $times[$key];
+          $position[] = $T1_moves[$key];
+          $position[] = $T1_scores[$key];
+          $position[] = $T1_depths[$key];
+          $position[] = $T1_times[$key];
 
 /*
-        $position[] = $FENs[$key];
-        $position[] = $zkeys[$key];
+          $position[] = $FENs[$key];
+          $position[] = $zkeys[$key];
 
-        $position[] = $T1_moves[$key];
-        $position[] = $T1_FENs[$key];
-        $position[] = $T1_zkeys[$key];
-        $position[] = $T1_scores[$key];
-        $position[] = $T1_depths[$key];
-        $position[] = $T1_times[$key];
+          $position[] = $T1_FENs[$key];
+          $position[] = $T1_zkeys[$key];
 */
-        $positions[] = $position;
-}
-$this->game["Positions"] = $positions;
+          $positions[] = $position;
+	}
 
+	$this->game["Positions"] = $positions;
     }
 }
 

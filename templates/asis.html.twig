@@ -58,14 +58,13 @@ Use the form below to upload your games.</p>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1-0');" checked="checked">White wins<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '0-1');">Black wins<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1/2-1/2');">Draw<br/>
-<b>End position</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'mate');">Mate<br/>
+<b>Final position</b><br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'mate');" checked="checked">Mate<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate');">Stalemate<br/>
 <b>Game status</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Pending');">Pending<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Loaded');">Loaded<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Partly');">Partly<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Complete');">Complete<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'pending');">Pending<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'processing');">Processing<br/>
+<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'complete');"checked="checked">Complete<br/>
 <b>Special tags</b><br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'effectiveResult');">effective result<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'resultMismatch');">result mismatch<br/>
@@ -113,7 +112,7 @@ Use the form below to upload your games.</p>
   <p>Enter player name, event, result or start typing to select tag from the dropdown list. You can also select from a predefined list of tags below.</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#form-tags').importTags( '');">Delete all tags</button>
-  </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text" value="1-0"></form>
+  </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text" value="1-0;complete;mate"></form>
   <div class="gameList" id="gameList"></div>
 </td>
 </tr>
@@ -155,9 +154,9 @@ Use the form below to upload your games.</p>
 </td><td valign=top>
 <div id="movelist" style="width: 600px; overflow:auto; height:700px;">Move list</div>
 <br/>
-<div id="legend" style="width: 400px"><h3>Legend</h3>
-<b><span class='mark_Best'>Best move</span></b>: first T-line move or equal evaluation to the first line<br/>
-<b><span class='mark_Sound'>Sound move</span></b>: Forced move, obvious recapture, single reasonable move, one of equal lines in drawish position<br/>
+<div id="legend" style="width: 400px"><b>Legend</b><br/>
+<b><span class='mark_Best'>Best move</span></b>: equal evaluation to the best line<br/>
+<b><span class='mark_Sound'>Sound move</span></b>: forced move, obvious recapture, single reasonable move, one of equal lines in drawish position<br/>
 </div>
 </td><td valign=top>
 <div id="counters" style="width: 400px">Game details</div>
