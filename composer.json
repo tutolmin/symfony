@@ -12,7 +12,7 @@
         "sensio/framework-extra-bundle": "5.2.1",
         "symfony/apache-pack": "^1.0",
         "symfony/asset": "4.2.*",
-        "symfony/cache": "4.2.12",
+        "symfony/cache": "4.3.9",
         "symfony/console": "4.2.*",
         "symfony/dependency-injection": "4.2.7",
         "symfony/dotenv": "4.2.*",
