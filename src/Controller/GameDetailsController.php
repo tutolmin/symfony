@@ -46,9 +46,8 @@ class GameDetailsController extends AbstractController
       */
     public function getGameDetails()
     {
-
-    // or add an optional message - seen by developers
-    $this->denyAccessUnlessGranted('ROLE_USER', null, 'User tried to access a page without having ROLE_USER');
+        // or add an optional message - seen by developers
+        $this->denyAccessUnlessGranted('ROLE_USER', null, 'User tried to access a page without having ROLE_USER');
 
 	// starts event
 	$this->stopwatch->start('getGameDetails');
@@ -287,9 +286,9 @@ $params = ["Name" => $this->game[$side], "Plies" => intval( $this->game[$prefix.
 //$query = 'MATCH (p:Player)<-[:'.$bl_type[$side][$game['Result']].']-(b:Baseline) 
 // ORDER BY p.name is slooooooooooooooooooooow
 $query = 'MATCH (p:Player)<-[:'.$bl_type[$side][$game_result].']-(b:Baseline) 
- WHERE p.name IN["Aggregate Data Player", $Name] AND b.min_plies<=$Plies 
- AND ((b.ELO_min<=$ELO AND b.ELO_max>$ELO) OR (b.ELO_min<=$cELO AND b.ELO_max>$cELO))
- RETURN b ORDER BY abs(b.cheat_score-$ELO) LIMIT ' . self::BASELINES_PER_SIDE;
+ WHERE p.name IN["Aggregate Data Player", {Name}] AND b.min_plies<={Plies} 
+ AND ((b.ELO_min<={ELO} AND b.ELO_max>{ELO}) OR (b.ELO_min<={cELO} AND b.ELO_max>{cELO}))
+ RETURN b ORDER BY abs(b.cheat_score-{ELO}) LIMIT ' . self::BASELINES_PER_SIDE;
 $result = $this->neo4j_client->run( $query, $params);
 
 $baselines = array();
@@ -589,101 +588,6 @@ LIMIT 1';
 	}
 
 	}
-/*
-        // All we need is the two nodes and T1 path
- $positionObj           = $record->get('a');
- $relationObj           = $record->get('p');
- $endPositionObj        = $record->get('b');
- $pathObj               = $record->get('path');
-
- // Fill in arrays
- if($endPositionObj->hasValue('FEN'))
-  $FENs[$key] = $endPositionObj->value('FEN');
- else $p_FENs[$key] = "";
- if($endPositionObj->hasValue('zobrist'))
-  $zkeys[$key] = $endPositionObj->value('zobrist');
- else $p_zkeys[$key] = "";
-// if($relationObj->hasValue('ECO'))
-//  $ECOs[$key] = $relationObj->value('ECO');
-// else $ECOs[$key] = "";
- if($endPositionObj->hasValue('ECO'))
-  $ECOs[$key] = $endPositionObj->value('ECO');
- else $ECOs[$key] = "";
- if($endPositionObj->hasValue('opening'))
-  $openings[$key] = $endPositionObj->value('opening');
- else $openings[$key] = "";
- if($endPositionObj->hasValue('variation'))
-  $variations[$key] = $endPositionObj->value('variation');
- else $variations[$key] = "";
- if($relationObj->hasValue('score'))
-  $scores[$key] = $relationObj->value('score');
- else $scores[$key] = "";
- if($relationObj->hasValue('depth'))
-  $depths[$key] = $relationObj->value('depth');
- else $depths[$key] = "";
- if($relationObj->hasValue('time'))
-  $times[$key] = $relationObj->value('time');
- else $times[$key] = "";
- if($relationObj->hasValue('eval'))
-  $evals[$key] = $relationObj->value('eval');
- else $evals[$key] = "";
- if($relationObj->hasValue('mark'))
-  $marks[$key] = $relationObj->value('mark');
- else $marks[$key] = "";
-
-  $T1_FENs[$key]        = array();
-  $T1_zkeys[$key]       = array();
-  $T1_moves[$key]       = array();
-  $T1_scores[$key]      = array();
-  $T1_depths[$key]      = array();
-  $T1_times[$key]       = array();
- // If we get any moves in T1 line save it as variation
-// if( $evals[$key] != "T1" && $pathObj && $pathObj->length()) 
- if( $pathObj && $pathObj->length()) {
-
-  $path_moves   = array();
-  $path_FENs    = array();
-  $path_zkeys   = array();
-  $path_scores  = array();
-  $path_depths  = array();
-  $path_times   = array();
-
-  // And the nodes connected by these rels
-  foreach( $pathObj->nodes() as $path_node) {
-        if($path_node->hasValue('FEN'))
-        $path_FENs[] = $path_node->value('FEN');
-        else $path_FENs[] = "";
-        if($path_node->hasValue('zobrist'))
-        $path_zkeys[] = $path_node->value('zobrist');
-        else $path_zkeys[] = "";
-  }
-  $T1_FENs[$key]        = $path_FENs;
-  $T1_zkeys[$key]       = $path_zkeys;
-
-  // Get all the relations in variation
-  foreach( $pathObj->relationships() as $pkey => $path_rels) {
-        if($path_rels->hasValue('move'))
-        $path_moves[$pkey] = $path_rels->value('move');
-        else $path_moves[$pkey] = "";
-        if($path_rels->hasValue('score'))
-        $path_scores[$pkey] = $path_rels->value('score');
-        else $path_scores[$pkey] = "";
-        if($path_rels->hasValue('depth'))
-        $path_depths[$pkey] = $path_rels->value('depth');
-        else $path_depths[$pkey] = "";
-        if($path_rels->hasValue('time'))
-        $path_times[$pkey] = $path_rels->value('time');
-        else $path_times[$pkey] = "";
-  }
-//  array_push($path_moves,"");
-  $T1_moves[$key]       = $path_moves;
-  $T1_scores[$key]      = $path_scores;
-  $T1_depths[$key]      = $path_depths;
-  $T1_times[$key]       = $path_times;
- }
-
- $this->neo4j_node_id  = $endPositionObj->identity();
-*/
 
 	// Initialize positions array wit hfirst element
 	$positions = array();
@@ -706,13 +610,6 @@ LIMIT 1';
           $position[] = $T1_depths[$key];
           $position[] = $T1_times[$key];
 
-/*
-          $position[] = $FENs[$key];
-          $position[] = $zkeys[$key];
-
-          $position[] = $T1_FENs[$key];
-          $position[] = $T1_zkeys[$key];
-*/
           $positions[] = $position;
 	}
 

@@ -19,20 +19,32 @@ URI_arr.pop();
 var Positions;
 var W_baselines, B_baselines;
 
+// Doe NOT work!!!
+$("#checkAll").click(function(){
+    console.log("Check all games");
+    $("input[name='items[]']").not(this).prop('checked', this.checked);
+});
+
 function processGameList() {
   var s = document.getElementById("sideToAnalyzeGroup").value; 
+  var d = document.getElementById("AnalysisDepthGroup").value; 
 //var checked = [];
-$("input[name='items[]']:checked").each(function () {
+  $("input[name='items[]']:checked").each(function () {
 //  checked.push($(this).val());
-  $.post( "setGameStatus", { gid: $(this).val(), side: s} );
-});
+//  $.post( "setGameStatus", { gid: $(this).val(), side: s} );
+    console.log( "Game ID: " + $(this).val() + " side: " + s + " depth: " + d);
+    $.post( "queueGameAnalysis", { gid: $(this).val(), side: s, depth: d} );
+  });
 //  console.log( checked);
 }
 
-function processGame( gid) {
+function processGame() {
   var s = document.getElementById("sideToAnalyze").value; 
-  console.log( "Game ID: " + gid + " side: " + s);
-  $.post( "setGameStatus", { gid: gid, side: s} );
+  var d = document.getElementById("AnalysisDepth").value; 
+  var gid = document.getElementById("game_being_analyzed").value;
+  console.log( "Game ID: " + gid + " side: " + s + " depth: " + d);
+//  $.post( "setGameStatus", { gid: gid, side: s} );
+  $.post( "queueGameAnalysis", { gid: gid, side: s, depth: d} );
 }
 
 function showGameDetails( gid) {
@@ -44,8 +56,7 @@ document.getElementById('header').innerHTML = "Loading...";
 document.getElementById('movelist').innerHTML = "Loading...";
 document.getElementById('position').innerHTML = "Loading...";
 document.getElementById('counters').innerHTML = "Loading...";
-document.getElementById('analysis_submit').innerHTML = '<button type="submit" class="input_submit" style="margin-right: 15px;" onClick="processGame(' 
-+gid+ ')">Submit for analysis </button>';
+//document.getElementById('analysis_submit').innerHTML = '<button type="submit" class="input_submit" style="margin-right: 15px;" onClick="processGame('+gid+ ')">Submit for analysis </button>';
 
 $.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
 
@@ -61,6 +72,9 @@ $.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
   B_baselines = Game["B_baselines"];
   init();
 //  positionIndex=0;
+
+  document.getElementById('game_being_analyzed').value = gid;
+
   updateMovelist2();
 });
 document.getElementById("analysisTab").click();
@@ -159,7 +173,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
 //'tags=' + JSON.stringify( encodeURIComponent( document.getElementById('form-tags').value))+'&page='+page+'&sort='+sort, function(data){
   var items = [];
 //onclick="$(\'.tagsinput#form-tags\').addTag( \'sortDate\');" 
-  items.push('<tr class="tableHeader"><td colspan=2><input type="checkbox" id="select_all"/></td>' +
+  items.push('<tr class="tableHeader"><td colspan=2><input type="checkbox" id="checkAll"/></td>' +
         '<td>White</td><td>Black</td><td style="text-align:center">Result</td><td>Event</td>' +
         '<td><a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'sort\',\'Date\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Date&nbsp;' +
@@ -231,6 +245,11 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
 '<option value="">Both sides</option>'+
 '<option value="WhiteOnly">White Only</option>'+
 '<option value="BlackOnly">Black Only</option>'+
+'</select>'+
+'<select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">'+
+'<option value="">18+ plies</option>'+
+'<option value="20">20+ plies</option>'+
+'<option value="23">23+ plies</option>'+
 '</select>'+
 '<div id="analysis_submit_group">'+
      '<button type="submit"'+

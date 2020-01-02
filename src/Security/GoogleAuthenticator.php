@@ -13,16 +13,33 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
+use GraphAware\Neo4j\Client\ClientInterface;
+use Psr\Log\LoggerInterface;
 
 class GoogleAuthenticator extends SocialAuthenticator
 {
     private $clientRegistry;
     private $em;
+    private $neo4j_client;
+    private $logger;
 
-    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em)
+    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em, ClientInterface $client, LoggerInterface $logger)
     {
         $this->clientRegistry = $clientRegistry;
         $this->em = $em;
+        $this->neo4j_client = $client;
+        $this->logger = $logger;
+    }
+
+    public function createNeo4jUserEntity( int $id)
+    {
+        $this->logger->debug('Creating entity for '.$id);
+
+        $params = ["id" => intval( $id)];
+        $query = 'MERGE (wu:WebUser {id:$id}) RETURN wu.id LIMIT 1';
+        $result = $this->neo4j_client->run($query, $params);
+
+        return $this;
     }
 
     public function supports(Request $request)
@@ -69,6 +86,9 @@ class GoogleAuthenticator extends SocialAuthenticator
         $user->setEmail($googleUser->getEmail());
         $this->em->persist($user);
         $this->em->flush();
+
+        // Create a :WebUser entity in Neo4j
+        $this->createNeo4jUserEntity( $user->getId());
 
         return $user;
     }
