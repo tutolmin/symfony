@@ -121,7 +121,7 @@ console.log( tags_arr);
 
 // Iterate all tags
 tags_arr.forEach(function(item, i, arr) {
-  if( item.length>0) {
+  if( item.length>2) {
 
   // Game result has been specified
   if( item == "1-0" || item == "0-1" || item == "1/2-1/2") {
@@ -129,33 +129,39 @@ tags_arr.forEach(function(item, i, arr) {
   } else {
 
     // Has a color specification
-    var re = /([\w,\.\ ]+)((\ |_)as(\ |_)(white|black))$/i;
+    var re = /^([\w,\.\ ]+)((\ |_)as(\ |_)(white|black))$/i;
     var found_color = item.match(re);
     if( found_color) tags_str += found_color[5].toLowerCase() + ":" + found_color[1] + ";";
 //    console.log( found_color);
 
     // Has a result specification
-    var re = /([\w,\.\ ]+)((\ |_)(wins|loses|draws))$/i;
+    var re = /^([\w,\.\ ]+)((\ |_)(wins|loses|draws))$/i;
     var found_result = item.match(re);
     if( found_result) tags_str += found_result[4].toLowerCase() + ":" + found_result[1] + ";";
 //    console.log( found_result);
 
     // Simply numeric (game ID in the DB)
-    var re = /(\d+)$/i;
+    var re = /^(\d+)$/i;
     var found_id = item.match(re);
     if( found_id) tags_str += "id:" + found_id[1] + ";";
 //    console.log( found_result);
 
     // Game ending type
-    var re = /(stale)?mate$/i;
+    var re = /^(stale|check)mate$/i;
     var found_final = item.match(re);
     if( found_final) tags_str += "ending:" + found_final[0] + ";";
 //    console.log( found_result);
 
     // Game status label
-    var re = /(complete|processing|pending)$/i;
+    var re = /^(complete|processing|pending)$/i;
     var found_status = item.match(re);
     if( found_status) tags_str += "status:" + found_status[0] + ";";
+//    console.log( found_result);
+
+    // Has ECO specification
+    var re = /^[A-E]{1}[0-9]{2}$/i;
+    var found_result = item.match(re);
+    if( found_result) tags_str += "eco:" + found_result[0] + ";";
 //    console.log( found_result);
 
     // Just a player
@@ -173,16 +179,16 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
 //'tags=' + JSON.stringify( encodeURIComponent( document.getElementById('form-tags').value))+'&page='+page+'&sort='+sort, function(data){
   var items = [];
 //onclick="$(\'.tagsinput#form-tags\').addTag( \'sortDate\');" 
-  items.push('<tr class="tableHeader"><td colspan=2><input type="checkbox" id="checkAll"/></td>' +
-        '<td>White</td><td>Black</td><td style="text-align:center">Result</td><td>Event</td>' +
+  items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll"/></td>' +
+        '<td>White</td><td>ELO W</td><td>Black</td><td>ELO B</td><td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +
         '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'Date\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Date&nbsp;' +
+        '#" onclick="setCookie(\'sort\',\'Date\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Date&nbsp;' +
         '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'DateDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
+        '#" onclick="setCookie(\'sort\',\'DateDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Moves&nbsp;'+
+        '#" onclick="setCookie(\'sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Moves&nbsp;'+
         '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'MovesDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
+        '#" onclick="setCookie(\'sort\',\'MovesDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<!-- <td><a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'sort\',\'ScoreW\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Score&nbsp;W&nbsp;'+
         '<a href="' + window.location.pathname + 
@@ -204,6 +210,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
 
     var status_image="loaded";
     var status_descr="Game has been loaded into the database";
+/*
     switch(val["Status"]) {
       case "0_Paid":
         status_image="paid";
@@ -229,10 +236,11 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
         status_image="complete";
         status_descr="Game analysis is complete";
     }
-
-    items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td><td><img src="img/' + status_image + 
-        '.png" title="' + status_descr + '"/></td><td>' + val["White"] + "</td><td>" + val["Black"] + '</td><td class="centered">' + 
-        val["Result"] + "</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
+*/
+    items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td><!--<td><img src="img/' + status_image + 
+        '.png" title="' + status_descr + '"/></td>--><td>' + val["White"] + '</td><td>' + val["ELO_W"] + "</td><td>" + 
+	val["Black"] + '</td><td>' + val["ELO_B"] + '</td><td class="centered">' + 
+        val["Result"] + "</td><td>" + val["ECO"] + "</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
         '<td class="centered">' + val["Moves"] + 
         '</td><!--<td class="centered">' + val["W_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["W_cheat_score"]-val["White_ELO"]) + 
@@ -258,6 +266,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
              'onClick="processGameList()">Submit games for analysis'+
      '</button>'+
 '</div></td>'+
+	'<td colspan="3"></td>' +
         '<td><button onclick="setCookie(\'page\',0,1);loadGames();">First</button></td>'+
         '<td><button onclick="setCookie(\'page\',' + (page-1) + ',1);loadGames();">Prev</button></td>'+
         '<td><button onclick="setCookie(\'page\',' + (page+1) + ',1);loadGames();">Next</button></td></tr>');
@@ -709,7 +718,7 @@ var updatePosition = function() {
   var positionStr = "<p><span class='FEN'>" + FEN + "</span></p>" + "Move evaluation: " + evalColor;
 
   // Eval string
-  if( currentGame.in_checkmate()) positionStr += "Mate!";
+  if( currentGame.in_checkmate()) positionStr += "Checkmate!";
   else if( currentGame.in_stalemate()) positionStr += "Stalemate!";
   else if( mateLine) positionStr += "Mate in " + Math.abs( p_eval);
   else if ( pawnLine) positionStr += p_eval + "+";

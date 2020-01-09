@@ -53,7 +53,7 @@ RETURN id(q) as qid LIMIT 1';
     {
 	$query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (d:Depth{level:{depth}})
-MATCH (g)<-[:REQUESTED_FOR]-(a:Analysis:Pending'.$analyzeLabel.')-[:REQUIRED_DEPTH]->(d)
+MATCH (g)<-[:REQUESTED_FOR]-(a:Analysis'.$analyzeLabel.')-[:REQUIRED_DEPTH]->(d)
 RETURN id(a) AS aid LIMIT 1';
 
 	$params = ["gid" => intval( $gameID), "depth" => intval( $analysisDepth)];
@@ -214,7 +214,7 @@ MATCH (time:Second {second: dt.second})-[:OF]->(:Minute {minute: dt.minute})-[:O
 CREATE (a:Analysis:Pending'.$analyzeLabel.')
 MERGE (g)<-[:REQUESTED_FOR]-(a)-[:REQUIRED_DEPTH]->(d)
 MERGE (q)<-[:PLACED_IN]-(a)-[:REQUESTED_BY]->(wu)
-MERGE (date)<-[:QUEUED_ON]-(a)-[:QUEUED_ON]->(time)
+MERGE (date)<-[:QUEUED_DATE]-(a)-[:QUEUED_TIME]->(time)
 RETURN id(a) AS aid LIMIT 1';
 
         $result = $this->neo4j_client->run($query, $params);

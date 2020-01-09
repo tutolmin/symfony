@@ -124,7 +124,7 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
 	// Fetch game details 
 	$params = ["gid" => $gid];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
-MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
+MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:WAS_PLAYED_ON_DATE]-(game)
 WITH game, 
  CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
  CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
@@ -132,7 +132,9 @@ WITH game,
  MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
   MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
   MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
-  MATCH (game)-[:PLAYED_IN]->(round:Round)-[:PART_OF]->(event:Event)-[:TOOK_PLACE_AT]->(site:Site)
+  MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
+  MATCH (game)-[:WAS_PART_OF]->(event:Event)
+  MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
  RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game LIMIT 1";
 	$result = $this->neo4j_client->run( $query, $params);
 
