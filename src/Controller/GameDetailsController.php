@@ -8,10 +8,16 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
+use Symfony\Component\HttpClient\CachingHttpClient;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpKernel\HttpCache\Store;
+use Psr\Log\LoggerInterface;
 
 class GameDetailsController extends AbstractController
 {
     const _DEBUG = FALSE;
+
+    private $logger;
 
     // Initial position properties
     const ROOT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -35,10 +41,11 @@ class GameDetailsController extends AbstractController
     private $sides = ["White" => "W_", "Black" => "B_"];
 
     // Dependency injection of the Neo4j ClientInterface
-    public function __construct( ClientInterface $client, Stopwatch $watch)
+    public function __construct( ClientInterface $client, Stopwatch $watch, LoggerInterface $logger)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
+        $this->logger = $logger;
     }
 
     /**
@@ -68,7 +75,8 @@ class GameDetailsController extends AbstractController
 	  $this->stopwatch->lap('getGameDetails');
 
 	  // Get movelist
-	  $this->getMoveList( $request->query->getInt('gid', 0));
+//	  $this->getMoveList( $request->query->getInt('gid', 0));
+	  $this->fetchMoveList();
 
 	  if( self::_DEBUG) {
 	    print_r( $this->moves);
@@ -99,6 +107,39 @@ class GameDetailsController extends AbstractController
 	foreach ($result->records() as $record) {
   	  $this->neo4j_node_id = $record->value('id');
 	}
+        $this->logger->debug('Root node id'.$record->value('id'));
+    }
+
+    // Fetch move list
+    private function fetchMoveList( )
+    {
+ 	$store = new Store('/home/chchcom/cache/');
+	$client = HttpClient::create(['headers' => [
+		'Accept-Encoding' => 'deflate, gzip',
+	]]);
+//	$client = new CurlHttpClient();
+	$client = new CachingHttpClient($client, $store);
+/*
+$client = HttpClient::create(['headers' => [
+    'User-Agent' => 'My Fancy App',
+]]);
+*/
+	$response = $client->request('GET', 
+	    'http://cache.chesscheat.com/'.$this->game["MoveListHash"].'.json');
+
+	$statusCode = $response->getStatusCode();
+	// $statusCode = 200
+        $this->logger->debug('Status code '.$statusCode);
+
+	$contentType = $response->getHeaders()['content-type'][0];
+        $this->logger->debug('Content type '.$contentType);
+	// $contentType = 'application/json'
+	$content = gzdecode( $response->getContent());
+        $this->logger->debug('Content '.$content);
+	// $content = '{"id":521583, "name":"symfony-docs", ...}'
+	$this->moves = json_decode( $content);
+	// $content = ['id' => 521583, 'name' => 'symfony-docs', ...]
+//        $this->logger->debug('Moves '.$this->moves);
     }
 
     // Get move list
@@ -124,7 +165,7 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
 	// Fetch game details 
 	$params = ["gid" => $gid];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
-MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:WAS_PLAYED_ON_DATE]-(game)
+MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
 WITH game, 
  CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
  CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
@@ -135,7 +176,9 @@ WITH game,
   MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
   MATCH (game)-[:WAS_PART_OF]->(event:Event)
   MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
- RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game LIMIT 1";
+  MATCH (game)-[:FINISHED_ON]->(line:Line)
+ RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash 
+LIMIT 1";
 	$result = $this->neo4j_client->run( $query, $params);
 
 	foreach ($result->records() as $record) {
@@ -149,6 +192,7 @@ WITH game,
 	  $this->game['B_ELO']  = $record->value('elo_b.rating');
 	  $this->game['Event']  = $record->value('event.name');
 	  $this->game['Date']   = $record->value('date_str');
+	  $this->game['MoveListHash']   = $record->value('line.hash');
 
 	  // Result in human readable format
           $labelsObj = $record->get('result_w');
@@ -411,6 +455,7 @@ $this->game[$prefix.'baselines'] = $baselines;
 	  $var_start_id = null;
 	  $var_end_id = null;
 
+continue;
 	  // Forced move flag
 	  $forced_move_flag = FALSE;
 
