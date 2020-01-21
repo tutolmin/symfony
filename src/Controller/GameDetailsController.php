@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
 use Symfony\Component\HttpClient\CachingHttpClient;
+//use Symfony\Component\HttpClient\CurlHttpClient;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpKernel\HttpCache\Store;
 use Psr\Log\LoggerInterface;
@@ -114,16 +115,17 @@ class GameDetailsController extends AbstractController
     private function fetchMoveList( )
     {
  	$store = new Store('/home/chchcom/cache/');
+// 	$store = new Store('/home/chchcom/symfony/public/cache/');
+// 	$store = new Store('/tmp/cache/123');
+/*
 	$client = HttpClient::create(['headers' => [
 		'Accept-Encoding' => 'deflate, gzip',
 	]]);
-//	$client = new CurlHttpClient();
-	$client = new CachingHttpClient($client, $store);
-/*
-$client = HttpClient::create(['headers' => [
-    'User-Agent' => 'My Fancy App',
-]]);
 */
+//	$client = new CurlHttpClient();
+	$client = HttpClient::create();
+	$client = new CachingHttpClient($client, $store, ["debug" => true]);
+
 	$response = $client->request('GET', 
 	    'http://cache.chesscheat.com/'.$this->game["MoveListHash"].'.json');
 
@@ -134,10 +136,12 @@ $client = HttpClient::create(['headers' => [
 	$contentType = $response->getHeaders()['content-type'][0];
         $this->logger->debug('Content type '.$contentType);
 	// $contentType = 'application/json'
-	$content = gzdecode( $response->getContent());
+//	$content = gzdecode( $response->getContent());
+	$content = $response->getContent();
         $this->logger->debug('Content '.$content);
 	// $content = '{"id":521583, "name":"symfony-docs", ...}'
-	$this->moves = json_decode( $content);
+//	$this->moves = json_decode( $content);
+	$this->moves = $response->toArray();
 	// $content = ['id' => 521583, 'name' => 'symfony-docs', ...]
 //        $this->logger->debug('Moves '.$this->moves);
     }

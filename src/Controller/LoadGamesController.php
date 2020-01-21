@@ -112,6 +112,7 @@ class LoadGamesController extends AbstractController
 	$date_eco_label = "";
 
 	$rel_type="GAME";
+	$order_rel_type="GAME";
 
 	// Parse each tag
 	foreach( $tags as $tag)
@@ -237,16 +238,24 @@ echo "<br/>\n";
 		    if( strlen( $tag_value) == 3 ) { 
 			$plycount_eco_label	=	":".strtoupper( $tag_value)."PlyCount";
 			$date_eco_label		=	":".strtoupper( $tag_value)."Day";
-			$rel_type		=	strtoupper( $tag_value);
+			$order_rel_type		=	strtoupper( $tag_value);
+		        if( strlen( $plycount_ending_label))
+			  $rel_type	       =	strtoupper( $tag_value)."_".$rel_type;
+			else
+			  $rel_type		=	strtoupper( $tag_value);
 			$params["eco_code"]	=	strtoupper( $tag_value);
 		    }
 		    break;
 
 		  case "ending":
 		
-		    // Only set rel type if no ECO has been specified yet
-		    if( strlen( $plycount_eco_label) == 0)
-		      $rel_type=strtoupper( $tag_value);
+		    // Only set ending order rel type if no ECO has been specified yet
+		    // as it is considered more infrequent?!?!?!?!?!?!
+		    if( strlen( $plycount_eco_label) == 0) {
+		      $rel_type = strtoupper( $tag_value);
+		      $order_rel_type = $rel_type;
+		    } else 
+		      $rel_type.="_".strtoupper( $tag_value);
 
 		    if( $tag_value == "checkmate") { 
 			$ending_label=":CheckMate"; 
@@ -459,11 +468,13 @@ LIMIT ".self::RECORDS_PER_PAGE;
 
 	    // Begin from either head or tail of :PlyCount sequence
 	    // If both maxplies and minplies are specified, how do I limit the end of search
-	    $moves_ordering_condition = "MATCH (:PlyCount{counter:{maxplies}})<-[:LONGER*0..]-";
+//	    $moves_ordering_condition = "MATCH (:PlyCount{counter:{maxplies}})<-[:LONGER*0..]-";
+	    $moves_ordering_condition = "DESC";
 	    $left="<"; $right="";
 	    
 	    if( strlen( $descending)==0) {
-	      $moves_ordering_condition = "MATCH (:PlyCount{counter:{minplies}})-[:LONGER*0..]->";
+	      $moves_ordering_condition = "";
+//	      $moves_ordering_condition = "MATCH (:PlyCount{counter:{minplies}})-[:LONGER*0..]->";
 	      $left=""; $right=">";
 	    }
 /*
@@ -473,9 +484,13 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    if( strlen( $plycount_eco_label))
 	      $eco_classification_condition="MATCH (l)-[:CLASSIFIED_AS]->(:EcoCode{code:{eco_code}})";
 */
+/*
 	    $query = $moves_ordering_condition.
 "(p:GamePlyCount".$plycount_ending_label.$plycount_eco_label.") WITH p LIMIT 1 ".
-"MATCH (p)".$left."-[:LONGER_$rel_type*0..]-".$right."(:GamePlyCount".$plycount_ending_label.$plycount_eco_label.")<-[:".
+*/
+	    $query = 
+"MATCH (p:GamePlyCount".$plycount_ending_label.$plycount_eco_label.") WITH p ORDER BY p.counter $moves_ordering_condition LIMIT 1 ".
+"MATCH (p)".$left."-[:LONGER_$order_rel_type*0..]-".$right."(:GamePlyCount".$plycount_ending_label.$plycount_eco_label.")<-[:".
 $rel_type."_HAS_LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game) ";
 //$eco_classification_condition;
 
@@ -503,7 +518,7 @@ $rel_type."_HAS_LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game) ";
 
 	    $query = 
 "MATCH (d:GameDay".$date_ending_label.$date_eco_label.") WITH d ORDER BY d.idx $date_ordering_condition LIMIT 1 ".
-"MATCH (d)".$left."-[:NEXT_$rel_type*0..]-".$right."(:GameDay".$date_ending_label.$date_eco_label.")<-[:".
+"MATCH (d)".$left."-[:NEXT_$order_rel_type*0..]-".$right."(:GameDay".$date_ending_label.$date_eco_label.")<-[:".
 $rel_type."_WAS_PLAYED_ON_DATE]-(game:Game)-[:FINISHED_ON]->(:Line$ending_label) ";
 
 //"MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-(:Day)<-[$rel_type]-(game:Game)";
@@ -536,11 +551,11 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	$game_params["gid"] = intval( $record->value('gid'));
 
 	$game_query="MATCH (game:Game) WHERE id(game) = {gid} WITH game 
-MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:".$rel_type."_WAS_PLAYED_ON_DATE]-(game) 
+MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game) 
 WITH game, CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str 
 MATCH (game)-[:ENDED_WITH]->(white_result:Result)<-[:ACHIEVED]-(white_side:Side:White)<-[:PLAYED_AS]-(white_player:Player) 
 MATCH (game)-[:ENDED_WITH]->(black_result:Result)<-[:ACHIEVED]-(black_side:Side:Black)<-[:PLAYED_AS]-(black_player:Player) 
-MATCH (game)-[:FINISHED_ON]->(line:Line)-[:".$rel_type."_HAS_LENGTH]->(plycount:GamePlyCount)
+MATCH (game)-[:FINISHED_ON]->(line:Line)-[:GAME_HAS_LENGTH]->(plycount:GamePlyCount)
 MATCH (white_side)-[:RATED]->(white_elo:Elo)
 MATCH (black_side)-[:RATED]->(black_elo:Elo)
 MATCH (line)-[:CLASSIFIED_AS]->(eco_code:EcoCode) 
