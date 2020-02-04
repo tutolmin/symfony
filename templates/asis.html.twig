@@ -35,21 +35,21 @@
 <!-- Tab content -->
 <div id="Upload" class="tabcontent">
   <h3>Upload Game(s)</h3>
-<!-- 
-<form method="post" enctype="multipart/form-data">
--->
-<form action="/upload.php" method="post" enctype="multipart/form-data">
+
+{{ form_start(form) }}
+
 <p>You can upload your own games into our database. Then you will be able to submit your games for processing. Once it is complete you can analyze your games.<br/>
 Use the form below to upload your games.</p>
 <p>Maximum file size is 100KB</p>
 <p>Allowed file types are .pgn .txt or archives .zip .gz</p>
-    Select <abbr title='Portable Game Notation is a plain text computer-processible format for recording chess games'>PGN</abbr> file to upload:
-    <input type="file" name="fileToUpload" id="fileToUpload">
 
+    {{ form_row(form.pgn) }}
+
+<!--
 <p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
-
+-->
     <input type="submit" value="Upload PGN" name="submit">
-</form>
+{{ form_end(form) }}
 </div>
 
 <!-- Tab content -->

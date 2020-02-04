@@ -357,7 +357,7 @@ echo "<br/>\n";
 	$params["second_results"] = $second_results;
 
 	// Set default param values
-	if( !array_key_exists( "start_year", $params)) $params["start_year"]	=1900;
+	if( !array_key_exists( "start_year", $params)) $params["start_year"]	=0;
 	if( !array_key_exists( "start_month", $params)) $params["start_month"]	=0;
 	if( !array_key_exists( "start_day", $params)) $params["start_day"]	=0;
 	if( !array_key_exists( "end_year", $params)) $params["end_year"]	=intval( date('Y')-3);
