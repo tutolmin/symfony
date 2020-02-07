@@ -360,7 +360,7 @@ echo "<br/>\n";
 	if( !array_key_exists( "start_year", $params)) $params["start_year"]	=0;
 	if( !array_key_exists( "start_month", $params)) $params["start_month"]	=0;
 	if( !array_key_exists( "start_day", $params)) $params["start_day"]	=0;
-	if( !array_key_exists( "end_year", $params)) $params["end_year"]	=intval( date('Y')-3);
+	if( !array_key_exists( "end_year", $params)) $params["end_year"]	=intval( date('Y'));
 	if( !array_key_exists( "end_month", $params)) $params["end_month"]	=intval( date('n'));
 	if( !array_key_exists( "end_day", $params)) $params["end_day"]		=intval( date('j'));
 
