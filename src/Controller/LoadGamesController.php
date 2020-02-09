@@ -258,8 +258,8 @@ echo "<br/>\n";
 		    // Check for valid piece type
 		    if( !array_key_exists( $tag_value, $valid_piece)) break;
 		    
-		    if( strlen( $ending_label)) 
-			$ending_label .= "By".$valid_piece[$tag_value];
+//		    if( strlen( $ending_label)) 
+//			$ending_label .= "By".$valid_piece[$tag_value];
 		    if( strlen( $plycount_ending_label)) 
 			$plycount_ending_label .= "By".$valid_piece[$tag_value];
 		    if( strlen( $date_ending_label)) 

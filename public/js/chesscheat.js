@@ -149,8 +149,11 @@ tags_arr.forEach(function(item, i, arr) {
     // Game ending type
     var re = /^(stale|check)mate((\ |_)by(\ |_)(pawn|king|queen|rook|knight|bishop))?$/i;
     var found_final = item.match(re);
-    if( found_final) tags_str += "ending:" + found_final[1] + "mate;";
-    if( typeof found_final[5] !== 'undefined') tags_str += "piece:" + found_final[5] + ";";
+    if( found_final) {
+      tags_str += "ending:" + found_final[1] + "mate;";
+      if( typeof found_final[5] !== 'undefined') 
+        tags_str += "piece:" + found_final[5] + ";";
+    }
 //    console.log( found_final);
 
     // Game status label
