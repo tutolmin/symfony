@@ -74,20 +74,25 @@ class LoadGamesController extends AbstractController
 			"result", "ending",
 			"status",
 			"eco",
+			"piece",
 			"white", "black", 
 			"wins", "loses", "draws", 
 		"start_year", "start_month", "start_day", "end_year", "end_month", "end_day" ];
 
 	// Opposite arrays
-	$opposite_color	 = [ "white" => "black", "black" => "white"];
+	$opposite_color	 = [ "white" => "black", "black" => "white" ];
 	$opposite_result = [ "wins" => "loses", "draws" => "draws", "loses" => "wins" ];
 
 	// Neo4j entiries
-	$side_colors	 = [ "white" => "White", "black" => "Black"];
-	$side_results	 = [ "wins" => "Win", "draws" => "Draw", "loses" => "Loss"];
+	$side_colors	 = [ "white" => "White", "black" => "Black" ];
+	$side_results	 = [ "wins" => "Win", "draws" => "Draw", "loses" => "Loss" ];
+
+	// Valid tag values
+	$valid_ending	= [ "checkmate" => "CheckMate", "stalemate" => "StaleMate" ];
+	$valid_piece	= [ "pawn" => "Pawn", "rook" => "Rook", "queen" => "Queen", "king" => "King", "bishop" => "Bishop", "knight" => "Knight" ];
 
 	// Game Status Labels
-	$game_statuses	= [ "complete" => ":Complete", "processing" => ":Processing", "pending" => "Pending"];
+	$game_statuses	= [ "complete" => ":Complete", "processing" => ":Processing", "pending" => "Pending" ];
 	$status_label = "";
 
 	// If player color has been specified
@@ -235,6 +240,7 @@ echo "<br/>\n";
 		    break;
 
 		  case "eco":
+		    // Check for valid ECO string
 		    if( strlen( $tag_value) == 3 ) { 
 			$plycount_eco_label	=	":".strtoupper( $tag_value)."PlyCount";
 			$date_eco_label		=	":".strtoupper( $tag_value)."Day";
@@ -247,26 +253,42 @@ echo "<br/>\n";
 		    }
 		    break;
 
+		  case "piece":
+		
+		    // Check for valid piece type
+		    if( !array_key_exists( $tag_value, $valid_piece)) break;
+		    
+		    if( strlen( $ending_label)) 
+			$ending_label .= "By".$valid_piece[$tag_value];
+		    if( strlen( $plycount_ending_label)) 
+			$plycount_ending_label .= "By".$valid_piece[$tag_value];
+		    if( strlen( $date_ending_label)) 
+			$date_ending_label .= "By".$valid_piece[$tag_value];
+		    if( strlen( $rel_type)) 
+		        $rel_type.="_BY_".strtoupper( $tag_value);
+		    if( strlen( $order_rel_type)) 
+		        $order_rel_type.="_BY_".strtoupper( $tag_value);
+
+		    break;
+
 		  case "ending":
 		
+		    // Check for valid ending type
+		    if( !array_key_exists( $tag_value, $valid_ending)) break;
+
 		    // Only set ending order rel type if no ECO has been specified yet
 		    // as it is considered more infrequent?!?!?!?!?!?!
+		    // DB schema is like this
 		    if( strlen( $plycount_eco_label) == 0) {
 		      $rel_type = strtoupper( $tag_value);
 		      $order_rel_type = $rel_type;
 		    } else 
 		      $rel_type.="_".strtoupper( $tag_value);
 
-		    if( $tag_value == "checkmate") { 
-			$ending_label=":CheckMate"; 
-			$plycount_ending_label=":CheckMatePlyCount";
-			$date_ending_label=":CheckMateDay";
-		    }
-		    if( $tag_value == "stalemate") { 
-			$ending_label=":StaleMate"; 
-			$plycount_ending_label=":StaleMatePlyCount"; 
-			$date_ending_label=":StaleMateDay";
-		    }
+		    $ending_label=":".$valid_ending[$tag_value]; 
+		    $plycount_ending_label=$valid_ending[$tag_value];
+		    $date_ending_label=$valid_ending[$tag_value];
+
 		    break;
 
 		  case "result":
@@ -408,8 +430,8 @@ MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DA
     CASE WHEN {end_day}<10	THEN '0'+{end_day}	ELSE toString({end_day}) END AS end_date_str  
   WHERE
       start_date_str <= date_str <= end_date_str
-MATCH (game)-[:FINISHED_ON]->(:Line$ending_label)-[:".$rel_type."_HAS_LENGTH]->(plycount:GamePlyCount".
-$plycount_ending_label.$plycount_eco_label.")
+MATCH (game)-[:FINISHED_ON]->(:Line$ending_label)-[:".$rel_type."_HAS_LENGTH]->(plycount:GamePlyCount:".
+$plycount_ending_label."PlyCount".$plycount_eco_label.")
 RETURN DISTINCT id(game) AS gid, date_str, plycount
 $order_condition 
 $skip_records
@@ -489,8 +511,8 @@ LIMIT ".self::RECORDS_PER_PAGE;
 "(p:GamePlyCount".$plycount_ending_label.$plycount_eco_label.") WITH p LIMIT 1 ".
 */
 	    $query = 
-"MATCH (p:GamePlyCount".$plycount_ending_label.$plycount_eco_label.") WITH p ORDER BY p.counter $moves_ordering_condition LIMIT 1 ".
-"MATCH (p)".$left."-[:LONGER_$order_rel_type*0..]-".$right."(:GamePlyCount".$plycount_ending_label.$plycount_eco_label.")<-[:".
+"MATCH (p:GamePlyCount:".$plycount_ending_label."PlyCount".$plycount_eco_label.") WITH p ORDER BY p.counter $moves_ordering_condition LIMIT 1 ".
+"MATCH (p)".$left."-[:LONGER_$order_rel_type*0..]-".$right."(:GamePlyCount:".$plycount_ending_label."PlyCount".$plycount_eco_label.")<-[:".
 $rel_type."_HAS_LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game) ";
 //$eco_classification_condition;
 
@@ -517,8 +539,8 @@ $rel_type."_HAS_LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game) ";
 	    }
 
 	    $query = 
-"MATCH (d:GameDay".$date_ending_label.$date_eco_label.") WITH d ORDER BY d.idx $date_ordering_condition LIMIT 1 ".
-"MATCH (d)".$left."-[:NEXT_$order_rel_type*0..]-".$right."(:GameDay".$date_ending_label.$date_eco_label.")<-[:".
+"MATCH (d:GameDay:".$date_ending_label."Day".$date_eco_label.") WITH d ORDER BY d.idx $date_ordering_condition LIMIT 1 ".
+"MATCH (d)".$left."-[:NEXT_$order_rel_type*0..]-".$right."(:GameDay:".$date_ending_label."Day".$date_eco_label.")<-[:".
 $rel_type."_WAS_PLAYED_ON_DATE]-(game:Game)-[:FINISHED_ON]->(:Line$ending_label) ";
 
 //"MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-(:Day)<-[$rel_type]-(game:Game)";

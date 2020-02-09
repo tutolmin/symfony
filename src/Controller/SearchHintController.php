@@ -34,10 +34,35 @@ class SearchHintController extends AbstractController
 //        if( $term = $request->query->getAlpha('term', 0)) {
         if( $term = urldecode( $request->query->get('term'))) {
 
-	  if( $term == "1-0" || $term == "1/2-1/2" || $term == "0-1"
-		|| $term == "mate" || $term == "stalemate")
-	    $hints[] = $term;
-	  else {
+	  if( strpos( "1-0", $term) !== false)
+	    $hints[] = "1-0";
+
+	  if( strpos( "0-1", $term) !== false)
+	    $hints[] = "0-1";
+
+	  if( strpos( "1/2-1/2", $term) !== false 
+	    || strpos( "draw", $term) !== false)
+	    $hints[] = "1/2-1/2";
+
+	  if( strpos( "checkmate", $term) !== false) {
+	    $hints[] = "checkmate";
+	    $hints[] = "checkmate by queen";
+	    $hints[] = "checkmate by rook";
+	    $hints[] = "checkmate by bishop";
+	    $hints[] = "checkmate by knight";
+	    $hints[] = "checkmate by pawn";
+	    $hints[] = "checkmate by king";
+	  }
+
+	  if( strpos( "stalemate", $term) !== false) {
+	    $hints[] = "stalemate";
+	    $hints[] = "stalemate by king";
+	    $hints[] = "stalemate by pawn";
+	    $hints[] = "stalemate by rook";
+	    $hints[] = "stalemate by queen";
+	    $hints[] = "stalemate by bishop";
+	    $hints[] = "stalemate by knight";
+	  }
 
 	  $params["term"] = $term;
 	  $query = "MATCH (player:Player) WHERE player.name CONTAINS {term} 
@@ -56,7 +81,6 @@ RETURN player.name LIMIT ".self::RECORDS_PER_PAGE;
 */
 	  }
 
-	}
 	}
 
         $event = $stopwatch->stop('searchHint');

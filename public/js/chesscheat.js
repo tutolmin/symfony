@@ -147,10 +147,11 @@ tags_arr.forEach(function(item, i, arr) {
 //    console.log( found_result);
 
     // Game ending type
-    var re = /^(stale|check)mate$/i;
+    var re = /^(stale|check)mate((\ |_)by(\ |_)(pawn|king|queen|rook|knight|bishop))?$/i;
     var found_final = item.match(re);
-    if( found_final) tags_str += "ending:" + found_final[0] + ";";
-//    console.log( found_result);
+    if( found_final) tags_str += "ending:" + found_final[1] + "mate;";
+    if( typeof found_final[5] !== 'undefined') tags_str += "piece:" + found_final[5] + ";";
+//    console.log( found_final);
 
     // Game status label
     var re = /^(complete|processing|pending)$/i;
@@ -283,7 +284,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
     $(function() {
             $('#form-tags').tagsInput({
                     'unique': true,
-                    'minChars': 3,
+                    'minChars': 2,
                     'maxChars': 50,
                     'limit': 5,
                     'delimiter': [';'],
@@ -299,7 +300,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
 
     'autocomplete': {
       source: "searchHint",
-      minLength: 3,
+      minLength: 2,
       select: function( event, ui ) {
         console.log( "Selected: " + ui.item.value);
       }
