@@ -9,7 +9,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
 use Symfony\Component\HttpClient\CachingHttpClient;
-//use Symfony\Component\HttpClient\CurlHttpClient;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpKernel\HttpCache\Store;
 use Psr\Log\LoggerInterface;
@@ -115,14 +114,6 @@ class GameDetailsController extends AbstractController
     private function fetchMoveList( )
     {
  	$store = new Store('/home/chchcom/cache/');
-// 	$store = new Store('/home/chchcom/symfony/public/cache/');
-// 	$store = new Store('/tmp/cache/123');
-/*
-	$client = HttpClient::create(['headers' => [
-		'Accept-Encoding' => 'deflate, gzip',
-	]]);
-*/
-//	$client = new CurlHttpClient();
 	$client = HttpClient::create();
 	$client = new CachingHttpClient($client, $store, ["debug" => true]);
 
@@ -138,7 +129,7 @@ class GameDetailsController extends AbstractController
 	// $contentType = 'application/json'
 //	$content = gzdecode( $response->getContent());
 	$content = $response->getContent();
-        $this->logger->debug('Content '.$content);
+//        $this->logger->debug('Content '.$content);
 	// $content = '{"id":521583, "name":"symfony-docs", ...}'
 //	$this->moves = json_decode( $content);
 	$this->moves = $response->toArray();
