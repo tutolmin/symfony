@@ -30,7 +30,7 @@ class PGNType extends AbstractType
                 // in the associated entity, so you can use the PHP constraint classes
                 'constraints' => [
                     new File([
-                        'maxSize' => '100k',
+                        'maxSize' => '1M',
                         'mimeTypes' => [
                             'text/plain',
 			    'application/vnd.chess-pgn',
