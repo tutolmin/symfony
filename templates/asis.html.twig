@@ -16,14 +16,16 @@
   <button onclick="openTab(event, 'Analyze')">
 <table style="border:1px;margin:0;padding:0;">
 <tr>
-<td><img src="img/32star.png"/></td><td><span style="font-size:26pt">CHE</span></td>
-<td><span style="font-size:12pt;">SS<br/>AT</span></td></tr>
+<td><img src="img/chesspieces/wikipedia/bK.png" width="48"/></td>
+<td><img src="img/chesspieces/wikipedia/wQ.png" width="48"/></td>
+<td style="padding-left:10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+</tr>
 </table>
   </button>
   <button class="tablinks" onclick="openTab(event, 'Upload')" id="uploadTab">
 <img src="img/upload.png" style="float:left"/>&nbsp;&nbsp;Upload</button>
-  <button class="tablinks" onclick="openTab(event, 'Find')" id="defaultTab">
-<img src="img/search.png" style="float:left"/>&nbsp;&nbsp;Find</button>
+  <button class="tablinks" onclick="openTab(event, 'Search')" id="searchTab">
+<img src="img/search.png" style="float:left"/>&nbsp;&nbsp;Search</button>
   <button class="tablinks" onclick="openTab(event, 'Queue')" id="queueTab">
 <img src="img/queue.png" style="float:left"/>&nbsp;&nbsp;Queue</button>
   <button class="tablinks" onclick="openTab(event, 'Analyze')" id="analysisTab">
@@ -57,7 +59,7 @@ Use the form below to upload your games.</p>
 </div>
 
 <!-- Tab content -->
-<div id="Find" class="tabcontent">
+<div id="Search" class="tabcontent">
 <table><tr><td style="vertical-align:top">
   <h3>Predefined Tags</h3>
 <div class="predefinedTags">
@@ -133,7 +135,7 @@ Use the form below to upload your games.</p>
   <p>Enter player name, result or start typing to select tag from the dropdown list. You can also use predefined tags on the left.</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#form-tags').importTags( '');">Delete all tags</button>
-  </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text" value="1-0;"></form>
+  </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text"></form>
   <div class="gameList" id="gameList"></div>
 </td>
 </tr>
@@ -176,6 +178,7 @@ Use the form below to upload your games.</p>
 <input type="button" id="setStartBtn" value="Start Position" />
 <input type="button" id="setPrevMove" value="Prev Move" />
 <input type="button" id="setNextMove" value="Next Move" />
+<input type="button" id="setPlayPause" value="Play/Pause" />
 </div>
 <div style="float: right;">
 <input type="button" id="flipBoard" value="Flip Board" />

@@ -97,6 +97,25 @@ class GameDetailsController extends AbstractController
         return new JsonResponse( $this->game);
     }
 
+    // Get random (:Game) id
+    private function getRandomGameId()
+    {
+	// Use SKIP to get a pseudo random game
+	$params["SKIP"] = rand(0,100);
+	$params["counter"] = rand(20,100);
+	$query = 'MATCH (g:Game)-[:FINISHED_ON]->(:Line:CheckMate)-[:GAME_HAS_LENGTH]->(p:GamePlyCount)
+WHERE p.counter > {counter} RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
+        $result = $this->neo4j_client->run($query, $params);
+
+	$gid = 0;
+	foreach ($result->records() as $record) {
+  	  $gid = $record->value('id');
+	}
+        $this->logger->debug('Random (:Game) node id'.$gid);
+
+	return $gid;
+    }
+
     // Get root node id
     private function getRootId()
     {
@@ -156,6 +175,9 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
     private function getGameInfo( $gid)
     {
 	$this->game['ID'] = 0;
+
+	// Get random game
+	if( $gid == 0) $gid = $this->getRandomGameId();
 
 	// Fetch game details 
 	$params = ["gid" => $gid];

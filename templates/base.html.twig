@@ -6,7 +6,7 @@
         {% block stylesheets %}{% endblock %}
         {% block head %}{% endblock %}
     </head>
-    <body>
+    <body onload="showGameDetails(0);$('.tagsinput#form-tags').addTag('1-0');">
         {% block body %}{% endblock %}
         {% block javascripts %}{% endblock %}
     </body>

@@ -31,9 +31,9 @@ class FacebookAuthenticator extends SocialAuthenticator
 	$this->logger = $logger;
     }
 
-    public function createNeo4jUserEntity( int $id)
+    public function mergeNeo4jUserEntity( int $id)
     {
-        $this->logger->debug('Creating entity for '.$id);
+        $this->logger->debug('Merging entity for '.$id);
 
         $params = ["id" => intval( $id)];
         $query = 'MERGE (wu:WebUser {id:$id}) RETURN wu.id LIMIT 1';
@@ -72,6 +72,10 @@ class FacebookAuthenticator extends SocialAuthenticator
             ->findOneBy(['facebookId' => $facebookUser->getId()]);
 
         if ($existingUser) {
+
+	    // Merge a :WebUser entity in Neo4j
+	    $this->mergeNeo4jUserEntity( $existingUser->getId());
+
             return $existingUser;
         }
 
@@ -88,8 +92,8 @@ class FacebookAuthenticator extends SocialAuthenticator
         $this->em->persist($user);
         $this->em->flush();
 
-	// Create a :WebUser entity in Neo4j
-	$this->createNeo4jUserEntity( $user->getId());
+	// Merge a :WebUser entity in Neo4j
+	$this->mergeNeo4jUserEntity( $user->getId());
 
         return $user;
     }

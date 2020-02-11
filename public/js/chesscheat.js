@@ -19,6 +19,9 @@ URI_arr.pop();
 var Positions;
 var W_baselines, B_baselines;
 
+var TimeOut;
+var timerIsOn = false;
+
 // Doe NOT work!!!
 $("#checkAll").click(function(){
     console.log("Check all games");
@@ -58,6 +61,10 @@ document.getElementById('position').innerHTML = "Loading...";
 document.getElementById('counters').innerHTML = "Loading...";
 //document.getElementById('analysis_submit').innerHTML = '<button type="submit" class="input_submit" style="margin-right: 15px;" onClick="processGame('+gid+ ')">Submit for analysis </button>';
 
+// reset to starting position
+if( typeof Positions !== 'undefined')
+  $('#setStartBtn').click();
+
 $.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
 
   $.each(data, function(key, val){
@@ -73,7 +80,7 @@ $.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
   init();
 //  positionIndex=0;
 
-  document.getElementById('game_being_analyzed').value = gid;
+  document.getElementById('game_being_analyzed').value = Game["ID"];
 
   updateMovelist2();
 });
@@ -293,13 +300,15 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
                     'delimiter': [';'],
                     'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \/_+-]+$'),
                     'onAddTag': function(input, value) {
-                    },
-                    'onRemoveTag': function(input, value) {
-                    },
-                    'onChange': function(input, value) {
                         setCookie('page',0,1);
                         loadGames();
-                          },
+                    },
+                    'onRemoveTag': function(input, value) {
+                        setCookie('page',0,1);
+                        loadGames();
+                    },
+                    'onChange': function(input, value) {
+                    },
 
     'autocomplete': {
       source: "searchHint",
@@ -319,6 +328,10 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
 
 
 function openTab(evt, tabName) {
+
+    if( tabName != "Analyze")
+      pausePlayback();
+
     // Declare all variables
     var i, tabcontent, tablinks;
 
@@ -339,8 +352,8 @@ function openTab(evt, tabName) {
     evt.currentTarget.className += " active";
 } 
 
-// Get the element with id="defaultTab" and click on it
-document.getElementById("defaultTab").click();
+// Get the element with id="analysisTab" and click on it
+document.getElementById("analysisTab").click();
 
 var positionIndex=0;
 var variationIndex=-1;
@@ -466,6 +479,10 @@ for (index = 1; index < Positions.length; index++) {
 
 currentGame.reset();
 
+// Start playing the moves
+timerIsOn = true;
+window.setTimeout( makeNextMove, 500);
+
 /*
 // Reinitializing for the new game load
 cfg = {
@@ -578,11 +595,19 @@ countersTable += "</tr>";
 
 }
 
-//  for (index = 1; index < Positions.length; index++) {
-
 document.getElementById('counters').innerHTML = countersTable + "</table>";
 
 }; // end init()
+
+// Makes next move until the end
+// Then loads new game
+function makeNextMove() {
+
+  $('#setNextMove').click();
+
+  if( timerIsOn)
+    TimeOut = window.setTimeout( makeNextMove, 500);
+}
 
 $('#flipBoard').on('click', function() {
 //  console.log( board.orientation());
@@ -594,20 +619,49 @@ $('#setStartBtn').on('click', function() {
   positionIndex=0;
   variationIndex=0;
 
+  timerIsOn = false;
+  clearTimeout( TimeOut);
+
   currentGame.reset();
   board.position( currentGame.fen());
 
   updateMovelist2();
 });
 
+$('#setPlayPause').on('click', function() {
+
+  if( timerIsOn)
+    pausePlayback();
+  else {
+    timerIsOn = true;
+    makeNextMove();
+  }
+});
+
+function pausePlayback() {
+
+  timerIsOn = false;
+  clearTimeout( TimeOut); 
+};
+
 $('#setNextMove').on('click', function() {
 
-  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+//  console.log( "Pos: " + positionIndex + " Var: " + variationIndex + " Timer: " + timerIsOn);
 
-  if( variationIndex > 0)
-    currentGame.move( Positions[positionIndex][_T1_MOVE][variationIndex++]);
-  else
-    currentGame.move( Positions[++positionIndex][_MOVE]);
+  if( variationIndex > 0) {
+    if (typeof Positions[positionIndex][_T1_MOVE][variationIndex] !== 'undefined')
+      currentGame.move( Positions[positionIndex][_T1_MOVE][variationIndex++]);
+  } else {
+    if (typeof Positions[positionIndex+1] !== 'undefined')
+      currentGame.move( Positions[++positionIndex][_MOVE]);
+    else
+      // Timer is still on, load new game
+      if( timerIsOn) {
+        timerIsOn = false;
+        clearTimeout( TimeOut);
+	window.setTimeout( showGameDetails, 5000, 0);
+      }
+  }
 
   board.position( currentGame.fen());
 
@@ -618,10 +672,13 @@ $('#setPrevMove').on('click', function() {
 
 //  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
 
+  timerIsOn = false;
+  clearTimeout( TimeOut);
+
   // Update respective index
   if( variationIndex > 0)
     variationIndex--;
-  else
+  else if( positionIndex > 0)
     positionIndex--;
 
   currentGame.undo();
@@ -634,6 +691,9 @@ function setMove( pIndex, vIndex) {
 
   positionIndex = pIndex;
   variationIndex = vIndex;
+
+  timerIsOn = false;
+  clearTimeout( TimeOut);
 
 //  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
 
