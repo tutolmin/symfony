@@ -22,8 +22,20 @@ class QueueGameAnalysisController extends AbstractController
     // Logger reference
     private $logger;
 
-    // Next queue id
-    private $next_queue_id = -1;
+    // Necessary ids
+    private $queue_id;
+    private $analysis_id;
+    private $game_id;
+    private $wu_id;
+
+    // Analysis parameters
+    private $sideLabel;
+    private $depth;
+
+    // Previous/Last/First ids
+    private $p_id;
+    private $l_id;
+    private $f_id;
 
     // Dependency injection of the Neo4j ClientInterface
     public function __construct( ClientInterface $client, Stopwatch $watch, LoggerInterface $logger)
@@ -31,90 +43,234 @@ class QueueGameAnalysisController extends AbstractController
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
 	$this->logger = $logger;
+
+        // Init Ids with non-existing values
+	$this->queue_id = -1;
+	$this->analysis_id = -1;
+	$this->game_id = -1;
+	$this->p_id = -1;
+	$this->l_id = -1;
+	$this->f_id = -1;
+
+        // Default analysis parameters
+	$this->sideLabel=":WhiteSide:BlackSide";
+	$this->depth = $_ENV['DEFAULT_ANALYSIS_DEPTH'];
+
+	// starts event named 'eventName'
+	$this->stopwatch->start('queueGameAnalysis');
+
+	// Maintenane operation
+	$this->updateCurrentQueueNode();
     }
 
-    // Find the queue element currently being processed
-    private function getCurrentQueueId()
+    public function __destruct()
     {
-	$query = 'MATCH (:Queue:Current)-[:NEXT*0..]->(q:Queue) WITH q
-MATCH (q)<-[:PLACED_IN]-(:Analysis:Pending)
-RETURN id(q) as qid LIMIT 1';
+	// stops event named 'eventName'
+	$this->stopwatch->stop('queueGameAnalysis');
+    }
+
+    // Update (:Current) pointer for a queue
+    private function updateCurrentQueueNode()
+    {
+	$query = 'MATCH (:Queue:Head)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:Pending) 
+WITH p LIMIT 1
+MATCH (p)<-[:QUEUED]-(q:Queue)
+MATCH (c:Queue:Current)
+REMOVE c:Current SET q:Current';
         $result = $this->neo4j_client->run($query, null);
-
-        foreach ($result->records() as $record)
-          return $record->value('qid');
-
-	// Return non-existing id if not found
-	return -1;
     }
 
     // Match existing Analysis request
-    private function matchedAnalysisRequest( $gameID, $analysisDepth, $analyzeLabel)
+    private function matchAnalysisRequest()
     {
 	$query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (d:Depth{level:{depth}})
-MATCH (g)<-[:REQUESTED_FOR]-(a:Analysis'.$analyzeLabel.')-[:REQUIRED_DEPTH]->(d)
+MATCH (g)<-[:REQUESTED_FOR]-(a:Analysis'.$this->sideLabel.')-[:REQUIRED_DEPTH]->(d)
 RETURN id(a) AS aid LIMIT 1';
 
-	$params = ["gid" => intval( $gameID), "depth" => intval( $analysisDepth)];
+	$params = ["gid" => intval( $this->game_id), 
+	  "depth" => intval( $this->depth)];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('aid') != "null")
+          if( $record->value('aid') != "null") {
+	    $this->analysis_id = $record->value('aid');
 	    return TRUE; 
+          }
 
 	// Return FALSE by default
 	return FALSE;
     }
 
-
-    // Finding last Queue element for current WebUser
-    private function getWebUserQueueId()
+    // Find Game in the database
+    private function isValidGame()
     {
-	$query = 'MATCH (wu:WebUser{id:{wuid}})
-MATCH (wu)<-[:REQUESTED_BY]-(:Analysis:Pending)-[:PLACED_IN]->(q:Queue)
-RETURN id(q) AS qid ORDER BY q.idx DESC LIMIT 1';
+        $query = 'MATCH (g:Game)
+WHERE id(g) = {gid}
+RETURN id(g) AS gid LIMIT 1';
 
-	$params = ["wuid" => intval( $this->getUser()->getId())];
+        $params = ["gid" => intval( $this->game_id)];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          return $record->value('qid');
+	  if( $record->value('gid') != "null") {
+	    $this->game_id = $record->value('gid');
+            return TRUE; 
+          }
 
-	// Return non-existing id if not found
-	return -1;
+        // Return 
+        return FALSE;
     }
 
-    // Merging new :Queue element
-    private function getLastQueueId()
+    // Find appropriate (:Queue) node for a given (:WebUser) to attach the (:Analysis)
+    private function findWebUserQueueNode()
     {
-	$query = 'MATCH (q:Queue) WHERE NOT (q)-[:NEXT]->(:Queue)
+        $query = 'MATCH (w:WebUser{id:{wuid}})
+MATCH (:Current)-[:NEXT*0..]->(q:Queue) 
+WHERE NOT (q)-[:QUEUED]->(:Analysis)-[:REQUESTED_BY]->(w) 
+RETURN id(q) AS qid LIMIT 1';
+
+	$this->wu_id = $this->getUser()->getId();
+        $params = ["wuid" => intval( $this->wu_id)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+	  if( $record->value('qid') != "null") {
+	    $this->queue_id = $record->value('qid');
+            return TRUE; 
+          }
+
+        // Return 
+        return FALSE;
+    }
+
+    // Create a new (:Queue) node and attach it to the (:Tail)
+    private function createQueueNode()
+    {
+        $query = 'MATCH (t:Tail) 
+CREATE (q:Queue)
+MERGE (t)-[:NEXT]->(q)
+SET q:Tail REMOVE t:Tail
 RETURN id(q) AS qid LIMIT 1';
 
         $result = $this->neo4j_client->run($query, null);
 
-        foreach ($result->records() as $record)
+        foreach ($result->records() as $record) {
+	  $this->queue_id = $record->value('qid');
           return $record->value('qid');
-
-	// Return non-existing id if not found
-	return -1;
+	}
+	
+        // Return non-existing id if not found
+        return -1;
     }
 
-    // Merging new :Queue element
-    private function mergeNextQueueId()
+    // Attach new (Analysis) to a (:Queue) node
+    private function createAnalysisNode()
     {
-	$query = 'MATCH (q:Queue) WHERE id(q) = {qid}
-MERGE (q)-[:NEXT]->(e:Queue) ON CREATE SET e.idx = q.idx+1
-RETURN id(e) AS qid LIMIT 1';
+        $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+MATCH (g:Game) WHERE id(g)={gid}
+MATCH (w:WebUser{id:{wuid}})
+MATCH (d:Depth{level:{depth}})
+CREATE (a:Analysis'.$this->sideLabel.':Pending)
+MERGE (q)-[:QUEUED]->(a)-[:REQUIRED_DEPTH]->(d)
+MERGE (g)<-[:REQUESTED_FOR]-(a)-[:REQUESTED_BY]->(w)
+RETURN id(a) AS aid LIMIT 1';
 
-	$params = ["qid" => intval( $this->next_queue_id)];
+        $params = ["qid" => intval( $this->queue_id), 
+	  "gid" => intval( $this->game_id),
+          "wuid" => intval( $this->wu_id), 
+	  "depth" => intval( $this->depth)];
         $result = $this->neo4j_client->run($query, $params);
 
-        foreach ($result->records() as $record)
-          return $record->value('qid');
+        foreach ($result->records() as $record) {
+	  $this->analysis_id = $record->value('aid');
+          return $record->value('aid');
+	}
 
-	// Return non-existing id if not found
-	return -1;
+        // Return non-existing id if not found
+        return -1;
+    }
+
+    // Find (:Analysis) siblings
+    private function findAnalysisSiblings()
+    {
+        $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+OPTIONAL MATCH (q)-[:LAST]-(l:Analysis)
+OPTIONAL MATCH (l)-[:NEXT]->(f:Analysis)
+OPTIONAL MATCH (q)<-[:NEXT]-(:Queue)-[:LAST]->(p:Analysis)
+RETURN id(p) AS pid, id(l) AS lid, id(f) AS fid LIMIT 1';
+
+        $params = ["qid" => intval( $this->queue_id)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record) {
+	  $this->p_id = $record->value('pid');
+	  $this->l_id = $record->value('lid');
+	  $this->f_id = $record->value('fid');
+	}
+
+	return;
+    }
+
+    // Enqueue (:Analysis) Node
+    private function enqueueAnalysisNode()
+    {
+	// Find the siblings first
+	$this->findAnalysisSiblings();
+
+        $this->logger->debug( "pid: $this->p_id, lid: $this->l_id, fid: $this->f_id");
+
+	// Default query, all ids are null, very first (:Analysis) node
+        $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+MATCH (a:Analysis) WHERE id(a)={aid}
+MERGE (q)-[:FIRST]->(a)
+MERGE (q)-[:LAST]->(a)
+RETURN id(a) AS aid LIMIT 1';
+
+	// Adding (:Analysis) node to a new (:Tail) node
+	if( $this->p_id != null && 
+	  $this->l_id == null && $this->f_id == null) {
+
+	  $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (p:Analysis) WHERE id(p)={pid}
+MERGE (q)-[:FIRST]->(a)
+MERGE (q)-[:LAST]->(a)
+MERGE (p)-[:NEXT]->(a)
+RETURN id(a) AS aid LIMIT 1';
+	}
+
+	// Adding to an existing (:Tail) node
+	if( $this->l_id != null && $this->f_id == null) {
+
+	  $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (l:Analysis) WHERE id(l)={lid}
+MATCH (q)-[r:LAST]->(l)
+MERGE (l)-[:NEXT]->(a)
+MERGE (q)-[:LAST]->(a)
+DELETE r
+RETURN id(a) AS aid LIMIT 1';
+	}
+
+	// Regular addition
+	if( $this->l_id != null && $this->f_id != null) {
+
+	  $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (l:Analysis)-[r1:NEXT]->(f:Analysis) WHERE id(l)={lid}
+MATCH (q)-[r2:LAST]->(l)
+MERGE (l)-[:NEXT]->(a)-[:NEXT]->(f)
+MERGE (q)-[:LAST]->(a)
+DELETE r1, r2
+RETURN id(a) AS aid LIMIT 1';
+        }
+
+        $params = ["qid" => intval( $this->queue_id), 
+	  "aid" => intval( $this->analysis_id),
+	  "pid" => intval( $this->p_id), 
+	  "lid" => intval( $this->l_id)];
+        $result = $this->neo4j_client->run($query, $params);
     }
 
     /**
@@ -123,106 +279,75 @@ RETURN id(e) AS qid LIMIT 1';
       */
     public function queueGameAnalysis()
     {
-        // or add an optional message - seen by developers
-        $this->denyAccessUnlessGranted('ROLE_USER', null, 'User tried to access a page without having ROLE_USER');
+      // or add an optional message - seen by developers
+      $this->denyAccessUnlessGranted('ROLE_USER', null, 
+	'User tried to access a page without having ROLE_USER');
 
-	// starts event named 'eventName'
-	$this->stopwatch->start('queueGameAnalysis');
-
-	// HTTP request
-	$request = Request::createFromGlobals();
+      // HTTP request
+      $request = Request::createFromGlobals();
 	
-	// get Game ID from the query
-	$gameID = $request->request->get( 'gid', "");
+      // Get analysis depth
+      $requestDepth = $request->request->getInt('depth', 0);
+      if( $requestDepth > 0) $this->depth = $requestDepth;
 
-	// Check for required paramteres
-	if( strlen( $gameID) == 0)
-	    return new Response( "Error! Game ID is required.");
+      // Get side from a query parameter
+      $sideToAnalyze = $request->request->get('side', "");
 
-	// Query params
-	$params = [];
+      // Prepare analyze addition to a query
+      if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
+	$this->sideLabel = ":".$sideToAnalyze;
 
-	// Get side from a query parameter
-	$sideToAnalyze = $request->request->get('side', "");
-
-	// Get analysis depth
-	$analysisDepth = $request->request->get('depth');
-	if( strlen( $analysisDepth) == 0) $analysisDepth = $_ENV['DEFAULT_ANALYSIS_DEPTH'];
-
-	// Prepare analyze addition to a query
-	$analyzeLabel=":BothSides";
-	if( $sideToAnalyze == "WhiteOnly" || $sideToAnalyze == "BlackOnly")
-	    $analyzeLabel = ":".$sideToAnalyze;
-
-	// Find the queue element currently being processed
-	$this->next_queue_id = $this->getCurrentQueueId();
-
-        $this->logger->debug('Currently :Queue id='.$this->next_queue_id.' is being processed');
+      // get Game IDs from the query
+      $gids = json_decode( $request->request->get( 'gids'));
 	
-	// Some games are Pending
-	if( $this->next_queue_id != -1) {
+      // Iterate through all the IDs
+      $counter = 0;
+      foreach( $gids as $value) {
 
-	  // Check if the :Game has been already queued
-	  if( $this->matchedAnalysisRequest( $gameID, $analysisDepth, $analyzeLabel)) {
+        $this->logger->debug( 'Processing game ID: '.$value);
 
-        	$this->logger->debug('The :Game has already been queued for analysys.');
+	// Sanitize it somehow!!!
+	$this->game_id = $value;
 
-		// Encode in JSON and output
-        	return new Response( "Success! Already queued.");
-	  }
+	$this->stopwatch->lap('queueGameAnalysis');
 
-	  // Check if a WebUser have some Pending games
-	  $wu_queue_id = -1;
-	  $wu_queue_id = $this->getWebUserQueueId();
-	  if( $wu_queue_id != -1) {
-            $this->logger->debug('WebUser last :Queue id='.$this->next_queue_id);
-	    $this->next_queue_id = $wu_queue_id;
-	
-	    // Merge next :Queue element
-	    $this->next_queue_id = $this->mergeNextQueueId();
-	  }
-	} else {
+	// Check if game id is a valid game
+	if( !$this->isValidGame()) {
 
-	  // Get the last :Queue element
-	  $this->next_queue_id = $this->getLastQueueId();
-
-	  // Something is wrong
-	  if( $this->next_queue_id == -1 )
-	    return new Response( "Error! Can not find last :Queue element.");
+            $this->logger->debug('The game is invalid.');
+	    continue;
 	}
-/*	
-	// Merge next :Queue element
-	$this->next_queue_id = $this->mergeNextQueueId();
 
-	// Something is wrong
-	if( $this->next_queue_id == -1 )
-	    return new Response( "Error! Can not merge :Queue element.");
-*/	
-	// Query parameters
-	$params = ["gid" => intval( $gameID), "qid" => $this->next_queue_id, 
-		"wuid" => intval( $this->getUser()->getId()),
-		"depth" => intval( $analysisDepth)];
+	$this->stopwatch->lap('queueGameAnalysis');
 
-	// Merge analysis request into the DB
-	$query = 'WITH datetime() AS dt
-MATCH (g:Game) WHERE id(g) = {gid} 
-MATCH (q:Queue) WHERE id(q) = {qid}
-MATCH (wu:WebUser{id:{wuid}})
-MATCH (d:Depth {level:{depth}})
-MATCH (date:Day {day: dt.day})-[:OF]->(:Month {month: dt.month})-[:OF]->(:Year {year: dt.year})
-MATCH (time:Second {second: dt.second})-[:OF]->(:Minute {minute: dt.minute})-[:OF]->(:Hour {hour: dt.hour})
-CREATE (a:Analysis:Pending'.$analyzeLabel.')
-MERGE (g)<-[:REQUESTED_FOR]-(a)-[:REQUIRED_DEPTH]->(d)
-MERGE (q)<-[:PLACED_IN]-(a)-[:REQUESTED_BY]->(wu)
-MERGE (date)<-[:QUEUED_DATE]-(a)-[:QUEUED_TIME]->(time)
-RETURN id(a) AS aid LIMIT 1';
+	// Check if the :Game has already been queued
+	if( $this->matchAnalysisRequest()) {
 
-        $result = $this->neo4j_client->run($query, $params);
+            $this->logger->debug('The game has already been queued for analysys.');
+	    continue;
+	}
 
-	$this->stopwatch->stop('queueGameAnalysis');
+	$this->stopwatch->lap('queueGameAnalysis');
 
-	// Encode in JSON and output
-        return new Response( "Success!");
+	// Get appropriate (:Queue) node to attach the new (:Analysis)
+	if( !$this->findWebUserQueueNode()) $this->createQueueNode();
+
+	$this->stopwatch->lap('queueGameAnalysis');
+
+	// Create a new (:Analysis) node
+	$this->createAnalysisNode();
+
+	$this->stopwatch->lap('queueGameAnalysis');
+
+	// Finally create necessary relationships
+	$this->enqueueAnalysisNode();
+
+	// Count successfull analysis additions
+	$counter++;
+      }
+
+      // Encode in JSON and output
+      return new Response( $counter . " game(s) have been queued for analysis.");
     }
 }
 

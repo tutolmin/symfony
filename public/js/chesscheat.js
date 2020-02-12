@@ -29,25 +29,32 @@ $("#checkAll").click(function(){
 });
 
 function processGameList() {
+
   var s = document.getElementById("sideToAnalyzeGroup").value; 
   var d = document.getElementById("AnalysisDepthGroup").value; 
-//var checked = [];
+
+  var gids = [];
   $("input[name='items[]']:checked").each(function () {
-//  checked.push($(this).val());
-//  $.post( "setGameStatus", { gid: $(this).val(), side: s} );
-    console.log( "Game ID: " + $(this).val() + " side: " + s + " depth: " + d);
-    $.post( "queueGameAnalysis", { gid: $(this).val(), side: s, depth: d} );
+    gids.push( $(this).val());
   });
-//  console.log( checked);
+
+  console.log( "Game IDs: " + JSON.stringify( gids) + " side: " + s + " depth: " + d);
+
+  $.post( "queueGameAnalysis", { gids: JSON.stringify( gids), side: s, depth: d},
+    function(result) { document.getElementById('processGameStatusGroup').innerHTML = result });
 }
 
 function processGame() {
+
   var s = document.getElementById("sideToAnalyze").value; 
   var d = document.getElementById("AnalysisDepth").value; 
-  var gid = document.getElementById("game_being_analyzed").value;
-  console.log( "Game ID: " + gid + " side: " + s + " depth: " + d);
-//  $.post( "setGameStatus", { gid: gid, side: s} );
-  $.post( "queueGameAnalysis", { gid: gid, side: s, depth: d} );
+
+  var gids = [document.getElementById("game_being_analyzed").value];
+
+  console.log( "Game ID: " + gids[0] + " side: " + s + " depth: " + d);
+
+  $.post( "queueGameAnalysis", { gids: JSON.stringify( gids), side: s, depth: d},
+    function(result) { document.getElementById('processGameStatus').innerHTML = result });
 }
 
 function showGameDetails( gid) {
@@ -262,8 +269,8 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
     items.push('<tr><td colspan="5">' +
 '<select style="float:left;" name="sideToAnalyzeGroup" id="sideToAnalyzeGroup">'+
 '<option value="">Both sides</option>'+
-'<option value="WhiteOnly">White Only</option>'+
-'<option value="BlackOnly">Black Only</option>'+
+'<option value="WhiteSide">White Only</option>'+
+'<option value="BlackSide">Black Only</option>'+
 '</select>'+
 '<select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">'+
 '<option value="">18+ plies</option>'+
@@ -276,7 +283,7 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
              'style="margin-right: 15px;"'+
              'onClick="processGameList()">Submit games for analysis'+
      '</button>'+
-'</div></td>'+
+'</div><br/><div id="processGameStatusGroup"></div></td><td valign=top></td>'+
 	'<td colspan="3"></td>' +
         '<td><button onclick="setCookie(\'page\',0,1);loadGames();">First</button></td>'+
         '<td><button onclick="setCookie(\'page\',' + (page-1) + ',1);loadGames();">Prev</button></td>'+

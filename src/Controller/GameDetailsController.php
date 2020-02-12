@@ -102,9 +102,12 @@ class GameDetailsController extends AbstractController
     {
 	// Use SKIP to get a pseudo random game
 	$params["SKIP"] = rand(0,100);
-	$params["counter"] = rand(20,100);
-	$query = 'MATCH (g:Game)-[:FINISHED_ON]->(:Line:CheckMate)-[:GAME_HAS_LENGTH]->(p:GamePlyCount)
-WHERE p.counter > {counter} RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
+	$params["counter"] = rand(20,220);
+//	$query = 'MATCH (g:Game)-[:FINISHED_ON]->(:Line:CheckMate)-[:GAME_HAS_LENGTH]->(p:GamePlyCount)
+//WHERE p.counter > {counter} RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
+	$query = 'MATCH (:CheckMatePlyCount{counter:{counter}})-[:LONGER_CHECKMATE*0..]->(p:CheckMatePlyCount)
+MATCH (p)<-[:CHECKMATE_HAS_LENGTH]-(:CheckMate)<-[:FINISHED_ON]-(g:Game)
+RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
         $result = $this->neo4j_client->run($query, $params);
 
 	$gid = 0;
