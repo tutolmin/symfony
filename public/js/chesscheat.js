@@ -28,6 +28,8 @@ $("#checkAll").click(function(){
     $("input[name='items[]']").not(this).prop('checked', this.checked);
 });
 
+
+// A selection of games have been submitted for analysis
 function processGameList() {
 
   var s = document.getElementById("sideToAnalyzeGroup").value; 
@@ -44,6 +46,8 @@ function processGameList() {
     function(result) { document.getElementById('processGameStatusGroup').innerHTML = result });
 }
 
+
+// A game was submitted for analysis from Analyze tabe
 function processGame() {
 
   var s = document.getElementById("sideToAnalyze").value; 
@@ -57,23 +61,26 @@ function processGame() {
     function(result) { document.getElementById('processGameStatus').innerHTML = result });
 }
 
+
+// Display game data on the Analyze tab
 function showGameDetails( gid) {
+
   console.log( "Game ID: " + gid);
-Game = new Object;
 
-document.getElementById('header').innerHTML = "Loading...";
-//document.getElementById('board').innerHTML = "Loading...";
-document.getElementById('movelist').innerHTML = "Loading...";
-document.getElementById('position').innerHTML = "Loading...";
-document.getElementById('counters').innerHTML = "Loading...";
-//document.getElementById('analysis_submit').innerHTML = '<button type="submit" class="input_submit" style="margin-right: 15px;" onClick="processGame('+gid+ ')">Submit for analysis </button>';
+  // Clear the tab elements prior to new game load
+  document.getElementById('header').innerHTML = "Loading...";
+  document.getElementById('movelist').innerHTML = "Loading...";
+  document.getElementById('position').innerHTML = "Loading...";
+  document.getElementById('counters').innerHTML = "Loading...";
 
-// reset to starting position
-if( typeof Positions !== 'undefined')
-  $('#setStartBtn').click();
+  // reset to starting position if this is NOT the first loaded game
+  if( typeof Positions !== 'undefined')
+    $('#setStartBtn').click();
 
-$.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
+  // Fetch game data from the DB
+  $.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
 
+  Game = new Object;
   $.each(data, function(key, val){
         if( !val) {
                 Game[key]=0;
@@ -84,16 +91,24 @@ $.getJSON( URI_arr.join("/") + '/getGameDetails', 'gid='+gid, function(data){
   Positions = Game["Positions"];
   W_baselines = Game["W_baselines"];
   B_baselines = Game["B_baselines"];
+
+  // Replay game moves and display new game data
   init();
-//  positionIndex=0;
 
-  document.getElementById('game_being_analyzed').value = Game["ID"];
+  // Special hidden field in case a user submits the game for analysis
+  document.getElementById( 'game_being_analyzed').value = Game["ID"];
 
+  // Display a move list for a new game
   updateMovelist2();
-});
-document.getElementById("analysisTab").click();
+
+  });
+
+  // Issue a click event on an Analyze tab
+  document.getElementById("analysisTab").click();
 }
 
+
+// Set a cookie
 function setCookie(cname, cvalue, exdays) {
     var d = new Date();
     d.setTime(d.getTime() + (exdays*24*60*60*1000));
@@ -102,6 +117,7 @@ function setCookie(cname, cvalue, exdays) {
 }
 
 
+// Fetch a cookie from user browser
 function getCookie(cname) {
     var name = cname + "=";
     var decodedCookie = decodeURIComponent(document.cookie);
@@ -117,114 +133,209 @@ function getCookie(cname) {
     }
     return "";
 }
+ 
+
+// Parse a tags string from a scpfieid form element
+function parseTags( element) {
+  
+  // Parse the tags
+  var tags_arr = document.getElementById( element).value.split(';');
+  var tags_str = "";
+
+  console.log( tags_arr);
+
+  // Iterate all tags
+  tags_arr.forEach( function( item, i, arr) {
+
+  // We want a tag to be at leaset 2 chars long
+  if( item.length>2) {
+
+    var re;
+
+    // Game result has been specified
+    if( item == "1-0" || item == "0-1" || item == "1/2-1/2") {
+      tags_str += "result:" + item + ";";
+      console.log( item);
+      return;
+    } 
+
+    // Has a color specification
+    re = /^([\w,\.\ ]+)((\ |_)as(\ |_)(white|black))$/i;
+    if( found_color = item.match( re)) { 
+      tags_str += found_color[5].toLowerCase() + ":" + found_color[1] + ";";
+      console.log( found_color);
+      return;
+    }
+
+    // Has a result specification
+    re = /^([\w,\.\ ]+)((\ |_)(wins|loses|draws))$/i;
+    if( found_result = item.match( re)) {
+      tags_str += found_result[4].toLowerCase() + ":" + found_result[1] + ";";
+      console.log( found_result);
+      return;
+    }
+
+    // Simply numeric (game ID in the DB)
+    re = /^(\d+)$/i;
+    if( found_id = item.match( re)) {
+      tags_str += "id:" + found_id[1] + ";";
+      console.log( found_id);
+      return;
+    }
+
+    // Game ending type
+    re = /^(stale|check)mate((\ |_)by(\ |_)(pawn|king|queen|rook|knight|bishop))?$/i;
+    if( found_final = item.match( re)) {
+      tags_str += "ending:" + found_final[1] + "mate;";
+      if( typeof found_final[5] !== 'undefined') 
+        tags_str += "piece:" + found_final[5] + ";";
+      console.log( found_final);
+      return;
+    }
+
+    // Analysis side
+    re = /^(white|black)$/i;
+    if( found_status = item.match( re)) {
+      tags_str += "side:" + found_status[0] + ";";
+      console.log( found_status);
+      return;
+    }
+
+    // Game status label
+    re = /^(complete|processing|pending)$/i;
+    if( found_status = item.match( re)) {
+      tags_str += "status:" + found_status[0] + ";";
+      console.log( found_status);
+      return;
+    }
+
+    // Game status label
+    re = /^my\ games$/;
+    if( found_user = item.match( re)) {
+      tags_str += "user:myself;";
+      console.log( found_user);
+      return;
+    }
+
+    // Has ECO specification
+    re = /^[A-E]{1}[0-9]{2}$/i;
+    if( found_eco = item.match(re)) {
+      tags_str += "eco:" + found_eco[0] + ";";
+      console.log( found_eco);
+      return;
+    }
+
+    // Just a player
+    tags_str += "player:" + item + ";";
+  }
+  });
+
+  return tags_str;
+}
+
+function loadQueue() {
+
+  // Get the cookies
+  var page=parseInt( getCookie( "qa_page"));
+  var sort=getCookie( "qa_sort");
+  
+  // Parse the game selection tags
+  var tags_str = parseTags( 'queue-form-tags');
+
+  console.log( tags_str);
+
+  // Fetch games data from the DB
+  $.getJSON( URI_arr.join("/") + '/loadQueue', 
+    'tags=' + JSON.stringify( encodeURIComponent( tags_str))+'&page='+page+'&sort='+sort, function(data) {
+
+    // Build a table, start with header
+    var items = [];
+    items.push('<tr class="tableHeader">' +
+        '<td style="text-align:center"><a href="' + window.location.pathname +
+        '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
+        '<a href="' + window.location.pathname +
+        '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
+	'<td>Status</td><td>Game</td><td style="text-align:center">Side</td><td>Depth</td><td>Scheduled</td>' +
+        '<td></td></tr>');
+
+    // Iterate through all the loaded games
+    $.each(data, function(key, val) {
+
+    var status_image="loaded";
+    var status_descr="Game has been loaded into the database";
+
+    switch( val["Status"]) {
+      case "Paid":
+        status_image="paid";
+        status_descr="Priority processing is pending";
+        break;
+      case "Pending":
+        status_image="pending";
+        status_descr="Game is pending for processing";
+        break;
+      case "Processing":
+        status_image="processing";
+        status_descr="Game is being processed at the moment";
+        break;
+      default:
+        status_image="complete";
+        status_descr="Game analysis is complete";
+    }
+
+    items.push('<tr class="tableRow"><td style="text-align:center">' + val["Index"] + 
+	'</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' + 
+	'</td><td>' + val["White"] + ' vs. ' + val["Black"] + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] + 
+        '</td><td>' + val["Side"] + '</td><td>' + val["Depth"] + '</td><td>' + val["Date"] + 
+	'</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
+    });
+
+    // Add table controls below the game list
+    items.push('<tr><td colspan="4"></td>' +
+        '<td><button onclick="setCookie(\'qa_page\',0,1);loadQueue();">First</button></td>'+
+        '<td><button onclick="setCookie(\'qa_page\',' + (page-1) + ',1);loadQueue();">Prev</button></td>'+
+        '<td><button onclick="setCookie(\'qa_page\',' + (page+1) + ',1);loadQueue();">Next</button></td></tr>');
+
+    // Clear existing table, display new data
+    $('.analysisQueue').empty();
+    $('<table/>', {
+      'class': 'my-new-table',
+      html: items.join('')
+    }).appendTo( document.getElementById('analysisQueue'));
+  });
+}
 
 
 function loadGames() {
 
-var page=parseInt(getCookie( "page"));
-var sort=getCookie( "sort");
-//console.log( "Page from cookie: " + page);
-//console.log( 'tags='+JSON.stringify( document.getElementById('form-tags').value)+'&page='+page);
-//
+  // Get the cookies
+  var page=parseInt( getCookie( "gl_page"));
+  var sort=getCookie( "gl_sort");
+  
+  // Parse the game selection tags
+  var tags_str = parseTags( 'form-tags');
 
-// Parse the tags
-var tags_arr = document.getElementById('form-tags').value.split(';');
-var tags_str ="";
+  console.log( tags_str);
 
-console.log( tags_arr);
+  // Fetch games data from the DB
+  $.getJSON( URI_arr.join("/") + '/loadGames', 
+    'tags=' + JSON.stringify( encodeURIComponent( tags_str))+'&page='+page+'&sort='+sort, function(data) {
 
-// Iterate all tags
-tags_arr.forEach(function(item, i, arr) {
-  if( item.length>2) {
-
-  // Game result has been specified
-  if( item == "1-0" || item == "0-1" || item == "1/2-1/2") {
-    tags_str += "result:" + item + ";";
-  } else {
-
-    // Has a color specification
-    var re = /^([\w,\.\ ]+)((\ |_)as(\ |_)(white|black))$/i;
-    var found_color = item.match(re);
-    if( found_color) tags_str += found_color[5].toLowerCase() + ":" + found_color[1] + ";";
-//    console.log( found_color);
-
-    // Has a result specification
-    var re = /^([\w,\.\ ]+)((\ |_)(wins|loses|draws))$/i;
-    var found_result = item.match(re);
-    if( found_result) tags_str += found_result[4].toLowerCase() + ":" + found_result[1] + ";";
-//    console.log( found_result);
-
-    // Simply numeric (game ID in the DB)
-    var re = /^(\d+)$/i;
-    var found_id = item.match(re);
-    if( found_id) tags_str += "id:" + found_id[1] + ";";
-//    console.log( found_result);
-
-    // Game ending type
-    var re = /^(stale|check)mate((\ |_)by(\ |_)(pawn|king|queen|rook|knight|bishop))?$/i;
-    var found_final = item.match(re);
-    if( found_final) {
-      tags_str += "ending:" + found_final[1] + "mate;";
-      if( typeof found_final[5] !== 'undefined') 
-        tags_str += "piece:" + found_final[5] + ";";
-    }
-//    console.log( found_final);
-
-    // Game status label
-    var re = /^(complete|processing|pending)$/i;
-    var found_status = item.match(re);
-    if( found_status) tags_str += "status:" + found_status[0] + ";";
-//    console.log( found_result);
-
-    // Has ECO specification
-    var re = /^[A-E]{1}[0-9]{2}$/i;
-    var found_result = item.match(re);
-    if( found_result) tags_str += "eco:" + found_result[0] + ";";
-//    console.log( found_result);
-
-    // Just a player
-    if( !found_color && !found_result && !found_id && !found_status && !found_final) {
-      tags_str += "player:" + item + ";";
-    }
-  }
-  }
-});
-
-console.log( tags_str);
-
-$.getJSON( URI_arr.join("/") + '/loadGames', 
-'tags=' + JSON.stringify( encodeURIComponent( tags_str))+'&page='+page+'&sort='+sort, function(data){
-//'tags=' + JSON.stringify( encodeURIComponent( document.getElementById('form-tags').value))+'&page='+page+'&sort='+sort, function(data){
-  var items = [];
-//onclick="$(\'.tagsinput#form-tags\').addTag( \'sortDate\');" 
-  items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll"/></td>' +
+    // Build a table, start with header
+    var items = [];
+    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll"/></td>' +
         '<td>White</td><td>ELO W</td><td>Black</td><td>ELO B</td><td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +
         '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'Date\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Date&nbsp;' +
+        '#" onclick="setCookie(\'gl_sort\',\'Date\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Date&nbsp;' +
         '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'DateDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
+        '#" onclick="setCookie(\'gl_sort\',\'DateDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Moves&nbsp;'+
+        '#" onclick="setCookie(\'gl_sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Moves&nbsp;'+
         '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'MovesDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
-        '<!-- <td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'ScoreW\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Score&nbsp;W&nbsp;'+
-        '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'ScoreWDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
-        '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'DeltaW\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;W&nbsp;ELO&nbsp;&#x0394&nbsp;'+
-        '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'DeltaWDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
-        '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'ScoreB\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;Score&nbsp;B&nbsp;'+
-        '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'ScoreBDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
-        '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'DeltaB\',1);loadGames();" style="text-decoration: none;">&#x2193;</a>&nbsp;B&nbsp;ELO&nbsp;&#x0394&nbsp;'+
-        '<a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'sort\',\'DeltaBDesc\',1);loadGames();" style="text-decoration: none;">&#x2191;</a></td>'+
-        '--><td></td></tr>');
-  $.each(data, function(key, val){
+        '#" onclick="setCookie(\'gl_sort\',\'MovesDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
+        '<td></td></tr>');
+
+    // Iterate through all the loaded games
+    $.each(data, function(key, val) {
 
     var status_image="loaded";
     var status_descr="Game has been loaded into the database";
@@ -265,7 +376,9 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
         '</td><td class="centered">' + val["B_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["B_cheat_score"]-val["Black_ELO"]) + 
         '</td>--><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
-  });
+    });
+
+    // Add table controls below the game list
     items.push('<tr><td colspan="5">' +
 '<select style="float:left;" name="sideToAnalyzeGroup" id="sideToAnalyzeGroup">'+
 '<option value="">Both sides</option>'+
@@ -285,18 +398,49 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
      '</button>'+
 '</div><br/><div id="processGameStatusGroup"></div></td><td valign=top></td>'+
 	'<td colspan="3"></td>' +
-        '<td><button onclick="setCookie(\'page\',0,1);loadGames();">First</button></td>'+
-        '<td><button onclick="setCookie(\'page\',' + (page-1) + ',1);loadGames();">Prev</button></td>'+
-        '<td><button onclick="setCookie(\'page\',' + (page+1) + ',1);loadGames();">Next</button></td></tr>');
+        '<td><button onclick="setCookie(\'gl_page\',0,1);loadGames();">First</button></td>'+
+        '<td><button onclick="setCookie(\'gl_page\',' + (page-1) + ',1);loadGames();">Prev</button></td>'+
+        '<td><button onclick="setCookie(\'gl_page\',' + (page+1) + ',1);loadGames();">Next</button></td></tr>');
 
-  $('.gameList').empty();
-  $('<table/>', {
-    'class': 'my-new-table',
-    html: items.join('')
-  }).appendTo( document.getElementById('gameList'));
-});
 
+    // Clear existing table, display new data
+    $('.gameList').empty();
+    $('<table/>', {
+      'class': 'my-new-table',
+      html: items.join('')
+    }).appendTo( document.getElementById('gameList'));
+  });
 }
+
+    $(function() {
+            $('#queue-form-tags').tagsInput({
+                    'unique': true,
+                    'minChars': 2,
+                    'maxChars': 50,
+                    'limit': 5,
+                    'delimiter': [';'],
+                    'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \/_+-]+$'),
+                    'onAddTag': function(input, value) {
+                        setCookie('qa_page',0,1);
+                        loadQueue();
+                    },
+                    'onRemoveTag': function(input, value) {
+                        setCookie('qa_page',0,1);
+                        loadQueue();
+                    },
+                    'onChange': function(input, value) {
+                    },
+
+    'autocomplete': {
+      source: "searchHint",
+      minLength: 2,
+      select: function( event, ui ) {
+        console.log( "Selected: " + ui.item.value);
+      }
+    }
+            });
+    });
+
 
     $(function() {
             $('#form-tags').tagsInput({
@@ -307,11 +451,11 @@ $.getJSON( URI_arr.join("/") + '/loadGames',
                     'delimiter': [';'],
                     'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \/_+-]+$'),
                     'onAddTag': function(input, value) {
-                        setCookie('page',0,1);
+                        setCookie('gl_page',0,1);
                         loadGames();
                     },
                     'onRemoveTag': function(input, value) {
-                        setCookie('page',0,1);
+                        setCookie('gl_page',0,1);
                         loadGames();
                     },
                     'onChange': function(input, value) {

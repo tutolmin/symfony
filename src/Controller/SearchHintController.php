@@ -34,6 +34,12 @@ class SearchHintController extends AbstractController
 //        if( $term = $request->query->getAlpha('term', 0)) {
         if( $term = urldecode( $request->query->get('term'))) {
 
+	  if( strpos( "white", $term) !== false)
+	    $hints[] = "white";
+
+	  if( strpos( "black", $term) !== false)
+	    $hints[] = "black";
+
 	  if( strpos( "1-0", $term) !== false)
 	    $hints[] = "1-0";
 
