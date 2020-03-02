@@ -90,6 +90,9 @@
     "graphaware/neo4j-php-client": {
         "version": "4.8.5"
     },
+    "graphaware/neo4j-php-ogm": {
+        "version": "1.0.0-rc10"
+    },
     "guzzlehttp/guzzle": {
         "version": "6.3.3"
     },

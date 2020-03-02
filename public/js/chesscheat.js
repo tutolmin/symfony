@@ -29,6 +29,48 @@ $("#checkAll").click(function(){
 });
 
 
+// Send file to a user
+function downloadPGN(filename, text) {
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:application/x-chess-pgn;charset=utf-8,' + encodeURIComponent(text));
+  element.setAttribute('download', filename);
+
+  element.style.display = 'none';
+  document.body.appendChild(element);
+
+  element.click();
+
+  document.body.removeChild(element);
+}
+
+
+// A selection of games have been exported as PGN
+function exportGameList() {
+
+  var gids = [];
+  $("input[name='items[]']:checked").each(function () {
+    gids.push( $(this).val());
+  });
+
+  console.log( "Game IDs: " + JSON.stringify( gids));
+
+  $.post( "exportPGNs", { gids: JSON.stringify( gids)},
+    function(result) { downloadPGN( 'chesscheat.pgn', result); });
+}
+
+
+// A game was exported from Analyze tab
+function exportGame() {
+
+  var gids = [document.getElementById("game_being_analyzed").value];
+
+  console.log( "Game ID: " + gids[0]);
+
+  $.post( "exportPGNs", { gids: JSON.stringify( gids)},
+    function(result) { downloadPGN( 'chesscheat.pgn', result); });
+}
+
+
 // A selection of games have been submitted for analysis
 function processGameList() {
 
@@ -113,6 +155,21 @@ function setCookie(cname, cvalue, exdays) {
     var d = new Date();
     d.setTime(d.getTime() + (exdays*24*60*60*1000));
     var expires = "expires="+ d.toUTCString();
+
+    // Special handling of pagination cookies
+    if( cname == "gl_page" || cname == "qa_page") {
+	if( cvalue == "prev") {
+	   var curr = getCookie(cname);
+	   if( +curr > 0) {
+	      cvalue = +curr - 1;
+	   }
+	}	
+	if( cvalue == "next") {
+	   var curr = getCookie(cname);
+	   cvalue = +curr + 1;
+	}
+    }
+
     document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
 }
 
@@ -289,12 +346,6 @@ function loadQueue() {
 	'</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
     });
 
-    // Add table controls below the game list
-    items.push('<tr><td colspan="4"></td>' +
-        '<td><button onclick="setCookie(\'qa_page\',0,1);loadQueue();">First</button></td>'+
-        '<td><button onclick="setCookie(\'qa_page\',' + (page-1) + ',1);loadQueue();">Prev</button></td>'+
-        '<td><button onclick="setCookie(\'qa_page\',' + (page+1) + ',1);loadQueue();">Next</button></td></tr>');
-
     // Clear existing table, display new data
     $('.analysisQueue').empty();
     $('<table/>', {
@@ -366,8 +417,9 @@ function loadGames() {
         status_descr="Game analysis is complete";
     }
 */
-    items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td><!--<td><img src="img/' + status_image + 
-        '.png" title="' + status_descr + '"/></td>--><td>' + val["White"] + '</td><td>' + val["ELO_W"] + "</td><td>" + 
+    items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
+'<!--<td><img src="img/' + status_image + '.png" title="' + status_descr + '"/></td>-->' +
+	'<td>' + val["White"] + '</td><td>' + val["ELO_W"] + "</td><td>" + 
 	val["Black"] + '</td><td>' + val["ELO_B"] + '</td><td class="centered">' + 
         val["Result"] + "</td><td>" + val["ECO"] + "</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
         '<td class="centered">' + val["Moves"] + 
@@ -375,33 +427,8 @@ function loadGames() {
         '</td><td class="centered">' + colorScore( val["W_cheat_score"]-val["White_ELO"]) + 
         '</td><td class="centered">' + val["B_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["B_cheat_score"]-val["Black_ELO"]) + 
-        '</td>--><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
+        '</td>--><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></tr>');
     });
-
-    // Add table controls below the game list
-    items.push('<tr><td colspan="5">' +
-'<select style="float:left;" name="sideToAnalyzeGroup" id="sideToAnalyzeGroup">'+
-'<option value="">Both sides</option>'+
-'<option value="WhiteSide">White Only</option>'+
-'<option value="BlackSide">Black Only</option>'+
-'</select>'+
-'<select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">'+
-'<option value="">18+ plies</option>'+
-'<option value="20">20+ plies</option>'+
-'<option value="23">23+ plies</option>'+
-'</select>'+
-'<div id="analysis_submit_group">'+
-     '<button type="submit"'+
-             'class="input_submit"'+
-             'style="margin-right: 15px;"'+
-             'onClick="processGameList()">Submit games for analysis'+
-     '</button>'+
-'</div><br/><div id="processGameStatusGroup"></div></td><td valign=top></td>'+
-	'<td colspan="3"></td>' +
-        '<td><button onclick="setCookie(\'gl_page\',0,1);loadGames();">First</button></td>'+
-        '<td><button onclick="setCookie(\'gl_page\',' + (page-1) + ',1);loadGames();">Prev</button></td>'+
-        '<td><button onclick="setCookie(\'gl_page\',' + (page+1) + ',1);loadGames();">Next</button></td></tr>');
-
 
     // Clear existing table, display new data
     $('.gameList').empty();
@@ -1117,5 +1144,6 @@ function colorScore( score) {
   return scoreStr;
 }
 
-$(document).ready(setCookie("page",0,1));
+$(document).ready(setCookie("gl_page",0,1));
+$(document).ready(setCookie("qa_page",0,1));
 

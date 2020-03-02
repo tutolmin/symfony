@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bdfa8deacfb9edfb47c0b9331362c50d",
+    "content-hash": "fd2cda1359474d984ea8272177349189",
     "packages": [
         {
             "name": "clue/stream-filter",
@@ -1412,6 +1412,75 @@
                 "neo4j"
             ],
             "time": "2018-11-21T12:08:48+00:00"
+        },
+        {
+            "name": "graphaware/neo4j-php-ogm",
+            "version": "1.0.0-RC10",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/graphaware/neo4j-php-ogm.git",
+                "reference": "926f0f7f319005270885c5a153db98b50d799144"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/graphaware/neo4j-php-ogm/zipball/926f0f7f319005270885c5a153db98b50d799144",
+                "reference": "926f0f7f319005270885c5a153db98b50d799144",
+                "shasum": ""
+            },
+            "require": {
+                "doctrine/annotations": "^1.2",
+                "doctrine/collections": "^1.3",
+                "doctrine/common": "^2.6",
+                "graphaware/neo4j-php-client": "^4.6",
+                "php": "^5.6 || ^7.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^1.0",
+                "phpunit/phpunit": "^5.2",
+                "symfony/finder": "^3.0",
+                "symfony/stopwatch": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "GraphAware\\Neo4j\\OGM\\": "src/"
+                },
+                "files": [
+                    "src/Mapping/Neo4jOGMAnnotations.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Christophe Willemsen",
+                    "email": "christophe@graphaware.com"
+                },
+                {
+                    "name": "GraphAware Ltd",
+                    "email": "php@graphaware.com"
+                }
+            ],
+            "description": "PHP Object Graph Mapper for Neo4j",
+            "homepage": "https://github.com/graphaware/neo4j-php-ogm",
+            "keywords": [
+                "annotations",
+                "cypher",
+                "database",
+                "graph",
+                "mapper",
+                "mapping",
+                "neo4j",
+                "ogm"
+            ],
+            "time": "2018-02-04T21:04:34+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -3818,7 +3887,7 @@
         },
         {
             "name": "symfony/filesystem",
-            "version": "v4.4.4",
+            "version": "v4.4.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/filesystem.git",
@@ -6864,7 +6933,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "graphaware/neo4j-php-ogm": 5
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

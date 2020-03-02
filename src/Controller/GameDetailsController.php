@@ -8,16 +8,21 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
+/*
 use Symfony\Component\HttpClient\CachingHttpClient;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpKernel\HttpCache\Store;
+*/
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Psr\Log\LoggerInterface;
+use App\Service\CacheFileFetcher;
 
 class GameDetailsController extends AbstractController
 {
     const _DEBUG = FALSE;
 
     private $logger;
+    private $fetcher;
 
     // Initial position properties
     const ROOT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -41,20 +46,23 @@ class GameDetailsController extends AbstractController
     private $sides = ["White" => "W_", "Black" => "B_"];
 
     // Dependency injection of the Neo4j ClientInterface
-    public function __construct( ClientInterface $client, Stopwatch $watch, LoggerInterface $logger)
+    public function __construct( ClientInterface $client, Stopwatch $watch, 
+	LoggerInterface $logger, CacheFileFetcher $fetcher)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
         $this->logger = $logger;
+        $this->fetcher = $fetcher;
     }
 
     /**
       * @Route("/getGameDetails")
+      * @Security("is_granted('IS_AUTHENTICATED_ANONYMOUSLY')")
       */
     public function getGameDetails()
     {
         // or add an optional message - seen by developers
-        $this->denyAccessUnlessGranted('ROLE_USER', null, 'User tried to access a page without having ROLE_USER');
+//        $this->denyAccessUnlessGranted('ROLE_USER', null, 'User tried to access a page without having ROLE_USER');
 
 	// starts event
 	$this->stopwatch->start('getGameDetails');
@@ -67,28 +75,34 @@ class GameDetailsController extends AbstractController
 
 	  // Lap, Game node details fetched
 	  $this->stopwatch->lap('getGameDetails');
+	  $this->stopwatch->start('getBaselines');
 
 	  // Get baselines
 	  $this->getBaselines();
 
 	  // Lap, baselines fetched
+	  $this->stopwatch->stop('getBaselines');
 	  $this->stopwatch->lap('getGameDetails');
+	  $this->stopwatch->start('getMoveList');
 
 	  // Get movelist
 //	  $this->getMoveList( $request->query->getInt('gid', 0));
-	  $this->fetchMoveList();
+	  $this->getMoveList();
 
 	  if( self::_DEBUG) {
 	    print_r( $this->moves);
 	  }
 
 	  // Lap, Movelist fetched
+	  $this->stopwatch->stop('getMoveList');
 	  $this->stopwatch->lap('getGameDetails');
+	  $this->stopwatch->start('getPositions');
 
 	  // Get Position nodes data
 	  $this->getPositions();
 
 	  // Stop the timer
+	  $this->stopwatch->stop('getPositions');
 	  $this->stopwatch->stop('getGameDetails');
 
 	} else unset( $this->game["ID"]);
@@ -129,9 +143,16 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	foreach ($result->records() as $record) {
   	  $this->neo4j_node_id = $record->value('id');
 	}
-        $this->logger->debug('Root node id'.$record->value('id'));
+        $this->logger->debug('Root node id '.$record->value('id'));
     }
 
+    // Get move list
+    private function getMoveList( )
+    {
+	$response = $this->fetcher->getFile( $this->game["MoveListHash"].'.json');
+	$this->moves = $response->toArray();
+    }
+/*
     // Fetch move list
     private function fetchMoveList( )
     {
@@ -139,8 +160,9 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	$client = HttpClient::create();
 	$client = new CachingHttpClient($client, $store, ["debug" => true]);
 
-	$response = $client->request('GET', 
-	    'http://cache.chesscheat.com/'.$this->game["MoveListHash"].'.json');
+	$URL = 'http://cache.chesscheat.com/'.$this->game["MoveListHash"].'.json';
+        $this->logger->debug('URL '.$URL);
+	$response = $client->request('GET', $URL); 
 
 	$statusCode = $response->getStatusCode();
 	// $statusCode = 200
@@ -173,7 +195,7 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
   	  $this->moves = $record->value('movelist');
 	}
     }
-
+*/
     // Get game info
     private function getGameInfo( $gid)
     {

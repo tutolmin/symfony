@@ -32,7 +32,13 @@
 <img src="img/analysis.png" style="float:left"/>&nbsp;&nbsp;Analyze</button>
 </div>
 
-<div style="float:right;"><a href="/connect">Login</a>&nbsp;|&nbsp;<a href="/logout">Logout</a></div>
+<div style="float:right;">
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{{ app.user.email }}&nbsp;<a href="/logout">Logout</a>
+{% else %}
+<a href="/connect">Login</a>
+{% endif %}
+</div>
 
 <!-- Tab content -->
 <div id="Upload" class="tabcontent">
@@ -54,7 +60,18 @@ Use the form below to upload your games.</p>
 <!--
 <p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
 -->
-    <input type="submit" value="Upload PGN" name="submit">
+
+    <input type="submit" value="Upload PGN" name="submit"
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+	disabled="disabled"
+{% endif %}
+>
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+    <br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can upload your games.</span>
+{% endif %}
+
 {{ form_end(form) }}
 </div>
 
@@ -136,7 +153,55 @@ Use the form below to upload your games.</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#form-tags').importTags( '');">Delete all tags</button>
   </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text"></form>
+
   <div class="gameList" id="gameList"></div>
+
+<table style="width:100%"><tr><td>
+<select style="float:left;" name="sideToAnalyzeGroup" id="sideToAnalyzeGroup">
+<option value="">Both sides</option>
+<option value="WhiteSide">White Only</option>
+<option value="BlackSide">Black Only</option>
+</select>
+<select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">
+<option value="">18+ plies</option>
+<option value="20">20+ plies</option>
+<option value="23">23+ plies</option>
+</select>
+<div id="analysis_submit_group">
+     <button type="submit"
+             class="input_submit"
+             style="margin-right: 15px;"
+             onClick="processGameList()"
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+	disabled="disabled"
+{% endif %}
+>Submit games for analysis
+     </button>
+</div><br/><div id="processGameStatusGroup"></div>
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+<br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can request analysis.</span>
+{% endif %}
+</td>
+<td>
+<div id="export_submit_group">
+     <button type="submit"
+             class="input_submit"
+             style="margin-right: 15px;"
+             onClick="exportGameList()"
+>Export PGN
+     </button>
+</div>
+</td>
+<td style="float:right;">
+	<table><tr>
+        <td><button onclick="setCookie('gl_page',0,1);loadGames();">First</button></td>
+        <td><button onclick="setCookie('gl_page','prev',1);loadGames();">Prev</button></td>
+        <td><button onclick="setCookie('gl_page','next',1);loadGames();">Next</button></td></tr>
+	</table>
+</td></tr></table>
+
 </td>
 </tr>
 </table>
@@ -147,7 +212,16 @@ Use the form below to upload your games.</p>
   <h3>Predefined Tags</h3>
 <div class="predefinedTags">
 <b>My games</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'my games');">My games<br/>
+<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'my games');"
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+disabled="disabled"
+{% endif %}
+>My games<br/>
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+(<a href="/connect">login</a> required)<br/>
+{% endif %}
 <b>Side</b><br/>
 <input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White<br/>
 <input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black<br/>
@@ -162,7 +236,18 @@ Use the form below to upload your games.</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#queue-form-tags').importTags( '');loadQueue();">Delete all tags</button>
   </span><form id="queue_form"><input id="queue-form-tags" name="tags" class="tagsinput" type="text"></form>
+
   <div class="analysisQueue" id="analysisQueue"></div>
+
+<table style="width:100%"><tr><td>
+</td><td style="float:right;">
+	<table><tr>
+        <td><button onclick="setCookie('qa_page',0,1);loadQueue();">First</button></td>
+        <td><button onclick="setCookie('qa_page','prev',1);loadQueue();">Prev</button></td>
+        <td><button onclick="setCookie('qa_page','next',1);loadQueue();">Next</button></td></tr>
+	</table>
+</td></tr></table>
+
 </td>
 </tr>
 </table>
@@ -187,7 +272,10 @@ Use the form below to upload your games.</p>
 <br style="clear:all" />
 <!-- end example HTML -->
 <div id="position" style="width: 525px;">Position details</div>
+
 <div>
+<input type="hidden" id="game_being_analyzed" value=""/>
+
 <select style="float:left;" name="sideToAnalyze" id="sideToAnalyze">
 <option value="">Both sides</option>
 <option value="WhiteSide">White Only</option>
@@ -198,14 +286,30 @@ Use the form below to upload your games.</p>
 <option value="20">20+ plies</option>
 <option value="23">23+ plies</option>
 </select>
-<input type="hidden" id="game_being_analyzed" value=""/>
 <div id="analysis_submit">
      <button type="submit" 
              class="input_submit" 
              style="margin-right: 15px;" 
-             onClick="processGame()">Submit for analysis
+             onClick="processGame()"
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+	     disabled="disabled"
+{% endif %}
+     >Submit for analysis
      </button>
 </div>
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+{% else %}
+<br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can request analysis.</span>
+{% endif %}
+
+<div id="export_submit" style="float:right;">
+     <button type="submit"
+             class="input_submit"
+             style="margin-right: 15px;"
+             onClick="exportGame()"
+>Export PGN
+     </button>
 </div>
 <br/>
 <div id="processGameStatus"></div>

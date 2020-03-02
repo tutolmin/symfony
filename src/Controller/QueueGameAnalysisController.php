@@ -10,6 +10,11 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
+use Symfony\Component\Filesystem\Filesystem;
+use App\Service\PGNFetcher;
+use App\Service\PGNUploader;
 
 class QueueGameAnalysisController extends AbstractController
 {
@@ -22,11 +27,16 @@ class QueueGameAnalysisController extends AbstractController
     // Logger reference
     private $logger;
 
+    // PGN fetcher/uploader
+    private $fetcher;
+    private $uploader;
+
     // Necessary ids
     private $queue_id;
     private $analysis_id;
     private $game_id;
     private $wu_id;
+    private $gids = array();
 
     // Analysis parameters
     private $sideLabel;
@@ -38,11 +48,14 @@ class QueueGameAnalysisController extends AbstractController
     private $f_id;
 
     // Dependency injection of the Neo4j ClientInterface
-    public function __construct( ClientInterface $client, Stopwatch $watch, LoggerInterface $logger)
+    public function __construct( ClientInterface $client, Stopwatch $watch, LoggerInterface $logger,
+	PGNFetcher $fetcher, PGNUploader $uploader)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
 	$this->logger = $logger;
+	$this->fetcher = $fetcher;
+	$this->uploader = $uploader;
 
         // Init Ids with non-existing values
 	$this->queue_id = -1;
@@ -84,8 +97,9 @@ REMOVE c:Current SET q:Current';
     private function matchAnalysisRequest()
     {
 	$query = 'MATCH (g:Game) WHERE id(g) = {gid}
+MATCH (g)-[:FINISHED_ON]->(l:Line)
 MATCH (d:Depth{level:{depth}})
-MATCH (g)<-[:REQUESTED_FOR]-(a:Analysis'.$this->sideLabel.')-[:REQUIRED_DEPTH]->(d)
+MATCH (l)<-[:PERFORMED_ON]-(a:Analysis'.$this->sideLabel.')-[:REQUIRED_DEPTH]->(d)
 RETURN id(a) AS aid LIMIT 1';
 
 	$params = ["gid" => intval( $this->game_id), 
@@ -169,11 +183,13 @@ RETURN id(q) AS qid LIMIT 1';
     {
         $query = 'MATCH (q:Queue) WHERE id(q)={qid}
 MATCH (g:Game) WHERE id(g)={gid}
+MATCH (g)-[:FINISHED_ON]->(l:Line)
 MATCH (w:WebUser{id:{wuid}})
 MATCH (d:Depth{level:{depth}})
 CREATE (a:Analysis'.$this->sideLabel.':Pending)
 MERGE (q)-[:QUEUED]->(a)-[:REQUIRED_DEPTH]->(d)
-MERGE (g)<-[:REQUESTED_FOR]-(a)-[:REQUESTED_BY]->(w)
+MERGE (g)<-[:REQUESTED_FOR]-(a)-[:PERFORMED_ON]->(l)
+MERGE (a)-[:REQUESTED_BY]->(w)
 RETURN id(a) AS aid LIMIT 1';
 
         $params = ["qid" => intval( $this->queue_id), 
@@ -273,6 +289,37 @@ RETURN id(a) AS aid LIMIT 1';
         $result = $this->neo4j_client->run($query, $params);
     }
 
+    // Merge :Lines for the :Games
+    private function mergeLines()
+    {
+      // Exit if array is empty
+      if( count( $this->gids) == 0) return 0;
+
+      // Fetch the games from the cache
+      $PGNstring = $this->fetcher->getPGNs( $this->gids);
+
+      $this->logger->debug( "Fetched games: ". $PGNstring);
+
+      $filesystem = new Filesystem();
+      try {
+
+        // Filename SHOULD contain 'lines' prefix in order to make sure
+        // the filename is never matches 'games' prefix, reserved for :Game-only db merge
+	$tmp_file = $filesystem->tempnam('/tmp', 'lines-'.$this->getUser()->getId().'-');
+
+        // Save the PGNs into a local temp file
+        file_put_contents( $tmp_file, $PGNstring);
+
+      } catch (IOExceptionInterface $exception) {
+
+	$this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+
+      }
+
+      // Put the file into special uploads directory
+      $PGNFileName = $this->uploader->uploadLines( $tmp_file);
+    }
+
     /**
       * @Route("/queueGameAnalysis")
       * @Security("is_granted('ROLE_USER')")
@@ -329,6 +376,11 @@ RETURN id(a) AS aid LIMIT 1';
 
 	$this->stopwatch->lap('queueGameAnalysis');
 
+	// Build the list of :Game ids to request :Line merge
+	$this->gids[] = $this->game_id;
+
+	$this->stopwatch->lap('queueGameAnalysis');
+
 	// Get appropriate (:Queue) node to attach the new (:Analysis)
 	if( !$this->findWebUserQueueNode()) $this->createQueueNode();
 
@@ -346,7 +398,11 @@ RETURN id(a) AS aid LIMIT 1';
 	$counter++;
       }
 
-      // Encode in JSON and output
+      $this->stopwatch->lap('queueGameAnalysis');
+
+      // Request :Line merge
+      $this->mergeLines();
+
       return new Response( $counter . " game(s) have been queued for analysis.");
     }
 }
