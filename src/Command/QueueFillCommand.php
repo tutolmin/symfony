@@ -8,7 +8,9 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use App\Service\GameManager;
 use App\Service\QueueManager;
+use Psr\Log\LoggerInterface;
 
 class QueueFillCommand extends Command
 {
@@ -19,14 +21,18 @@ class QueueFillCommand extends Command
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:fill';
 
-    // Queue manager reference
+    // Queue/Game manager reference
     private $queueManager;
+    private $gameManager;
 
-    // Dependency injection of the Queue manager service
-    public function __construct( QueueManager $qm)
+    // Dependency injection of the GameManager service
+    public function __construct( LoggerInterface $logger, GameManager $gm, QueueManager $qm)
     {
+        $this->logger = $logger;
+
         parent::__construct();
 
+        $this->gameManager = $gm;
         $this->queueManager = $qm;
     }
 
@@ -47,8 +53,22 @@ class QueueFillCommand extends Command
         InputOption::VALUE_OPTIONAL,
         'Please specify the desired queue length',
         self::THRESHOLD // this is the new default value, instead of null
-    )
-    ;
+        )
+        ->addOption(
+        'depth',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Please specify analysis depth',
+        $_ENV['DEFAULT_ANALYSIS_DEPTH'] // Default
+        )
+        ->addOption(
+        'side',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Please specify analysis side',
+        ':WhiteSide:BlackSide' // Default
+        )
+	;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -82,12 +102,46 @@ class QueueFillCommand extends Command
           return 1;
 	}
 
-	// Execute queue manager member function	
-//	$this->queueManager->eraseQueue();
+        // Get specified option
+        $type = $input->getOption('type');
 
-//	$output->writeln( 'Analysis queue nodes and relationships have been deleted successfully!');
+        // Default analysis parameters
+        $sideLabel = ":WhiteSide:BlackSide";
+        $depth = $_ENV['DEFAULT_ANALYSIS_DEPTH'];
+        $userId = $_ENV['SYSTEM_WEB_USER_ID'];
+
+        // Validate depth option
+        $depthOption = intval( $input->getOption('depth'));
+        if( $depthOption != 0) $depth = $depthOption;
+
+        // Validate side option
+        $sideToAnalyze = $input->getOption('side');
+        if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
+          $sideLabel = ":".$sideToAnalyze;
+
+        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth);
+
+	// Array of queued game ids
+	$gids = array();
+
+	// Add yet another game
+	do {
+          // Get the game id
+          $gid = $this->gameManager->getRandomGameId( $type);
+
+          $output->writeln( 'Selected game id ' . $gid);
+
+	  // Enqueue game analysis node
+	  if( $this->queueManager->queueGameAnalysis(
+                $gid, $depth, $sideLabel, $userId))
+	    $gids[] = $gid;	
+
+	} while( $this->queueManager->getQueueLength() < $threshold);
+
+        // Request :Line load for the list of games
+        $this->gameManager->loadLines( $gids, $userId);
 
         return 0;
     }
 }
-
+?>

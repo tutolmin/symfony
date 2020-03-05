@@ -71,13 +71,23 @@ MATCH (p)<-[:CHECKMATE_HAS_LENGTH]-(:CheckMate)<-[:FINISHED_ON]-(g:Game)';
         	$query .= '(p:StaleMatePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:STALEMATE_HAS_LENGTH]-(:StaleMate)<-[:FINISHED_ON]-(g:Game)';
 		break;
+	  case "1-0":
+        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
+		break;
+	  case "0-1":
+        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
+		break;
 	  default:
-        	$query .= '(p:PlyCount) WITH p LIMIT 1
+        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 		break;
 	}
 
-	$query .= " RETURN count(g) AS ttl LIMIT 1";
+	$query .= ' RETURN count(g) AS ttl LIMIT 1';
 
         $result = $this->neo4j_client->run( $query, $params);
 
@@ -103,6 +113,16 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 		break;
 	  case "stalemate":
         	$query .= '(p:StaleMatePlyCount)';
+		break;
+	  case "1-0":
+        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
+		break;
+	  case "0-1":
+        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 		break;
 	  default:
         	$query .= '(p:GamePlyCount)';
@@ -136,12 +156,24 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 	  case "stalemate":
         	$query .= '(p:StaleMatePlyCount)';
 		break;
+	  case "1-0":
+        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
+		break;
+	  case "0-1":
+        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
+		break;
 	  default:
         	$query .= '(p:GamePlyCount)';
 		break;
 	}
 
 	$query .= " RETURN p.counter as counter LIMIT 1";
+
+        $this->logger->debug( $query);
 
         $result = $this->neo4j_client->run( $query, null);
 
@@ -185,8 +217,18 @@ MATCH (p)<-[:CHECKMATE_HAS_LENGTH]-(:CheckMate)<-[:FINISHED_ON]-(g:Game)';
         	$query .= '(p:StaleMatePlyCount)
 MATCH (p)<-[:STALEMATE_HAS_LENGTH]-(:StaleMate)<-[:FINISHED_ON]-(g:Game)';
 		break;
+	  case "1-0":
+        	$query .= '(p:GamePlyCount)
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
+		break;
+	  case "0-1":
+        	$query .= '(p:GamePlyCount) 
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
+MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
+		break;
 	  default:
-        	$query .= '(p:PlyCount)
+        	$query .= '(p:GamePlyCount)
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 		break;
 	}
