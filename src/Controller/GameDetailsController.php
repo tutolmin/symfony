@@ -8,14 +8,10 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
-/*
-use Symfony\Component\HttpClient\CachingHttpClient;
-use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Component\HttpKernel\HttpCache\Store;
-*/
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Psr\Log\LoggerInterface;
 use App\Service\CacheFileFetcher;
+use App\Service\GameManager;
 
 class GameDetailsController extends AbstractController
 {
@@ -23,6 +19,7 @@ class GameDetailsController extends AbstractController
 
     private $logger;
     private $fetcher;
+    private $gameManager;
 
     // Initial position properties
     const ROOT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -47,12 +44,13 @@ class GameDetailsController extends AbstractController
 
     // Dependency injection of the Neo4j ClientInterface
     public function __construct( ClientInterface $client, Stopwatch $watch, 
-	LoggerInterface $logger, CacheFileFetcher $fetcher)
+	LoggerInterface $logger, CacheFileFetcher $fetcher, GameManager $gm)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
         $this->logger = $logger;
         $this->fetcher = $fetcher;
+        $this->gameManager = $gm;
     }
 
     /**
@@ -202,7 +200,13 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
 	$this->game['ID'] = 0;
 
 	// Get random game
-	if( $gid == 0) $gid = $this->getRandomGameId();
+//	if( $gid == 0) $gid = $this->getRandomGameId();
+
+        // Get the game id
+        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "stalemate");
+//        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "checkmate");
+//        if( $gid == 0) $gid = $this->gameManager->getRandomGameId();
+
 
 	// Fetch game details 
 	$params = ["gid" => $gid];

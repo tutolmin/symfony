@@ -12,9 +12,11 @@ use Psr\Log\LoggerInterface;
 class CacheFileFetcher
 {
     private $logger;
+    private $cacheDirectory;
 
-    public function __construct( LoggerInterface $logger)
+    public function __construct( $cacheDirectory, LoggerInterface $logger)
     {
+        $this->cacheDirectory = $cacheDirectory;
         $this->logger = $logger;
     }
 
@@ -22,7 +24,7 @@ class CacheFileFetcher
     public function getFile( $filename)
     {
 	// Init cache store dir
-        $store = new Store( $_ENV['CACHE_DIR']);
+        $store = new Store( $this->getCacheDirectory());
         $client = HttpClient::create();
         $cache_client = new CachingHttpClient($client, $store, ["debug" => true]);
 
@@ -49,6 +51,12 @@ class CacheFileFetcher
 
 	return $response;
     }
+
+    public function getCacheDirectory()
+    {
+        return $this->cacheDirectory;
+    }
+
 }
 
 ?>

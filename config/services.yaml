@@ -5,6 +5,7 @@
 # https://symfony.com/doc/current/best_practices/configuration.html#application-related-configuration
 parameters:
     PGNs_directory: '%kernel.project_dir%/public/uploads/PGNs'
+    cache_directory: '%kernel.project_dir%/cache'
 
 services:
     # default configuration for services in *this* file
@@ -29,4 +30,8 @@ services:
     App\Service\PGNUploader:
         arguments:
             $targetDirectory: '%PGNs_directory%'
+
+    App\Service\CacheFileFetcher:
+        arguments:
+            $cacheDirectory: '%cache_directory%'
 
