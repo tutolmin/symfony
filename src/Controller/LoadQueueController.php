@@ -730,7 +730,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	}
         $result = $this->neo4j_client->run($query, $params);
 
-	$event = $this->stopwatch->stop('loadQueue');
+//	$event = $this->stopwatch->lap('loadQueue');
 
         // Fetch the item data from the DB
         foreach ( $result->records() as $record) {

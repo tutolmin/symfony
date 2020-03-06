@@ -1,9 +1,12 @@
-SSLRequireSSL
+#SSLRequireSSL
+RewriteEngine On
+RewriteCond %{SERVER_PORT} !^443$
+RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
 
 <Files "*">
 AuthName "Restricted Area"
 AuthType Basic
-AuthUserFile /home/chchcom/.htpasswd
+AuthUserFile /home/chesscheat/.htpasswd
 require valid-user
 Order allow,deny
 Allow from 91.77.166.89

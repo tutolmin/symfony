@@ -58,6 +58,20 @@ RETURN id(g) AS gid LIMIT 1';
     // get total number of Games of certain type and length
     public function getGamesTotal( $type = "", $plycount = 80)
     {
+        $counter = 0;
+	$cacheVarName = 'gamesTotal'.$type.$plycount;
+
+	// Check if the value is in the cache
+	if( apcu_exists( $cacheVarName))
+	  $counter = apcu_fetch( $cacheVarName);
+
+	// Return counter, stored in the cache
+	if( $counter > 0) { 
+          $this->logger->debug('Total games of type '.
+	    $type. ' and length '.$plycount.' = ' .$counter. ' (cached)');
+	  return $counter;
+	}
+
         $params["counter"] = intval( $plycount);
 
         $query = 'MATCH (:PlyCount{counter:{counter}})-[:LONGER*0..]->';
@@ -91,13 +105,14 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 
         $result = $this->neo4j_client->run( $query, $params);
 
-        $counter = 0;
-        foreach ($result->records() as $record) {
+        foreach ($result->records() as $record)
           $counter = $record->value('ttl');
-        }
 
         $this->logger->debug('Total games of type '.
 		$type. ' and length '.$plycount.' = ' .$counter);
+	
+	// Storing the value in cache
+	apcu_add( $cacheVarName, $counter, 3600);
 
 	return $counter;
     }
@@ -105,6 +120,20 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
     // get maximum ply count for a certain game type
     private function getMaxPlyCount( $type = "")
     {
+	$counter=0;
+	$cacheVarName = 'maxPlyCount'.$type;
+
+	// Check if the value is in the cache
+	if( apcu_exists( $cacheVarName))
+	  $counter = apcu_fetch( $cacheVarName);
+
+	// Return counter, stored in the cache
+	if( $counter > 0) { 
+          $this->logger->debug('Maximum ply counter for game type '.
+	    $type.' = '.$counter. ' (cached)');
+	  return $counter;
+	}
+
         $query = 'MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-';
 
 	switch( $type) {
@@ -133,13 +162,14 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 
         $result = $this->neo4j_client->run( $query, null);
 
-	$counter=0;
-        foreach ($result->records() as $record) {
+        foreach ($result->records() as $record)
           $counter = $record->value('counter');
-        }
 
         $this->logger->debug('Maximum ply counter for game type '.
 		$type.' = '.$counter);
+
+	// Storing the value in cache
+	apcu_add( $cacheVarName, $counter, 3600);
 
 	return $counter;
     }
@@ -147,6 +177,20 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
     // get minimum ply count for a certain game type
     private function getMinPlyCount( $type = "")
     {
+	$counter=0;
+	$cacheVarName = 'minPlyCount'.$type;
+
+	// Check if the value is in the cache
+	if( apcu_exists( $cacheVarName))
+	  $counter = apcu_fetch( $cacheVarName);
+
+	// Return counter, stored in the cache
+	if( $counter > 0) { 
+          $this->logger->debug('Maximum ply counter for game type '.
+	    $type.' = '.$counter. ' (cached)');
+	  return $counter;
+	}
+
         $query = 'MATCH (:PlyCount{counter:0})-[:LONGER*0..]->';
 
 	switch( $type) {
@@ -177,13 +221,14 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 
         $result = $this->neo4j_client->run( $query, null);
 
-	$counter=0;
-        foreach ($result->records() as $record) {
+        foreach ($result->records() as $record)
           $counter = $record->value('counter');
-        }
 
         $this->logger->debug('Minimum ply counter for game type '.
 		$type.' = '.$counter);
+
+	// Storing the value in cache
+	apcu_add( $cacheVarName, $counter, 3600);
 
 	return $counter;
     }
