@@ -111,7 +111,7 @@ class QueueManager
 
 	  // Move :Current label
           $this->neo4j_client->run('
-PROFILE MATCH (h:Head)
+MATCH (h:Head)
 OPTIONAL MATCH (h)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(:Pending)<-[:QUEUED]-(q:Queue)
 WITH CASE q WHEN null THEN h ELSE q END AS q LIMIT 1
 OPTIONAL MATCH (c:Current)

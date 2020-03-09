@@ -611,7 +611,7 @@ LIMIT 1";
 	else if( in_array( "Win", $labelsArray))
           $games[$index]['Result'] = "1-0";
 	else if( in_array( "Loss", $labelsArray))
-          $games[$index]['Result'] = "0-0";
+          $games[$index]['Result'] = "0-1";
 	else
           $games[$index]['Result'] = "Unknown";
 /*
