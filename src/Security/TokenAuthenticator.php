@@ -102,4 +102,4 @@ class TokenAuthenticator extends AbstractGuardAuthenticator
         return false;
     }
 }
-
+?>

@@ -33,3 +33,4 @@ class LichessClient extends OAuth2Client
         return parent::fetchUser();
     }
 }
+?>

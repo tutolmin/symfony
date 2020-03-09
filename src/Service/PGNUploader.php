@@ -79,6 +79,4 @@ class PGNUploader
         return $this->targetDirectory;
     }
 }
-
 ?>
-

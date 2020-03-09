@@ -134,4 +134,4 @@ class GoogleAuthenticator extends SocialAuthenticator
 
     // ...
 }
-
+?>

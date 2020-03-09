@@ -121,4 +121,4 @@ class QueueGameAnalysisController extends AbstractController
       return new Response( $counter . " game(s) have been queued for analysis.");
     }
 }
-
+?>

@@ -246,3 +246,4 @@ class LichessProvider extends AbstractProvider
         return new LichessResourceOwner($response, $this->responseResourceOwnerId);
     }
 }
+?>

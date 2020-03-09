@@ -74,3 +74,4 @@ class LichessResourceOwner implements ResourceOwnerInterface
         return $this->response;
     }
 }
+?>

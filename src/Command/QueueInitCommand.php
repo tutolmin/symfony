@@ -56,5 +56,4 @@ class QueueInitCommand extends Command
         return 0;
     }
 }
-
 ?>

@@ -203,8 +203,8 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
 //	if( $gid == 0) $gid = $this->getRandomGameId();
 
         // Get the game id
-        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "stalemate");
-//        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "checkmate");
+//        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "stalemate");
+        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "checkmate");
 //        if( $gid == 0) $gid = $this->gameManager->getRandomGameId();
 
 
@@ -247,8 +247,10 @@ LIMIT 1";
             $this->game['Result'] = "1/2-1/2";
           else if( in_array( "Win", $labelsArray))
             $this->game['Result'] = "1-0";
-          else
+          else if( in_array( "Loss", $labelsArray))
             $this->game['Result'] = "0-1";
+          else
+            $this->game['Result'] = "Unknown";
 
 // Optional game properties
 $this->game['eResult']="";
@@ -359,8 +361,8 @@ if($gameObj->hasValue($prefix.'perp_len'))
     {
 
 // Baseline type based on the Result property
-$bl_type = ["White" => ["1-0" => "WhiteWin", "1/2-1/2" => "WhiteDraw", "0-1" => "WhiteLoss"],
-             "Black" => ["0-1" => "BlackWin", "1/2-1/2" => "BlackDraw", "1-0" => "BlackLoss"]];
+$bl_type = ["White" => ["1-0" => "WhiteWin", "1/2-1/2" => "WhiteDraw", "0-1" => "WhiteLoss", "Unknown" => "WhiteDraw"],
+             "Black" => ["0-1" => "BlackWin", "1/2-1/2" => "BlackDraw", "1-0" => "BlackLoss", "Unknown" => "BlackDraw"]];
 
 // Fetch baselines for both sides
 foreach( $this->sides as $side => $prefix) {
@@ -709,4 +711,4 @@ LIMIT 1';
 	$this->game["Positions"] = $positions;
     }
 }
-
+?>

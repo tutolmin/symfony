@@ -222,4 +222,4 @@ $event = $stopwatch->stop('loadGames');
         return new JsonResponse( $games);
     }
 }
-
+?>

@@ -55,4 +55,4 @@ class SetGameStatusController extends AbstractController
         return new Response( "Success!");
     }
 }
-
+?>

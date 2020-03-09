@@ -95,4 +95,4 @@ RETURN player.name LIMIT ".self::RECORDS_PER_PAGE;
         return new JsonResponse( $hints);
     }
 }
-
+?>

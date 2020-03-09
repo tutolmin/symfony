@@ -50,7 +50,7 @@ class QueueManager
     }
 
     // Checks if there is an analysis queue present
-    private function queueGraphExists()
+    public function queueGraphExists()
     {
         $this->logger->debug('Checking for queue graph existance: '. 
 		($this->getQueueExistsFlag()?"skip":"proceed"));
@@ -111,10 +111,10 @@ class QueueManager
 
 	  // Move :Current label
           $this->neo4j_client->run('
-MATCH (:Queue:Head)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:Pending) 
-WITH p LIMIT 1
-MATCH (p)<-[:QUEUED]-(q:Queue)
-MATCH (c:Queue:Current)
+PROFILE MATCH (h:Head)
+OPTIONAL MATCH (h)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(:Pending)<-[:QUEUED]-(q:Queue)
+WITH CASE q WHEN null THEN h ELSE q END AS q LIMIT 1
+OPTIONAL MATCH (c:Current)
 REMOVE c:Current SET q:Current', null);
 
 	// We do not want to update Current node for subsequent calls
@@ -144,7 +144,7 @@ MATCH path=(f)-[:NEXT*0..]-(l) RETURN size(nodes(path)) AS length LIMIT 1';
         foreach ($result->records() as $record)
           $length = $record->value('length');
 
-        $this->logger->debug('Queue length' .$length);
+        $this->logger->debug('Queue length ' .$length);
 
 	return $length;
     }
@@ -174,8 +174,27 @@ RETURN id(q) AS qid LIMIT 1';
         return -1;
     }
 
+    // Find :Analysis node in the database
+    public function analysisExists( $aid)
+    {
+        $this->logger->debug( "Checking for analysis node existance");
+
+        $query = 'MATCH (a:Analysis) WHERE id(a) = {aid}
+RETURN id(a) AS aid LIMIT 1';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('aid') != "null")
+            return true;
+
+        // Return 
+        return false;
+    }
+
     // Match existing Analysis request
-    public function analysisExists( $gid, $depth, $sideLabel)
+    public function matchAnalysis( $gid, $depth, $sideLabel)
     {
         $this->logger->debug('Matching analysis node');
 
@@ -266,6 +285,138 @@ RETURN id(a) AS aid LIMIT 1';
 
         // Return non-existing id if not found
         return -1;
+    }
+
+    // Delete (:Analysis) node and interconnect affected :Analysys an :Queue nodes
+    public function deleteAnalysis( $aid)
+    {
+	if( !$this->analysisExists( $aid)) {
+
+          $this->logger->debug('Analysis node does NOT exist');
+	  return false;
+	}
+
+        $this->logger->debug('Deleting analysis node');
+
+	// Previous :Queue last :Analysis node 
+	// Current :Queue previous :Analysis node
+	// Current :Queue next Analysis node
+	// Next :Queue first :analysis node
+	$pl_id=-1;
+	$cp_id=-1;
+	$cn_id=-1;
+	$nf_id=-1;
+
+	$query = 'MATCH (a:Analysis)<-[:QUEUED]-(q:Queue) WHERE id(a)={aid} 
+OPTIONAL MATCH (pl:Analysis)<-[:LAST]-(:Queue)-[:NEXT]->(q) 
+OPTIONAL MATCH (q)-[:NEXT]->(:Queue)-[:FIRST]->(nf:Analysis) 
+OPTIONAL MATCH (q)-[:QUEUED]->(cp:Analysis)-[:NEXT]->(a) 
+OPTIONAL MATCH (a)-[:NEXT]->(cn:Analysis)<-[:QUEUED]-(q) 
+RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record) {
+          $pl_id = $record->value('pl_id');
+          $cp_id = $record->value('cp_id');
+          $cn_id = $record->value('cn_id');
+          $nf_id = $record->value('nf_id');
+        }
+
+        $this->logger->debug( "pl: $pl_id, cp: $cp_id, cn: $cn_id, nf: $nf_id");
+
+	// Basic :analysis matching query
+	$query = 'MATCH (a:Analysis)<-[:QUEUED]-(q:Queue) WHERE id(a)={aid} ';
+
+	//
+	// See Ticket https://trac.tutolmin.com/chess/ticket/107
+	//
+
+	// 1) The only :Analysis node left in the graph 
+        if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id == null)
+	  $query .= '';
+        if( strlen( $query) > 60) $this->logger->debug( "Delete Analysis type1");
+
+	// 2) The only :Analysis node for the :Head, next :Queue node(s) exist 
+        if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id != null) {
+	  $query .= 'MATCH (q)-[:NEXT]->(n:Queue) SET n:Head DETACH DELETE q';
+          $this->logger->debug( "Delete Analysis type2");
+	}
+
+	// 3) First :Analysis node for single :Head node (:Tail) 
+	// 4) First :Analysis node for :Head, next :Queue node(s) exist 
+        if( ($pl_id == null && $cp_id == null && $cn_id != null && $nf_id == null) || 
+            ($pl_id == null && $cp_id == null && $cn_id != null && $nf_id != null)) {
+	  $query .= 'MATCH (a)-[:NEXT]->(cn:Analysis) MERGE (cn)<-[:FIRST]-(q)';
+          $this->logger->debug( "Delete Analysis type34");
+	}
+	
+	// 5) Last :Analysis node for single :Head (:Tail) 
+	// 13) Last :Analysis node for the :Tail 
+        if( ($pl_id == null && $cp_id != null && $cn_id == null && $nf_id == null) ||
+            ($pl_id != null && $cp_id != null && $cn_id == null && $nf_id == null)) {
+	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a) MERGE (cp)<-[:LAST]-(q)';
+          $this->logger->debug( "Delete Analysis type513");
+	}
+
+	// 6) Last :Analysis node for :Head, next :Queue node(s) exist 
+	// 14) Last :Analysis node for the regular :Queue 
+        if( ($pl_id == null && $cp_id != null && $cn_id == null && $nf_id != null) ||
+            ($pl_id != null && $cp_id != null && $cn_id == null && $nf_id != null)) {
+	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis) 
+MERGE (cp)<-[:LAST]-(q) MERGE (cp)-[:NEXT]->(nf)';
+          $this->logger->debug( "Delete Analysis type614");
+	}
+
+	// 7) Regular :Analysis node for single :Head node (:Tail)
+	// 8) Regular :Analysis node for :Head, next :Queue node(s) exist
+	// 15) Regular :Analysis node for the :Tail
+	// 16) Regular :Analysis node for regular :Queue 
+        if( ($pl_id == null && $cp_id != null && $cn_id != null && $nf_id == null) ||
+            ($pl_id == null && $cp_id != null && $cn_id != null && $nf_id != null) ||
+            ($pl_id != null && $cp_id != null && $cn_id != null && $nf_id == null) ||
+            ($pl_id != null && $cp_id != null && $cn_id != null && $nf_id != null)) {
+	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis) 
+MERGE (cp)-[:NEXT]->(cn)';
+          $this->logger->debug( "Delete Analysis type781516");
+	}
+
+	// 9) The only :Analysis node for the :Tail 
+        if( $pl_id != null && $cp_id == null && $cn_id == null && $nf_id == null) {
+	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q) SET p:Tail DETACH DELETE q'; 
+          $this->logger->debug( "Delete Analysis type9");
+	}
+
+	// 10) The only :Analysis node for the regular :Queue 
+        if( $pl_id != null && $cp_id == null && $cn_id == null && $nf_id != null) {
+	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q)-[:NEXT]->(n:Queue) 
+MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis) 
+MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) DETACH DELETE q';
+          $this->logger->debug( "Delete Analysis type10");
+	}
+
+	// 11) First :Analysis node for the :Tail
+	// 12) First :Analysis node for the regular :Queue
+        if( ($pl_id != null && $cp_id == null && $cn_id != null && $nf_id == null) ||
+            ($pl_id != null && $cp_id == null && $cn_id != null && $nf_id != null)) {
+	  $query .= 'MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis) 
+MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
+          $this->logger->debug( "Delete Analysis type1112");
+	}
+	
+	// We are actually detaching :Analysis
+	$query .= ' DETACH DELETE a';
+
+	// Send the query, we do NOT expect any return
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        // Maintenane operation
+        $this->updateCurrentQueueNode();
+
+        // Return 
+        return true;
     }
 
     // Interconnect (:Analysis) node with siblings
@@ -361,7 +512,7 @@ RETURN id(a) AS aid LIMIT 1';
         $this->logger->debug('Staring game anaysis enqueueing process.');
 
         // Check if the :Game has already been queued
-        if( $this->analysisExists( $gid, $depth, $sideLabel)) {
+        if( $this->matchAnalysis( $gid, $depth, $sideLabel)) {
 
             $this->logger->debug(
 		'The game has already been queued for analysys.');
@@ -379,5 +530,4 @@ RETURN id(a) AS aid LIMIT 1';
 	return $result;
     }
 }
-
 ?>

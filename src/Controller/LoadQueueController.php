@@ -104,6 +104,7 @@ LIMIT 1";
 
         $gameObj = $game_record->get('game');
         $this->items[$idx]['ID'] = $gameObj->identity();
+        $this->items[$idx]['AId'] = $this->analysis_id;
         $this->items[$idx]['Index'] = $this->queue_idx;
         $this->items[$idx]['Status'] = $this->item_status;
         $this->items[$idx]['Side'] = $this->item_side;
@@ -212,8 +213,7 @@ LIMIT 1";
 	$valid_piece	= [ "pawn" => "Pawn", "rook" => "Rook", "queen" => "Queen", "king" => "King", "bishop" => "Bishop", "knight" => "Knight" ];
 
 	// Game Status Labels
-	$game_statuses	= [ "complete" => "Complete", "processing" => "Processing", "pending" => "Pending" ];
-	$status_label = "Pending";
+	$game_statuses	= [ "complete" => "Complete", "processing" => "Processing", "pending" => "Pending", "skipped" => "Skipped", "partially" => "Partially" ];
 
 	// If player color has been specified
 	$color_specification_flag=FALSE;
@@ -701,7 +701,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 
 
 	// Default query
-	$query = "MATCH (:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:".$this->item_status.") WITH p LIMIT 1 
+	$query = "MATCH (:Head)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:".$this->item_status.") WITH p LIMIT 1 
 MATCH path=(p)-[:NEXT*0..]->(a:".$this->item_status.$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
 MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
 RETURN a, length(path) AS idx, d.level, id(game) AS gid 
@@ -711,7 +711,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	// Descending sorting
 	if( strlen( $descending)) {
 
-	  $query = "MATCH (:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:".$this->item_status.") WITH f LIMIT 1
+	  $query = "MATCH (:Head)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:".$this->item_status.") WITH f LIMIT 1
 MATCH (:Tail)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:".$this->item_status.") WITH f,l LIMIT 1 
 MATCH dist=(f)-[:NEXT*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
 MATCH path=(l)<-[:NEXT*0..]-(a:".$this->item_status.$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
@@ -736,6 +736,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
         foreach ( $result->records() as $record) {
 	  $this->item_side = "";
 	  $labelsObj = $record->get('a');
+	  $this->analysis_id = $labelsObj->identity();
 	  $labelsArray = $labelsObj->labels();
 	  if( in_array( "Pending", $labelsArray))
 	    $this->item_status = "Pending";
@@ -743,6 +744,10 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    $this->item_status = "Processing";
 	  if( in_array( "Complete", $labelsArray))
 	    $this->item_status = "Complete";
+	  if( in_array( "Skipped", $labelsArray))
+	    $this->item_status = "Skipped";
+	  if( in_array( "Partially", $labelsArray))
+	    $this->item_status = "Partially";
 	  if( in_array( "WhiteSide", $labelsArray)) {
 	    if( strlen( $this->item_side))
 	      $this->item_side = "Both";
@@ -766,4 +771,4 @@ LIMIT ".self::RECORDS_PER_PAGE;
         return new JsonResponse( $this->items);
     }
 }
-
+?>

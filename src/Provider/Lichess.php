@@ -151,3 +151,4 @@ class Lichess extends AbstractProvider
         throw HostedDomainException::notMatchingDomain($this->hostedDomain);
     }
 }
+?>

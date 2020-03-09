@@ -59,6 +59,4 @@ class Line
         return $this->hash;
     }
 }
-
 ?>
-

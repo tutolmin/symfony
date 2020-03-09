@@ -38,10 +38,11 @@ class GameManager
     // Find :Game node in the database
     public function gameExists( $gid)
     {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
         $this->logger->debug( "Checking for game existance");
 
-        $query = 'MATCH (g:Game)
-WHERE id(g) = {gid}
+        $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 RETURN id(g) AS gid LIMIT 1';
 
         $params = ["gid" => intval( $gid)];
@@ -58,6 +59,8 @@ RETURN id(g) AS gid LIMIT 1';
     // get total number of Games of certain type and length
     public function getGamesTotal( $type = "", $plycount = 80)
     {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
         $counter = 0;
 	$cacheVarName = 'gamesTotal'.$type.$plycount;
 
@@ -120,6 +123,8 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
     // get maximum ply count for a certain game type
     private function getMaxPlyCount( $type = "")
     {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
 	$counter=0;
 	$cacheVarName = 'maxPlyCount'.$type;
 
@@ -177,6 +182,8 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
     // get minimum ply count for a certain game type
     private function getMinPlyCount( $type = "")
     {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
 	$counter=0;
 	$cacheVarName = 'minPlyCount'.$type;
 
@@ -236,6 +243,8 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
     // get random game
     public function getRandomGameId( $type = "")
     {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
 	// Select a game plycount
         $params["counter"] = rand( $this->getMinPlyCount( $type), 
 				$this->getMaxPlyCount( $type));
@@ -295,10 +304,12 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
     // Check if the move line has been already loaded for a game
     public function lineExists( $gid)
     {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
         $this->logger->debug( "Checking move line existance");
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
-MATCH (g)-[:FINISHED_ON]->(l:Line)
+MATCH (g)-[:FINISHED_ON]->(l:Line) WITH g,l LIMIT 1
 MATCH (r:Line{hash:"00000000"})
 MATCH path=(l)-[:ROOT*0..]->(r)
 RETURN length(path) AS length LIMIT 1';
@@ -332,7 +343,7 @@ RETURN length(path) AS length LIMIT 1';
       // Fetch the games from the cache
       $PGNstring = $this->fetcher->getPGNs( $gameIds);
 
-      $this->logger->debug( "Fetched games: ". $PGNstring);
+//      $this->logger->debug( "Fetched games: ". $PGNstring);
 
       $filesystem = new Filesystem();
       try {
@@ -353,6 +364,4 @@ RETURN length(path) AS length LIMIT 1';
       $this->uploader->uploadLines( $tmp_file);
     }
 }
-
 ?>
-

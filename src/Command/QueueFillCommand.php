@@ -16,7 +16,7 @@ class QueueFillCommand extends Command
 {
     // Default desired queue length
     const THRESHOLD = 20;
-    const MAXLENGTH = 1000;
+    const MAXLENGTH = 2000;
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:fill';
@@ -53,6 +53,13 @@ class QueueFillCommand extends Command
         InputOption::VALUE_OPTIONAL,
         'Please specify the desired queue length',
         self::THRESHOLD // this is the new default value, instead of null
+        )
+        ->addOption(
+        'type',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Please specify game type (checkmate, stalemate, etc.)',
+        'checkmate' // Default
         )
         ->addOption(
         'depth',
@@ -95,7 +102,7 @@ class QueueFillCommand extends Command
 	}
 
 	// Current queue length is bigger than desired value.
-	if( $length > $threshold) {
+	if( $length >= $threshold) {
 
 	  $output->writeln( 'Analysis queue already has '. $length. ' items. Exiting...');
 
@@ -135,8 +142,12 @@ class QueueFillCommand extends Command
 	  if( $this->queueManager->queueGameAnalysis(
                 $gid, $depth, $sideLabel, $userId))
 	    $gids[] = $gid;	
+	  else
+            $output->writeln( 'Game has already beed analysed');
 
 	} while( $this->queueManager->getQueueLength() < $threshold);
+
+        $output->writeln( 'Loading :Game lines');
 
         // Request :Line load for the list of games
         $this->gameManager->loadLines( $gids, $userId);

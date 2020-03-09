@@ -58,6 +58,33 @@ class UserManager
 	return $counter;
     }
 
+    // Set role to a user
+    public function promoteUser( $email, $role) {
+
+	// The role should start with ROLE_
+	if( strpos( $role, 'ROLE_') !== 0)
+	  return false;
+
+	// Get the user by email
+        $user = $this->userRepository->findOneBy(['email' => $email]);
+
+	// Get the roles, add a new role and save	
+	if( $user != null) {
+
+          $this->logger->debug('User id '.$user->getId());
+
+	  $roles = $user->getRoles();
+	  $roles[] = $role;
+	  $user->setRoles( $roles);
+          $this->em->persist($user);
+          $this->em->flush();
+
+	  return true;
+	}
+
+	return false;
+    }
+
     // Erase all existing :WebUser nodes
     public function eraseUsers()
     {
@@ -65,5 +92,4 @@ class UserManager
         $this->neo4j_client->run( "MATCH (w:WebUser) DETACH DELETE w", null);
     }
 }
-
 ?>

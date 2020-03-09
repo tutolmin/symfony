@@ -68,4 +68,4 @@ class QueueEraseCommand extends Command
         return 0;
     }
 }
-
+?>

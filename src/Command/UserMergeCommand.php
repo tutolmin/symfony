@@ -48,4 +48,4 @@ class UserMergeCommand extends Command
         return 0;
     }
 }
-
+?>

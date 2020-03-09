@@ -135,4 +135,4 @@ class FacebookAuthenticator extends SocialAuthenticator
 
     // ...
 }
-
+?>

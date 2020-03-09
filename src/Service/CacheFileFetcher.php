@@ -36,9 +36,20 @@ class CacheFileFetcher
         $statusCode = $response->getStatusCode();
         // $statusCode = 200
         $this->logger->debug('Status code '.$statusCode);
+/*
+        try {
+*/
+            $contentType = $response->getHeaders()['content-type'][0];
+            $this->logger->debug('Content type '.$contentType);
+/*
+        } catch (FileException $e) {
 
-        $contentType = $response->getHeaders()['content-type'][0];
-        $this->logger->debug('Content type '.$contentType);
+            $this->logger->debug( $e->getMessage());
+
+	    // Return an empty object
+            // ... handle exception if something happens during file upload
+        }
+*/
         // $contentType = 'application/json'
 //      $content = gzdecode( $response->getContent());
 //        $content = $response->getContent();
@@ -58,6 +69,4 @@ class CacheFileFetcher
     }
 
 }
-
 ?>
-

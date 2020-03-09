@@ -65,5 +65,4 @@ class FacebookController extends AbstractController
 
     }
 }
-
-
+?>

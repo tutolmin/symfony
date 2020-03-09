@@ -106,5 +106,4 @@ class QueueAddCommand extends Command
         return 0;
     }
 }
-
 ?>

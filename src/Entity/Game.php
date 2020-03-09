@@ -58,6 +58,4 @@ class Game
         return $this->hash;
     }
 }
-
 ?>
-

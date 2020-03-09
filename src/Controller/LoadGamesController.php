@@ -357,7 +357,7 @@ $second_results = array();
 
 // Push all values if empty results array
 if( !count( $results)) {
-  array_push( $first_results, "Win", "Draw", "Loss");
+  array_push( $first_results, "Win", "Draw", "Loss","Unknown");
   $second_results=$first_results;
 } else {
   array_push( $first_results, $side_results[$results["first"]]);
@@ -610,8 +610,10 @@ LIMIT 1";
           $games[$index]['Result'] = "1/2-1/2";
 	else if( in_array( "Win", $labelsArray))
           $games[$index]['Result'] = "1-0";
+	else if( in_array( "Loss", $labelsArray))
+          $games[$index]['Result'] = "0-0";
 	else
-          $games[$index]['Result'] = "0-1";
+          $games[$index]['Result'] = "Unknown";
 /*
         if($gameObj->hasValue('W_cheat_score'))
         $games[$index]['W_cheat_score'] = $gameObj->value('W_cheat_score');
@@ -631,4 +633,4 @@ LIMIT 1";
 //var_dump($games);
     }
 }
-
+?>

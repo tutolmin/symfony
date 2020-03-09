@@ -45,3 +45,4 @@ class ExportPGNController extends AbstractController
       return new Response( $PGNstring);
     }
 }
+?>

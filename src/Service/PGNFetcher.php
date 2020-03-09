@@ -77,6 +77,4 @@ class PGNFetcher
       return $PGNstring;
     }
 }
-
 ?>
-
