@@ -20,7 +20,20 @@ function loadQueue() {
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
-        '<td>Status</td><td>Game</td><td style="text-align:center">Side</td><td>Depth</td><td>Scheduled</td>' +
+        '<td>Status</td><td>Game</td><td style="text-align:center">Side' +
+'<br/><select name="AnalysisSide" id="AnalysisSide" onchange="setAnalysisParamList(this, \'side\')">' +
+'<option value="">Select</option>' +
+'<option value="">Both sides</option>' +
+'<option value="WhiteSide">White Only</option>' +
+'<option value="BlackSide">Black Only</option>' +
+'</select></td><td>Depth' +
+'<br/><select name="AnalysisDepth" id="AnalysisDepth" onchange="setAnalysisParamList(this, \'depth\')">' +
+'<option value="">Select</option>' +
+'<option value="">18+ plies</option>' +
+'<option value="20">20+ plies</option>' +
+'<option value="23">23+ plies</option>' +
+'</select>' +
+'</td><td>Scheduled</td>' +
         '<td></td></tr>');
 
     // Iterate through all the loaded games
@@ -59,7 +72,19 @@ function loadQueue() {
 	'</td><td style="text-align:center">' + val["Index"] +
         '</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' +
         '</td><td>' + val["White"] + ' vs. ' + val["Black"] + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
-        '</td><td>' + val["Side"] + '</td><td>' + val["Depth"] + '</td><td>' + val["Date"] +
+        '</td><td>' + 
+'<select name="AnalysisSide" id="AnalysisSide" onchange="setAnalysisParam(this, \'side\', ' + val["AId"] + ')">' +
+'<option value=""' + ((val["Side"]=="Both")?'selected="selected"':'') + '>Both sides</option>' +
+'<option value="WhiteSide"' + ((val["Side"]=="White")?'selected="selected"':'') + '>White Only</option>' +
+'<option value="BlackSide"' + ((val["Side"]=="Black")?'selected="selected"':'') + '>Black Only</option>' +
+'</select>' +
+	'</td><td>' +
+'<select name="AnalysisDepth" id="AnalysisDepth" onchange="setAnalysisParam(this, \'depht\', ' + val["AId"] + ')">' +
+'<option value=""' + ((val["Depth"]==18)?'selected="selected"':'') + '>18+ plies</option>' +
+'<option value="20"' + ((val["Depth"]==20)?'selected="selected"':'') + '>20+ plies</option>' +
+'<option value="23"' + ((val["Depth"]==23)?'selected="selected"':'') + '>23+ plies</option>' +
+'</select>' +
+	'</td><td>' + val["Date"] +
         '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
     });
 
@@ -70,6 +95,33 @@ function loadQueue() {
       html: items.join('')
     }).appendTo( document.getElementById('analysisQueue'));
   });
+}
+
+// Change analysis parameter for a list of items
+function setAnalysisParamList( selectObject, param) {
+
+  var aids = [];
+  $("input[name='queue_items[]']:checked").each(function () {
+    aids.push( $(this).val());
+  });
+  var value = selectObject.value;
+
+  console.log( "Analysis Ids to change " + param + " to  " + value + " : " + JSON.stringify( aids));
+
+  $.post( "setAnalysisParam", { aids: JSON.stringify( aids), param: param, value: value},
+    function(result) { document.getElementById('analysisActionStatus').innerHTML = result; });
+}
+
+// Change analysis parameter for a particular item
+function setAnalysisParam( selectObject, param, aid) {
+
+  var aids = [aid];
+  var value = selectObject.value;  
+
+  console.log( "New " + param + ": " + value + " for analysis id: " + JSON.stringify( aids));
+
+  $.post( "setAnalysisParam", { aids: JSON.stringify( aids), param: param, value: value},
+    function(result) { document.getElementById('analysisActionStatus').innerHTML = result; });
 }
 
 // A selection of games have been deleted from the analysis queue
@@ -83,7 +135,7 @@ function deleteAnalysisList() {
   console.log( "Analysis Ids to delete: " + JSON.stringify( aids));
 
   $.post( "deleteAnalysisList", { aids: JSON.stringify( aids)},
-    function(result) { document.getElementById('deleteAnalysisStatus').innerHTML = result; });
+    function(result) { document.getElementById('analysisActionStatus').innerHTML = result; });
 }
 
 // A selection of games have been submitted for promotion
@@ -97,5 +149,5 @@ function promoteAnalysisList() {
   console.log( "Analysis Ids to delete: " + JSON.stringify( aids));
 
   $.post( "promoteAnalysisList", { aids: JSON.stringify( aids)},
-    function(result) { document.getElementById('promoteAnalysisStatus').innerHTML = result; });
+    function(result) { document.getElementById('analysisActionStatus').innerHTML = result; });
 }

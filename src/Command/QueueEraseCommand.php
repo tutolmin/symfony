@@ -65,6 +65,11 @@ class QueueEraseCommand extends Command
 
 	$output->writeln( 'Analysis queue nodes and relationships have been deleted successfully!');
 
+        // Init empty queue graph
+        $this->queueManager->initQueue();
+
+        $output->writeln( 'Empty analysis queue has been initialized successfully');
+
         return 0;
     }
 }

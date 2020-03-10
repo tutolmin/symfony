@@ -50,13 +50,13 @@ class QueueManager
     }
 
     // Checks if there is an analysis queue present
-    public function queueGraphExists()
+    public function queueGraphExists( $force_flag = false)
     {
         $this->logger->debug('Checking for queue graph existance: '. 
-		($this->getQueueExistsFlag()?"skip":"proceed"));
+	  (($this->getQueueExistsFlag() && !$force_flag)?"skip":"proceed"));
 
 	// Queue graph existance has been checked already
-	if( $this->getQueueExistsFlag()) return true;
+	if( $this->getQueueExistsFlag() && !$force_flag) return true;
 
         // If there is at least one :Queue node in the db       
         $query = 'MATCH (q:Queue) RETURN id(q) AS id LIMIT 1';
@@ -78,7 +78,7 @@ class QueueManager
         $this->logger->debug('Initializing analysis queue graph');
 
 	// Check if there is already analysis graph present
-	if( !$this->queueGraphExists())
+	if( !$this->queueGraphExists( true))
 
           // Create default empty analysis queue
           $this->neo4j_client->run( "CREATE (:Queue:Head:Current:Tail)", null);
@@ -98,13 +98,13 @@ class QueueManager
     }
 
     // Update (:Current) pointer for a queue
-    private function updateCurrentQueueNode()
+    private function updateCurrentQueueNode( $force_flag = false)
     {
         $this->logger->debug('Updating current queue node: '.
-                ($this->getUpdateCurrentFlag()?"skip":"proceed"));
+          (($this->getUpdateCurrentFlag() && !$force_flag)?"skip":"proceed"));
 
         // No need to update current node for eachgame analisys insert
-        if( $this->getUpdateCurrentFlag()) return true;
+        if( $this->getUpdateCurrentFlag() && !$force_flag) return true;
 
 	// Check if there is already analysis graph present
 	if( $this->queueGraphExists())
@@ -287,8 +287,8 @@ RETURN id(a) AS aid LIMIT 1';
         return -1;
     }
 
-    // Promote (:Analysis) node 
-    public function promoteAnalysis( $aid)
+    // Set Analysis side (WhiteSide/BlackSide)
+    public function setAnalysisSide( $aid, $side)
     {
 	if( !$this->analysisExists( $aid)) {
 
@@ -296,6 +296,57 @@ RETURN id(a) AS aid LIMIT 1';
 	  return false;
 	}
 
+	// Side to analyze
+	$sideLabel = ':WhiteSide:BlackSide';
+          if( $side == 'WhiteSide' || $side == 'BlackSide')
+            $sideLabel = ':'.$side;
+
+        $this->logger->debug('Setting analysis node lables '.$sideLabel);
+	
+	// Deleting existing relation and adding new
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+REMOVE a:WhiteSide:BlackSide SET a'.$sideLabel;
+
+	// Send the query, we do NOT expect any return
+        $params = ["aid" => intval( $aid)];
+        $this->neo4j_client->run($query, $params);
+
+	return true;
+    }
+
+    // Set Analysis depth
+    public function setAnalysisDepth( $aid, $value)
+    {
+	if( !$this->analysisExists( $aid)) {
+
+          $this->logger->debug('Analysis node does NOT exist');
+	  return false;
+	}
+
+	// Depth paramaeter
+	$depth = $_ENV['DEFAULT_ANALYSIS_DEPTH'];
+	if( intval( $value) > 0 && 
+	  intval( $value) < $_ENV['MAXIMUM_ANALYSIS_DEPTH']) 
+	  $depth = intval( $value);
+
+        $this->logger->debug('Setting analysis node depth '.$depth);
+	
+	// Deleting existing relation and adding new
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+MATCH (a)-[r:REQUIRED_DEPTH]->(old:Depth) 
+MATCH (new:Depth{level:{depth}})
+CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
+
+	// Send the query, we do NOT expect any return
+        $params = ["aid" => intval( $aid), "depth" => intval( $depth)];
+        $this->neo4j_client->run($query, $params);
+
+	return true;
+    }
+
+    // Promote (:Analysis) node 
+    public function promoteAnalysis( $aid)
+    {
         $this->logger->debug('Promoting analysis node');
 	
 	// Disconnect analysis node from it's current place
@@ -363,9 +414,10 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id';
 	//
 
 	// 1) The only :Analysis node left in the graph 
-        if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id == null)
-	  $query .= '';
-        if( strlen( $query) > 60) $this->logger->debug( "Delete Analysis type1");
+        if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id == null) {
+	  $query .= 'RETURN id(a)';
+          $this->logger->debug( "Delete Analysis type1");
+	}
 
 	// 2) The only :Analysis node for the :Head, next :Queue node(s) exist 
         if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id != null) {
@@ -381,8 +433,8 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id';
           $this->logger->debug( "Delete Analysis type34");
 	}
 	
-	// 5) Last :Analysis node for single :Head (:Tail) 
-	// 13) Last :Analysis node for the :Tail 
+	// 5) Last (but not the only) :Analysis node for single :Head (:Tail) 
+	// 13) Last (but not the only) :Analysis node for the :Tail
         if( ($pl_id == null && $cp_id != null && $cn_id == null && $nf_id == null) ||
             ($pl_id != null && $cp_id != null && $cn_id == null && $nf_id == null)) {
 	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a) MERGE (cp)<-[:LAST]-(q)';
@@ -446,14 +498,15 @@ MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
 	else
 
 	  // Delete relationships to siblings and :Queue
-	  $query = 'MATCH (:Analysis)-[s]-(a:Analysis)<-[q]-(:Queue) 
-WHERE id(a)={aid} DELETE s,q';
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+OPTIONAL MATCH (:Analysis)-[s:NEXT]-(a) 
+OPTIONAL MATCH (:Queue)-[q:QUEUED]->(a) DELETE s,q';
 
 	// Send the query, we do NOT expect any return
         $this->neo4j_client->run($query, $params);
 
-        // Maintenane operation
-        $this->updateCurrentQueueNode();
+        // Forcefully update :Current label as it may have been deleted
+        $this->updateCurrentQueueNode( true);
 
         // Return 
         return true;

@@ -250,8 +250,6 @@ Use the form below to upload your games.</p>
              onClick="deleteAnalysisList()"
 >Delete
      </button>
-<br/>
-<div id="deleteAnalysisStatus"></div>
 </div>
 </td>
 <td>
@@ -262,8 +260,6 @@ Use the form below to upload your games.</p>
              onClick="promoteAnalysisList()"
 >Promote
      </button>
-<br/>
-<div id="promoteAnalysisStatus"></div>
 </div>
 </td>
 {% endif %}
@@ -274,6 +270,9 @@ Use the form below to upload your games.</p>
         <td><button onclick="setCookie('qa_page','prev',1);loadQueue();">Prev</button></td>
         <td><button onclick="setCookie('qa_page','next',1);loadQueue();">Next</button></td></tr>
 	</table>
+</td></tr>
+<tr><td>
+<div id="analysisActionStatus"></div>
 </td></tr></table>
 
 </td>
