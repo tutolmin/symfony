@@ -19,7 +19,7 @@ class UserEraseCommand extends Command
     private $userManager;
 
     // Dependency injection of the UserManager service
-    public function __construct(  UserManager $um)
+    public function __construct( UserManager $um)
     {
         parent::__construct();
     

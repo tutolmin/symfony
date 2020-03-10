@@ -287,8 +287,37 @@ RETURN id(a) AS aid LIMIT 1';
         return -1;
     }
 
+    // Promote (:Analysis) node 
+    public function promoteAnalysis( $aid)
+    {
+	if( !$this->analysisExists( $aid)) {
+
+          $this->logger->debug('Analysis node does NOT exist');
+	  return false;
+	}
+
+        $this->logger->debug('Promoting analysis node');
+	
+	// Disconnect analysis node from it's current place
+	$this->deleteAnalysis( $aid, false);
+
+	// Attach floating Analysis node to the :Current node
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+MATCH (c:Current) MERGE (c)-[:QUEUED]->(a)';
+
+	// Send the query, we do NOT expect any return
+        $params = ["aid" => intval( $aid)];
+        $this->neo4j_client->run($query, $params);
+
+	// Enqueue the newly attached node
+	$this->enqueueAnalysisNode( $aid);	
+
+        // Return 
+        return true;
+    }
+
     // Delete (:Analysis) node and interconnect affected :Analysys an :Queue nodes
-    public function deleteAnalysis( $aid)
+    public function deleteAnalysis( $aid, $erase_flag = true)
     {
 	if( !$this->analysisExists( $aid)) {
 
@@ -404,13 +433,24 @@ MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) DETACH DELETE q';
 MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
           $this->logger->debug( "Delete Analysis type1112");
 	}
-	
-	// We are actually detaching :Analysis
-	$query .= ' DETACH DELETE a';
 
 	// Send the query, we do NOT expect any return
-        $params = ["aid" => intval( $aid)];
-        $result = $this->neo4j_client->run($query, $params);
+        $this->neo4j_client->run($query, $params);
+
+	// Erase :Analysis or delete relationships only
+	if( $erase_flag)
+	
+	  // We are actually erasing :Analysis node
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid} DETACH DELETE a';
+
+	else
+
+	  // Delete relationships to siblings and :Queue
+	  $query = 'MATCH (:Analysis)-[s]-(a:Analysis)<-[q]-(:Queue) 
+WHERE id(a)={aid} DELETE s,q';
+
+	// Send the query, we do NOT expect any return
+        $this->neo4j_client->run($query, $params);
 
         // Maintenane operation
         $this->updateCurrentQueueNode();

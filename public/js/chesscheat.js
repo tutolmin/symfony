@@ -266,19 +266,19 @@ function parseTags( element) {
       return;
     }
 
-    // Game status label
-    re = /^my\ games$/;
-    if( found_user = item.match( re)) {
-      tags_str += "user:myself;";
-      console.log( found_user);
-      return;
-    }
-
     // Has ECO specification
     re = /^[A-E]{1}[0-9]{2}$/i;
     if( found_eco = item.match(re)) {
       tags_str += "eco:" + found_eco[0] + ";";
       console.log( found_eco);
+      return;
+    }
+
+    // email address https://www.w3resource.com/javascript/form/email-validation.php
+    re = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if( found_email = item.match(re)) {
+      tags_str += "email:" + found_email[0] + ";";
+      console.log( found_email);
       return;
     }
 
@@ -380,7 +380,7 @@ function loadGames() {
                     'maxChars': 50,
                     'limit': 5,
                     'delimiter': [';'],
-                    'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \/_+-]+$'),
+                    'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \@\/_+-]+$'),
                     'onAddTag': function(input, value) {
                         setCookie('qa_page',0,1);
                         loadQueue();
@@ -410,7 +410,7 @@ function loadGames() {
                     'maxChars': 50,
                     'limit': 5,
                     'delimiter': [';'],
-                    'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \/_+-]+$'),
+                    'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \@\/_+-]+$'),
                     'onAddTag': function(input, value) {
                         setCookie('gl_page',0,1);
                         loadGames();

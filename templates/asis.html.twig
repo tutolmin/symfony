@@ -212,10 +212,10 @@ Use the form below to upload your games.</p>
   <h3>Predefined Tags</h3>
 <div class="predefinedTags">
 <b>My games</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'my games');"
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( '{{ app.user.email }}');"
 {% else %}
-disabled="disabled"
+<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( '');" disabled="disabled"
 {% endif %}
 >My games<br/>
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
@@ -241,8 +241,8 @@ disabled="disabled"
 
 <table style="width:100%"><tr>
 
-<td>
 {% if is_granted('ROLE_QUEUE_MANAGER') %}
+<td>
 <div id="delete_submit_group">
      <button type="submit"
              class="input_submit"
@@ -253,8 +253,20 @@ disabled="disabled"
 <br/>
 <div id="deleteAnalysisStatus"></div>
 </div>
-{% endif %}
 </td>
+<td>
+<div id="promote_submit_group">
+     <button type="submit"
+             class="input_submit"
+             style="margin-right: 15px;"
+             onClick="promoteAnalysisList()"
+>Promote
+     </button>
+<br/>
+<div id="promoteAnalysisStatus"></div>
+</div>
+</td>
+{% endif %}
 
 <td style="float:right;">
 	<table><tr>

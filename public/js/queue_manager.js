@@ -86,4 +86,16 @@ function deleteAnalysisList() {
     function(result) { document.getElementById('deleteAnalysisStatus').innerHTML = result; });
 }
 
+// A selection of games have been submitted for promotion
+function promoteAnalysisList() {
 
+  var aids = [];
+  $("input[name='queue_items[]']:checked").each(function () {
+    aids.push( $(this).val());
+  });
+
+  console.log( "Analysis Ids to delete: " + JSON.stringify( aids));
+
+  $.post( "promoteAnalysisList", { aids: JSON.stringify( aids)},
+    function(result) { document.getElementById('promoteAnalysisStatus').innerHTML = result; });
+}

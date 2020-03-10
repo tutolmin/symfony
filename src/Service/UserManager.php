@@ -58,6 +58,23 @@ class UserManager
 	return $counter;
     }
 
+    // Get WebUser id property by email
+    public function fetchWebUserId( $email) {
+
+	// Get the user by email
+        $user = $this->userRepository->findOneBy(['email' => $email]);
+
+	// Get the roles, add a new role and save	
+	if( $user != null) {
+
+	  $wu_id = $user->getId();
+          $this->logger->debug('User id '.$wu_id);
+	  return $wu_id;
+	}
+
+	return '';
+    }
+
     // Set role to a user
     public function promoteUser( $email, $role) {
 

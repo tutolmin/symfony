@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Security\Core\Security;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
+use App\Service\UserManager;
 
 class LoadQueueController extends AbstractController
 {
@@ -44,13 +45,18 @@ class LoadQueueController extends AbstractController
     private $item_depth;
     private $item_date;
 
+    // User nameger reference
+    private $userManager;
+
     // Dependency injection of the Neo4j ClientInterface
-    public function __construct( ClientInterface $client, Stopwatch $watch, LoggerInterface $logger, Security $security)
+    public function __construct( ClientInterface $client, Stopwatch $watch, 
+	LoggerInterface $logger, Security $security, UserManager $um)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
         $this->logger = $logger;
         $this->security = $security;
+        $this->userManager = $um;
 
         // Init Ids with non-existing values
         $this->queue_idx = 0;
@@ -136,11 +142,12 @@ LIMIT 1";
       */
     public function loadQueue() 
     {
+/*
 	// Get web user id
 	if( $this->security->isGranted('ROLE_USER')) {
           $this->wu_id = $this->getUser()->getId();
 	}
-
+*/
 	// HTTP request
 	$request = Request::createFromGlobals();
 
@@ -192,7 +199,7 @@ LIMIT 1";
 			"result", "ending",
 			"status",
 			"side",
-			"user",
+			"email",
 			"eco",
 			"piece",
 			"white", "black", 
@@ -365,11 +372,13 @@ echo "<br/>\n";
 		      $side_label .= ":".$side_colors[$tag_value]."Side";
 		    break;
 
-		  case "user":
+		  case "email":
 
-		    // Check for valid user
-		    if( $this->wu_id && strtolower( $tag_value) == "myself")
+		    // Check for valid email
+		    if( filter_var( $tag_value, FILTER_VALIDATE_EMAIL)) {
+		      $this->wu_id = $this->userManager->fetchWebUserId( $tag_value);
 		      $webuser = "{id:{wuid}}";
+		    }
 		    break;
 
 		  case "status":
