@@ -352,8 +352,8 @@ function loadGames() {
     }
 */
     items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
-'<!--<td><img src="img/' + status_image + '.png" title="' + status_descr + '"/></td>-->' +
-	'<td>' + val["White"] + '</td><td>' + val["ELO_W"] + "</td><td>" + 
+	'<td' + (val["Analysis_W"]?' class="analysisCell"':'') + '>' + val["White"] + '</td><td>' + val["ELO_W"] + 
+	'</td><td' + (val["Analysis_B"]?' class="analysisCell"':'') + '>' + 
 	val["Black"] + '</td><td>' + val["ELO_B"] + '</td><td class="centered">' + 
         val["Result"] + "</td><td>" + val["ECO"] + "</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
         '<td class="centered">' + val["Moves"] + 

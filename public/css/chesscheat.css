@@ -71,7 +71,7 @@ table.my-new-table {
 }
 tr.tableHeader td{padding:10px 15px;background-color:#CCC;font-weight:bold;}
 tr.tableRow {background-color:#EEE;font-color:#333;}
-tr.tableRow:hover{background-color:#242424;font-color:#CCC;}
+tr.tableRow:hover{background-color:#6c6c6c;font-color:#CCC;}
 table.mlTable {
   background-color:#ccc;
 }
@@ -94,6 +94,10 @@ td.odd {
   background-color:#ddd;
   text-align: center;
 }
+td.analysisCell {
+  background-color:#CCC;
+}
+td.analysisCell:hover { background-color:#6c6c6c;font-color:#CCC;}
 .centered {
 	text-align: center;
 }

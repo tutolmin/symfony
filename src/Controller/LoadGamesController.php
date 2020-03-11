@@ -584,7 +584,8 @@ MATCH (line)-[:CLASSIFIED_AS]->(eco_code:EcoCode)
 MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
 MATCH (game)-[:WAS_PART_OF]->(event:Event)
 MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
-RETURN game, white_player.name, black_player.name, date_str, eco_code.code,
+OPTIONAL MATCH (line)<-[:PERFORMED_ON]-(analysis:Analysis:Complete)
+RETURN game, labels(analysis) AS alabels, white_player.name, black_player.name, date_str, eco_code.code,
 	event.name, round.name, site.name, white_elo.rating, black_elo.rating, plycount.counter, white_result
 LIMIT 1";
 //var_dump( $game_params);
@@ -614,6 +615,11 @@ LIMIT 1";
           $games[$index]['Result'] = "0-1";
 	else
           $games[$index]['Result'] = "Unknown";
+        $labelsAnalysis = $game_record->value('alabels');
+	if( $labelsAnalysis && in_array( "WhiteSide", $labelsAnalysis))
+          $games[$index]['Analysis_W'] = true;
+	if( $labelsAnalysis && in_array( "BlackSide", $labelsAnalysis))
+          $games[$index]['Analysis_B'] = true;
 /*
         if($gameObj->hasValue('W_cheat_score'))
         $games[$index]['W_cheat_score'] = $gameObj->value('W_cheat_score');

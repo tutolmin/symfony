@@ -111,9 +111,9 @@ class QueueManager
 
 	  // Move :Current label
           $this->neo4j_client->run('
-MATCH (h:Head)
+MATCH (h:Head) MATCH (t:Tail)
 OPTIONAL MATCH (h)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(:Pending)<-[:QUEUED]-(q:Queue)
-WITH CASE q WHEN null THEN h ELSE q END AS q LIMIT 1
+WITH CASE q WHEN null THEN t ELSE q END AS q LIMIT 1
 OPTIONAL MATCH (c:Current)
 REMOVE c:Current SET q:Current', null);
 
@@ -175,11 +175,12 @@ RETURN id(q) AS qid LIMIT 1';
     }
 
     // Find :Analysis node in the database
-    public function analysisExists( $aid)
+    // With optional label such as Pending
+    public function analysisExists( $aid, $label = '')
     {
         $this->logger->debug( "Checking for analysis node existance");
 
-        $query = 'MATCH (a:Analysis) WHERE id(a) = {aid}
+        $query = 'MATCH (a:Analysis'.$label.') WHERE id(a) = {aid}
 RETURN id(a) AS aid LIMIT 1';
 
         $params = ["aid" => intval( $aid)];
@@ -349,6 +350,13 @@ CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
     {
         $this->logger->debug('Promoting analysis node');
 	
+	// Make sure the analysis is Pending
+	if( !$this->analysisExists( $aid, ':Pending')) {
+
+          $this->logger->debug('Analysis node does NOT exist or NOT Pending');
+	  return false;
+	}
+
 	// Disconnect analysis node from it's current place
 	$this->deleteAnalysis( $aid, false);
 
@@ -500,7 +508,7 @@ MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
 	  // Delete relationships to siblings and :Queue
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
 OPTIONAL MATCH (:Analysis)-[s:NEXT]-(a) 
-OPTIONAL MATCH (:Queue)-[q:QUEUED]->(a) DELETE s,q';
+OPTIONAL MATCH (:Queue)-[q]->(a) DELETE s,q';
 
 	// Send the query, we do NOT expect any return
         $this->neo4j_client->run($query, $params);
