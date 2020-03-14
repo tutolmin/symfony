@@ -217,10 +217,13 @@ LIMIT 1";
 
 	// Valid tag values
 	$valid_ending	= [ "checkmate" => "CheckMate", "stalemate" => "StaleMate" ];
-	$valid_piece	= [ "pawn" => "Pawn", "rook" => "Rook", "queen" => "Queen", "king" => "King", "bishop" => "Bishop", "knight" => "Knight" ];
+	$valid_piece	= [ "pawn" => "Pawn", "rook" => "Rook", "queen" => "Queen", 
+		"king" => "King", "bishop" => "Bishop", "knight" => "Knight" ];
 
 	// Game Status Labels
-	$game_statuses	= [ "complete" => "Complete", "processing" => "Processing", "pending" => "Pending", "skipped" => "Skipped", "partially" => "Partially" ];
+	$game_statuses	= [ "complete" => "Complete", "processing" => "Processing", 
+		"pending" => "Pending", "skipped" => "Skipped", 
+		"partially" => "Partially", "evaluated" => "Evaluated" ];
 
 	// If player color has been specified
 	$color_specification_flag=FALSE;
@@ -757,6 +760,8 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    $this->item_status = "Skipped";
 	  if( in_array( "Partially", $labelsArray))
 	    $this->item_status = "Partially";
+	  if( in_array( "Evaluated", $labelsArray))
+	    $this->item_status = "Evaluated";
 	  if( in_array( "WhiteSide", $labelsArray)) {
 	    if( strlen( $this->item_side))
 	      $this->item_side = "Both";

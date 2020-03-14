@@ -322,35 +322,6 @@ function loadGames() {
     // Iterate through all the loaded games
     $.each(data, function(key, val) {
 
-    var status_image="loaded";
-    var status_descr="Game has been loaded into the database";
-/*
-    switch(val["Status"]) {
-      case "0_Paid":
-        status_image="paid";
-        status_descr="Priority processing is pending";
-        break;
-      case "1_Pending":
-        status_image="pending";
-        status_descr="Game is pending for processing";
-        break;
-      case "2_Loaded":
-        status_image="loaded";
-        status_descr="Game has been loaded into the database";
-        break;
-      case "3_Partly":
-        status_image="partly";
-        status_descr="Game has been partially analyzed";
-        break;
-      case "5_Processing":
-        status_image="processing";
-        status_descr="Game is being processed at the moment";
-        break;
-      default:
-        status_image="complete";
-        status_descr="Game analysis is complete";
-    }
-*/
     items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
 	'<td' + (val["Analysis_W"]?' class="analysisCell"':'') + '>' + val["White"] + '</td><td>' + val["ELO_W"] + 
 	'</td><td' + (val["Analysis_B"]?' class="analysisCell"':'') + '>' + 

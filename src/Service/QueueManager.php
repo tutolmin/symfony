@@ -9,6 +9,9 @@ use GraphAware\Neo4j\Client\ClientInterface;
 
 class QueueManager
 {
+    // Default number of games to export
+    const NUMBER = 20;
+
     // Logger reference
     private $logger;
 
@@ -343,6 +346,32 @@ CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
         $this->neo4j_client->run($query, $params);
 
 	return true;
+    }
+
+    // Return a number of game id of certain Analysis type
+    public function getAnalysisGameIds( $label = "Complete", $number = self::NUMBER) {
+
+	// Check if analysis graph present
+	if( !$this->queueGraphExists())
+	  return [];
+
+        $this->logger->debug('Selecting suitable analysis nodes');
+	
+	$query = 'MATCH (:Head)-[:FIRST]->(s:Analysis) 
+MATCH (s)-[:NEXT*0..]-(a:Analysis:'.$label.') WITH a LIMIT {limit}
+MATCH (a)-[:REQUESTED_FOR]->(g:Game) RETURN DISTINCT id(g) AS gid';
+
+          $this->logger->debug('Query: '.$query);
+
+        $params = ["limit" => intval( $number)];
+        $result = $this->neo4j_client->run($query, $params);
+
+	$gids = array();
+        foreach ($result->records() as $record)
+          if( $record->value('gid') != "null")
+            $gids[] = $record->value('gid');
+
+	return $gids;
     }
 
     // Promote (:Analysis) node 

@@ -63,6 +63,10 @@ function loadQueue() {
         status_image="partially";
         status_descr="Game analysis is partially complete";
         break;
+      case "Evaluated":
+        status_image="processing";
+        status_descr="Game moves have been evaluated";
+        break;
       default:
         status_image="complete";
         status_descr="Game analysis is complete";
