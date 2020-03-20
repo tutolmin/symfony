@@ -49,15 +49,35 @@ RETURN id(g) AS gid LIMIT 1';
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('gid') != "null")
+          if( $record->value('gid') != null)
             return true;
 
         // Return 
         return false;
     }
 
-    // get total number of Games of certain type and length
-    public function getGamesTotal( $type = "", $plycount = 80)
+    // get the total number of Games in the DB
+    public function getGamesTotal()
+    {
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
+        $counter = 0;
+
+        $result = $this->neo4j_client->run( 'MATCH (g:Game) RETURN count(g) AS ttl', null);
+
+        foreach ($result->records() as $record)
+          if( $record->value('ttl') != null)
+            $counter = $record->value('ttl');
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Total games = ' .$counter);
+
+	return $counter;
+    }
+
+    // get number of Games of certain type and length
+    public function getGamesNumber( $type = "", $plycount = 80)
     {
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
@@ -149,12 +169,12 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
         	$query .= '(p:StaleMatePlyCount)';
 		break;
 	  case "1-0":
-        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+        	$query .= '(p:GamePlyCount) WITH p 
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
 		break;
 	  case "0-1":
-        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+        	$query .= '(p:GamePlyCount) WITH p 
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 		break;
@@ -208,12 +228,12 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
         	$query .= '(p:StaleMatePlyCount)';
 		break;
 	  case "1-0":
-        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+        	$query .= '(p:GamePlyCount) WITH p 
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
 		break;
 	  case "0-1":
-        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+        	$query .= '(p:GamePlyCount) WITH p 
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 		break;
@@ -252,7 +272,7 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
         $this->logger->debug('Selected game plycount '.$params["counter"]);
 
 	// Get total games for a certain plycount
-	$skip = $this->getGamesTotal( $type, $params["counter"])-1;
+	$skip = $this->getGamesNumber( $type, $params["counter"])-1;
 	if( $skip > 1000) $skip = 1000;
 
         // Use SKIP to get a pseudo random game
@@ -310,15 +330,14 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line) WITH g,l LIMIT 1
-MATCH (r:Line{hash:"00000000"})
-MATCH path=(l)-[:ROOT*0..]->(r)
+MATCH path=(l)-[:ROOT*0..]->(r:Root)
 RETURN length(path) AS length LIMIT 1';
 
         $params = ["gid" => intval( $gid)];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('length') != "null")
+          if( $record->value('length') != null)
             return true;
 
 	return false;

@@ -5,7 +5,6 @@ namespace App\Security;
 use App\Entity\User; // your user entity
 use Doctrine\ORM\EntityManagerInterface;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\SocialAuthenticator;
-use KnpU\OAuth2ClientBundle\Client\Provider\LichessClient;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,16 +12,24 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
+use App\Provider\Lichess;
+//use App\Provider\LichessResourceOwner;
+use GraphAware\Neo4j\Client\ClientInterface;
 
 class LichessAuthenticator extends SocialAuthenticator
 {
     private $clientRegistry;
     private $em;
 
-    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em)
+    /** @var Lichess */
+    protected $provider;
+
+    public function __construct(ClientRegistry $clientRegistry, 
+	EntityManagerInterface $em, Lichess $provider)
     {
         $this->clientRegistry = $clientRegistry;
         $this->em = $em;
+	$this->provider = $provider;
     }
 
     public function supports(Request $request)
@@ -44,76 +51,33 @@ class LichessAuthenticator extends SocialAuthenticator
 
     public function getUser($credentials, UserProviderInterface $userProvider)
     {
-
-var_dump( $credentials->getToken());
-
-
-/*
-        $client = $clientRegistry->getClient('lichess_oauth');
-
-var_dump( $client);
-//var_dump( $client); die;
-        try {
-            // the exact class depends on which provider you're using
-//            $user = $client->fetchUser();
-// get the access token and then user
-$accessToken = $client->getAccessToken();
-var_dump( $accessToken);
-$user = $client->fetchUserFromToken($accessToken)->getId();
-var_dump( $user);
-
-
-// access the underlying "provider" from league/oauth2-client
-$provider = $client->getOAuth2Provider();
-var_dump( $provider->getResourceOwnerDetailsUrl( $accessToken));
-$provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
-var_dump( $provider->getResourceOwnerDetailsUrl( $accessToken));
-$email = $client->fetchUserFromToken($accessToken)->getEmail();
-var_dump( $email);
-
-
-
-	$client = $this->getClient();
-	$provider = $client->getOAuth2Provider();
-
         $lichessUserId = $this->getLichessClient()
             ->fetchUserFromToken($credentials)->getId();
-*/
 
-	$client=$this->getLichessClient();
+	$this->provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
+        $email = $this->provider->getResourceOwner($credentials)->getEmail();
 
-//var_dump( $client);
-// get the access token and then user
-$accessToken = $credentials->getToken();
-$lichessUser = $client->fetchUserFromToken($accessToken);
-
-// get the access token and then user
-var_dump( $credentials);
-var_dump( $accessToken);
-var_dump( $lichessUser); 
-die;
-        $email = $lichessUser->getEmail();
-/*
-        // 1) have they logged in with Lichess before? Easy!
+        // 1) have they logged in with Facebook before? Easy!
         $existingUser = $this->em->getRepository(User::class)
-            ->findOneBy(['lichessId' => $lichessUser->getId()]);
-        if ($existingUser) {
-            return $existingUser;
-        }
-*/
+            ->findOneBy(['lichessId' => $lichessUserId]);
+
+        if ($existingUser) return $existingUser;
+
         // 2) do we have a matching user by email?
         $user = $this->em->getRepository(User::class)
-                    ->findOneBy(['email' => $email]);
+                    ->findOneBy(['email' => $lichessUserEmail]);
 
-	if( $user == null) $user = new User();
+        if( $user == null) $user = new User();
 
         // 3) Maybe you just want to "register" them by creating
         // a User object
-//        $user->setLichessId($lichessUser->getId());
-        $user->setLichessId($lichessUser->getEmail());
-        $user->setEmail($lichessUser->getEmail());
+        $user->setFacebookId($lichessUserId);
+        $user->setEmail($lichessUserEmail);
         $this->em->persist($user);
         $this->em->flush();
+
+        // Merge a :WebUser entity in Neo4j
+        $this->mergeNeo4jUserEntity( $user->getId());
 
         return $user;
     }

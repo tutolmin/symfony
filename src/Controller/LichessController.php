@@ -44,13 +44,14 @@ class LichessController extends AbstractController
         // (read below)
 
         /** @var \App\Client\Provider\LichessClient $client */
+/*
         $client = $clientRegistry->getClient('lichess_oauth');
 
 var_dump( $client);
 //var_dump( $client); die;
         try {
             // the exact class depends on which provider you're using
-            /** @var \App\Provider\LichessUser $user */
+            // @var \App\Provider\LichessUser $user 
 //            $user = $client->fetchUser();
 // get the access token and then user
 $accessToken = $client->getAccessToken();
@@ -76,7 +77,7 @@ var_dump( $email);
             // probably you should return the reason to the user
 //            var_dump($e->getMessage()); die;
         }
-
+*/
     return $this->redirectToRoute('index');
 
     }

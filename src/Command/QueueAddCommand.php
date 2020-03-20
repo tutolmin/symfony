@@ -58,7 +58,7 @@ class QueueAddCommand extends Command
         null,
         InputOption::VALUE_OPTIONAL,
         'Please specify analysis depth',
-	$_ENV['DEFAULT_ANALYSIS_DEPTH'] // Default
+	$_ENV['FAST_ANALYSIS_DEPTH'] // Default
         )
         ->addOption(
         'side',
@@ -82,7 +82,7 @@ class QueueAddCommand extends Command
 
         // Default analysis parameters
         $sideLabel = ":WhiteSide:BlackSide";
-        $depth = $_ENV['DEFAULT_ANALYSIS_DEPTH'];
+        $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
         $userId = $_ENV['SYSTEM_WEB_USER_ID'];
 
 	// Validate depth option

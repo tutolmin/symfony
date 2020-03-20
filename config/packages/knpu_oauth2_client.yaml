@@ -42,8 +42,8 @@ knpu_oauth2_client:
         lichess_oauth:
             type: generic
 #            provider_class: Some\Class\FooBarProvider
-#            provider_class: App\Provider\Lichess
-            provider_class: App\Provider\LichessProvider
+            provider_class: App\Provider\Lichess
+#            provider_class: App\Provider\LichessProvider
 
             # optional: a class that extends OAuth2Client
             # client_class: Some\Custom\Client

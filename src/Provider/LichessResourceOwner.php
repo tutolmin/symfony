@@ -14,31 +14,26 @@
 
 namespace App\Provider;
 use League\OAuth2\Client\Provider\ResourceOwnerInterface;
+use League\OAuth2\Client\Tool\ArrayAccessorTrait;
 
 /**
  * Represents a generic resource owner for use with the GenericProvider.
  */
 class LichessResourceOwner implements ResourceOwnerInterface
 {
+    use ArrayAccessorTrait;
+
     /**
      * @var array
      */
     protected $response;
 
     /**
-     * @var string
-     */
-    protected $resourceOwnerId;
-
-    /**
      * @param array $response
-     * @param string $resourceOwnerId
      */
-    public function __construct(array $response, $resourceOwnerId)
+    public function __construct(array $response)
     {
-//var_dump($response);
         $this->response = $response;
-        $this->resourceOwnerId = $resourceOwnerId;
     }
 
     /**
@@ -48,7 +43,7 @@ class LichessResourceOwner implements ResourceOwnerInterface
      */
     public function getId()
     {
-        return $this->response[$this->resourceOwnerId];
+        return $this->getValueByKey($this->response, 'id');
     }
 
     /**
@@ -58,10 +53,13 @@ class LichessResourceOwner implements ResourceOwnerInterface
      */
     public function getEmail()
     {
+        return $this->getValueByKey($this->response, 'email');
+/*
         if (array_key_exists('email', $this->response)) {
             return $this->response['email'];
         }
         return null;
+*/
     }
 
     /**

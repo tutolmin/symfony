@@ -47,6 +47,21 @@ class User implements UserInterface
      */
     private $lichessId;
 
+    /**
+     * @ORM\Column(type="integer", nullable=true)
+     */
+    private $queueLimit;
+
+    /**
+     * @ORM\Column(type="float", nullable=true)
+     */
+    private $balance;
+
+    /**
+     * @ORM\Column(type="datetime")
+     */
+    private $createdDateTime;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -162,6 +177,42 @@ class User implements UserInterface
     public function setLichessId(?string $lichessId): self
     {
         $this->lichessId = $lichessId;
+
+        return $this;
+    }
+
+    public function getQueueLimit(): ?int
+    {
+        return $this->queueLimit;
+    }
+
+    public function setQueueLimit(?int $queueLimit): self
+    {
+        $this->queueLimit = $queueLimit;
+
+        return $this;
+    }
+
+    public function getBalance(): ?float
+    {
+        return $this->balance;
+    }
+
+    public function setBalance(?float $balance): self
+    {
+        $this->balance = $balance;
+
+        return $this;
+    }
+
+    public function getCreatedDateTime(): ?\DateTimeInterface
+    {
+        return $this->createdDateTime;
+    }
+
+    public function setCreatedDateTime(\DateTimeInterface $createdDateTime): self
+    {
+        $this->createdDateTime = $createdDateTime;
 
         return $this;
     }

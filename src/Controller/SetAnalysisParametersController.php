@@ -87,6 +87,11 @@ class SetAnalysisParametersController extends AbstractController
 	if( $param == "side")
 	  if( $this->queueManager->setAnalysisSide( $aid, $value))
 	    $counter++;
+
+	// change status label for a particular analysis node
+	if( $param == "status")
+	  if( $this->queueManager->setAnalysisStatus( $aid, $value))
+	    $counter++;
       }
 
       return new Response( $counter . " analysis nodes have been modified.");

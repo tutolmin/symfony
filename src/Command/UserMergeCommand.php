@@ -41,7 +41,7 @@ class UserMergeCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
 	// Call user manager service function
-	$total = $this->userManager->mergeUsers();
+	$total = $this->userManager->mergeAllUsers();
 
 	$output->writeln( $total. ' (:WebUser) nodes have been merged successfully');
 

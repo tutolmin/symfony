@@ -20,7 +20,13 @@ function loadQueue() {
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
-        '<td>Status</td><td>Game</td><td style="text-align:center">Side' +
+        '<td>Status' +
+'<br/><select name="AnalysisStatus" id="AnalysisStatus" onchange="setAnalysisParamList(this, \'status\')">' +
+'<option value="">Select</option>' +
+'<option value="Pending">Pending</option>' +
+'<option value="Evaluated">Evaluated</option>' +
+'<option value="Complete">Complete</option>' +
+'</select></td><td>Game</td><td style="text-align:center">Side' +
 '<br/><select name="AnalysisSide" id="AnalysisSide" onchange="setAnalysisParamList(this, \'side\')">' +
 '<option value="">Select</option>' +
 '<option value="">Both sides</option>' +
@@ -33,7 +39,7 @@ function loadQueue() {
 '<option value="20">20+ plies</option>' +
 '<option value="23">23+ plies</option>' +
 '</select>' +
-'</td><td>Scheduled</td>' +
+'</td><td>Estimated</td>' +
         '<td></td></tr>');
 
     // Iterate through all the loaded games
@@ -88,7 +94,7 @@ function loadQueue() {
 '<option value="20"' + ((val["Depth"]==20)?'selected="selected"':'') + '>20+ plies</option>' +
 '<option value="23"' + ((val["Depth"]==23)?'selected="selected"':'') + '>23+ plies</option>' +
 '</select>' +
-	'</td><td>' + val["Date"] +
+	'</td><td>' + val["Interval"] +
         '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
     });
 

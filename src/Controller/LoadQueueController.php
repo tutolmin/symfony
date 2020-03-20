@@ -12,6 +12,7 @@ use Symfony\Component\Security\Core\Security;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
 use App\Service\UserManager;
+use App\Service\QueueManager;
 
 class LoadQueueController extends AbstractController
 {
@@ -44,19 +45,24 @@ class LoadQueueController extends AbstractController
     private $item_side;
     private $item_depth;
     private $item_date;
+    private $item_interval;
 
     // User nameger reference
     private $userManager;
 
+    // Queue manager reference
+    private $queueManager;
+
     // Dependency injection of the Neo4j ClientInterface
     public function __construct( ClientInterface $client, Stopwatch $watch, 
-	LoggerInterface $logger, Security $security, UserManager $um)
+	LoggerInterface $logger, Security $security, UserManager $um, QueueManager $qm)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
         $this->logger = $logger;
         $this->security = $security;
         $this->userManager = $um;
+        $this->queueManager = $qm;
 
         // Init Ids with non-existing values
         $this->queue_idx = 0;
@@ -69,6 +75,8 @@ class LoadQueueController extends AbstractController
 
 	$this->item_status = "Analysis";
 
+	$this->item_interval = 0;
+
         // starts event named 'eventName'
         $this->stopwatch->start('loadQueue');
     }
@@ -77,6 +85,23 @@ class LoadQueueController extends AbstractController
     {
         // stops event named 'eventName'
         $this->stopwatch->stop('loadQueue');
+    }
+
+    private function formatInterval() {
+
+	// More than a day
+	if( floor( $this->item_interval / 86400) > 0)
+	  return round( $this->item_interval / 86400)."+ day(s)";
+
+	// More than an hour
+	if( floor( $this->item_interval / 3600) > 0)
+	  return round( $this->item_interval / 3600)."+ hour(s)";
+
+	// More than a minute
+	if( floor( $this->item_interval / 60) > 0)
+	  return round( $this->item_interval / 60)."+ minute(s)";
+
+	return $this->item_interval." seconds"; 
     }
 
     private function fetchItem( $idx) {
@@ -116,6 +141,10 @@ LIMIT 1";
         $this->items[$idx]['Side'] = $this->item_side;
         $this->items[$idx]['Depth'] = $this->item_depth;
         $this->items[$idx]['Date'] = $this->item_date;
+
+
+        $this->items[$idx]['Interval'] = $this->item_interval?$this->formatInterval():"";
+
         $this->items[$idx]['White'] = $game_record->value('white_player.name');
         $this->items[$idx]['ELO_W'] = $game_record->value('white_elo.rating')==0?"":$game_record->value('white_elo.rating');
         $this->items[$idx]['Black'] = $game_record->value('black_player.name');
@@ -142,12 +171,6 @@ LIMIT 1";
       */
     public function loadQueue() 
     {
-/*
-	// Get web user id
-	if( $this->security->isGranted('ROLE_USER')) {
-          $this->wu_id = $this->getUser()->getId();
-	}
-*/
 	// HTTP request
 	$request = Request::createFromGlobals();
 
@@ -377,11 +400,9 @@ echo "<br/>\n";
 
 		  case "email":
 
-		    // Check for valid email
-		    if( filter_var( $tag_value, FILTER_VALIDATE_EMAIL)) {
+		    // Check for valid email, fetch user id
+		    if( filter_var( $tag_value, FILTER_VALIDATE_EMAIL))
 		      $this->wu_id = $this->userManager->fetchWebUserId( $tag_value);
-		      $webuser = "{id:{wuid}}";
-		    }
 		    break;
 
 		  case "status":
@@ -711,9 +732,22 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	}
 //    AND [x IN labels(second_result) WHERE x IN {second_results}] 
 
+	// We do not need to begin with Head for Pending/Processing
+	// User Current instead
+	$start_node = "Head";
+	if( $this->item_status == "Pending") {
+	  $this->queueManager->updateCurrentQueueNode();
+	  $start_node = "Current";	
+	}
+
+	// Add web user parameter
+	if( $this->wu_id) {
+	  $webuser = "{id:{wu_id}}";
+	  $params["wu_id"] = intval( $this->wu_id);
+	}
 
 	// Default query
-	$query = "MATCH (:Head)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:".$this->item_status.") WITH p LIMIT 1 
+	$query = "MATCH (:".$start_node.")-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:".$this->item_status.") WITH p LIMIT 1 
 MATCH path=(p)-[:NEXT*0..]->(a:".$this->item_status.$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
 MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
 RETURN a, length(path) AS idx, d.level, id(game) AS gid 
@@ -736,13 +770,12 @@ LIMIT ".self::RECORDS_PER_PAGE;
 
 //print_r( $params);
 //echo $query;
-
-	if( $this->wu_id) {
-	  $params["wuid"] = intval( $this->wu_id);
-	}
         $result = $this->neo4j_client->run($query, $params);
 
 //	$event = $this->stopwatch->lap('loadQueue');
+
+	// Start analysis Id -1 means we need to fetch first Pending once	
+	$said = -1;
 
         // Fetch the item data from the DB
         foreach ( $result->records() as $record) {
@@ -750,6 +783,8 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	  $labelsObj = $record->get('a');
 	  $this->analysis_id = $labelsObj->identity();
 	  $labelsArray = $labelsObj->labels();
+
+	  // Analysis status
 	  if( in_array( "Pending", $labelsArray))
 	    $this->item_status = "Pending";
 	  if( in_array( "Processing", $labelsArray))
@@ -762,6 +797,8 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    $this->item_status = "Partially";
 	  if( in_array( "Evaluated", $labelsArray))
 	    $this->item_status = "Evaluated";
+
+	  // Analysis side
 	  if( in_array( "WhiteSide", $labelsArray)) {
 	    if( strlen( $this->item_side))
 	      $this->item_side = "Both";
@@ -773,6 +810,33 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	      $this->item_side = "Both";
 	    else
 	      $this->item_side = "Black";
+	  }
+
+	  // If Pending, calculate estimate
+	  if( $this->item_status == "Pending") {
+
+	    // Get first Pending Analysis in the queue once
+	    if( $said == -1) {
+
+	      $said = $this->queueManager->getFirstAnalysis( "Pending");
+
+	      // There can be NO processing analysises atm
+	      //$said = $this->queueManager->getLastAnalysis( "Processing");
+
+	      $this->item_interval = 
+		$this->queueManager->getAnalysisInterval( $said, $this->analysis_id);
+
+	    } else {	
+
+	    if( strlen( $descending))
+	      $this->item_interval -= 
+		$this->queueManager->getAnalysisInterval( $this->analysis_id, $said);
+	    else
+	      $this->item_interval += 
+		$this->queueManager->getAnalysisInterval( $said, $this->analysis_id);
+	    }
+
+	    $said = $this->analysis_id;
 	  }
 
 	  $this->game_id = $record->value('gid');

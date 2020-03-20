@@ -66,7 +66,7 @@ class QueueFillCommand extends Command
         null,
         InputOption::VALUE_OPTIONAL,
         'Please specify analysis depth',
-        $_ENV['DEFAULT_ANALYSIS_DEPTH'] // Default
+        $_ENV['FAST_ANALYSIS_DEPTH'] // Default
         )
         ->addOption(
         'side',
@@ -114,7 +114,7 @@ class QueueFillCommand extends Command
 
         // Default analysis parameters
         $sideLabel = ":WhiteSide:BlackSide";
-        $depth = $_ENV['DEFAULT_ANALYSIS_DEPTH'];
+        $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
         $userId = $_ENV['SYSTEM_WEB_USER_ID'];
 
         // Validate depth option
@@ -126,7 +126,7 @@ class QueueFillCommand extends Command
         if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
           $sideLabel = ":".$sideToAnalyze;
 
-        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth);
+        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth.' type: '.$type);
 
 	// Array of queued game ids
 	$gids = array();

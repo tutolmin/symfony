@@ -20,7 +20,7 @@ function loadQueue() {
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
-        '<td>Status</td><td>Game</td><td style="text-align:center">Side</td><td>Depth</td><td>Scheduled</td>' +
+        '<td>Status</td><td>Game</td><td style="text-align:center">Side</td><td>Depth</td><td>Estimated</td>' +
         '<td></td></tr>');
 
     // Iterate through all the loaded games
@@ -62,7 +62,7 @@ function loadQueue() {
     items.push('<tr class="tableRow"><td style="text-align:center">' + val["Index"] +
         '</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' +
         '</td><td>' + val["White"] + ' vs. ' + val["Black"] + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
-        '</td><td>' + val["Side"] + '</td><td>' + val["Depth"] + '</td><td>' + val["Date"] +
+        '</td><td>' + val["Side"] + '</td><td>' + val["Depth"] + '</td><td>' + val["Interval"] +
         '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
     });
 

@@ -34,8 +34,20 @@ class UserManager
         $this->userRepository = $this->em->getRepository( User::class);
     }
 
+    // merge specific :WebUser
+    public function mergeUser( $uid)
+    {
+	// Get the user by id
+        $user = $this->userRepository->findOneBy(['id' => $uid]);
+
+        $params["id"] = $user->getId();
+        $params["limit"] = $user->getQueueLimit();
+        $query = 'MERGE (w:WebUser{id:{id}}) SET w.queueLimit={limit}';
+        $this->neo4j_client->run( $query, $params);
+    }
+
     // merge :WebUser nodes for all existing users
-    public function mergeUsers()
+    public function mergeAllUsers()
     {
 	// Get all the users from repository
         $users = $this->userRepository->findAll();
@@ -45,15 +57,12 @@ class UserManager
 
 	// Iterate through all the users
 	foreach( $users as $user) {
-
-          $params["id"] = $user->getId();
-          $query = 'MERGE (:WebUser{id:{id}})';
-          $this->neo4j_client->run( $query, $params);
-
-//          $this->logger->debug('Email '.$user->getEmail());
-
+	
+	  $this->mergeUser( $user->getId());
 	  $counter++;
 	}
+
+        $this->logger->debug('Merged '.$counter.' users');
 
 	return $counter;
     }
@@ -64,7 +73,7 @@ class UserManager
 	// Get the user by email
         $user = $this->userRepository->findOneBy(['email' => $email]);
 
-	// Get the roles, add a new role and save	
+	// Get the id if found
 	if( $user != null) {
 
 	  $wu_id = $user->getId();
@@ -72,7 +81,7 @@ class UserManager
 	  return $wu_id;
 	}
 
-	return '';
+	return null;
     }
 
     // Set role to a user
