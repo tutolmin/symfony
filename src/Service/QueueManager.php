@@ -20,7 +20,8 @@ class QueueManager
     private $logger;
 
     // Analysis status labels
-    private $statusLabels = array( "Pending", "Processing", "Partially", "Skipped", "Evaluated", "Complete");
+    private $statusLabels = array( "Pending", "Processing", "Partially", 
+	"Skipped", "Evaluated", "Exported", "Complete");
 
     // Neo4j client interface reference
     private $neo4j_client;
@@ -179,13 +180,17 @@ REMOVE c:Current SET q:Current';
         $this->logger->debug('Getting first '.$label.' analysis node');
 
 	// Check if there is already analysis graph present
-	if( !$this->queueGraphExists())
+	if( !$this->updateCurrentQueueNode())
 	  return -1; // Negative to indicat ethe error
 
-	// We need it up to date
-        $this->updateCurrentQueueNode();
-
+	// Look backward, by default
         $query = '
+MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(f:'.$label.') 
+RETURN id(f) AS aid LIMIT 1';
+
+	// Look forward
+	if( $label == "Pending")
+          $query = '
 MATCH (:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:'.$label.') 
 RETURN id(f) AS aid LIMIT 1';
 
@@ -198,18 +203,15 @@ RETURN id(f) AS aid LIMIT 1';
         // Return non-existing id if not found
         return -1;
     }
-
+/*
     // get last analysis node of certain type
     public function getLastAnalysis( $label = "Processing")
     {
         $this->logger->debug('Getting last '.$label.' analysis node');
 
 	// Check if there is already analysis graph present
-	if( !$this->queueGraphExists())
+	if( !$this->updateCurrentQueueNode())
 	  return -1; // Negative to indicat ethe error
-
-	// We need it up to date
-        $this->updateCurrentQueueNode();
 
         $query = '
 MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:'.$label.') 
@@ -224,7 +226,7 @@ RETURN id(l) AS aid LIMIT 1';
         // Return non-existing id if not found
         return -1;
     }
-
+*/
     // return interval in seconds between two Analysis nodes
     // taking into account current evaluation speed
     public function getAnalysisInterval( $said, $faid)
@@ -290,7 +292,7 @@ RETURN node, d.level AS depth, p.counter AS plies';
     private function getUserLimit( $userId)
     {
         $query = 'MATCH (w:WebUser{id:{uid}}) 
-RETURN w.limit AS limit LIMIT 1';
+RETURN w.queueLimit AS limit LIMIT 1';
 
         $params = ["uid" => intval( $userId)];
         $result = $this->neo4j_client->run( $query, $params);
@@ -308,7 +310,7 @@ RETURN w.limit AS limit LIMIT 1';
     }
 
     // check user limit, true if ok
-    private function checkUserLimit( $userId)
+    public function checkUserLimit( $userId)
     {
         if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Checking submission limit for '.$userId);
@@ -316,14 +318,13 @@ RETURN w.limit AS limit LIMIT 1';
         // get user limit from the DB
         $limit = $this->getUserLimit( $userId);
 
-        $query = '
-MATCH (w:WebUser{id:{uid}})<-[:REQUESTED_BY]->(a:Pending)
+        $query = 'MATCH (w:WebUser{id:{uid}}) 
+OPTIONAL MATCH(w)<-[:REQUESTED_BY]->(a:Pending) 
 RETURN count(a) AS items LIMIT 1';
 
         $params = ["uid" => intval( $userId)];
         $result = $this->neo4j_client->run( $query, $params);
 
-        $items = 0;
         foreach ($result->records() as $record)
           if( $record->value('items') != null)
             $items = $record->value('items');
@@ -684,28 +685,27 @@ CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
 	return true;
     }
 
-    // Return a number of game id of certain Analysis type
-    public function getAnalysisGameIds( $label = "Complete", $number = self::NUMBER) {
+    // Return a Game Id for an Analysis
+    public function getAnalysisGameId( $aid) {
 
 	// Check if analysis graph present
 	if( !$this->queueGraphExists())
 	  return [];
 
-        $this->logger->debug('Selecting suitable analysis nodes');
+        $this->logger->debug('Fetching Game Id');
 	
-	$query = 'MATCH (:Head)-[:FIRST]->(s:Analysis) 
-MATCH (s)-[:NEXT*0..]-(a:Analysis:'.$label.') WITH a LIMIT {limit}
-MATCH (a)-[:REQUESTED_FOR]->(g:Game) RETURN DISTINCT id(g) AS gid';
+	$query = '
+MATCH (a:Analysis)-[:REQUESTED_FOR]->(g:Game) WHERE id(a)={aid}
+RETURN id(g) AS gid';
 
-        $params = ["limit" => intval( $number)];
+        $params = ["aid" => intval( $aid)];
         $result = $this->neo4j_client->run($query, $params);
 
-	$gids = array();
         foreach ($result->records() as $record)
           if( $record->value('gid') != null)
-            $gids[] = $record->value('gid');
+            return $record->value('gid');
 
-	return $gids;
+	return -1; // Negative to indicate error
     }
 
     // Promote (:Analysis) node 

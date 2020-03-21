@@ -36,6 +36,8 @@ class CacheFileFetcher
         $statusCode = $response->getStatusCode();
         // $statusCode = 200
         $this->logger->debug('Status code '.$statusCode);
+
+	if( $statusCode != 200) return null;
 /*
         try {
 */

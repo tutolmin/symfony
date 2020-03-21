@@ -259,7 +259,7 @@ function parseTags( element) {
     }
 
     // Game status label
-    re = /^(complete|processing|pending|skipped|partially)$/i;
+    re = /^(complete|processing|pending|skipped|partially|evaluated|exported)$/i;
     if( found_status = item.match( re)) {
       tags_str += "status:" + found_status[0] + ";";
       console.log( found_status);

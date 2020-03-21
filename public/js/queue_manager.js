@@ -25,6 +25,7 @@ function loadQueue() {
 '<option value="">Select</option>' +
 '<option value="Pending">Pending</option>' +
 '<option value="Evaluated">Evaluated</option>' +
+'<option value="Exported">Exported</option>' +
 '<option value="Complete">Complete</option>' +
 '</select></td><td>Game</td><td style="text-align:center">Side' +
 '<br/><select name="AnalysisSide" id="AnalysisSide" onchange="setAnalysisParamList(this, \'side\')">' +
@@ -72,6 +73,10 @@ function loadQueue() {
       case "Evaluated":
         status_image="processing";
         status_descr="Game moves have been evaluated";
+        break;
+      case "Exported":
+        status_image="processing";
+        status_descr="Game moves have been exported for validation";
         break;
       default:
         status_image="complete";

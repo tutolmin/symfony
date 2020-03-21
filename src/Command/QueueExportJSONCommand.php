@@ -66,16 +66,39 @@ class QueueExportJSONCommand extends Command
 
 	$output->writeln( 'We are going to export '. $number. ' items...');
 
-	// Array of exported game ids
-	$gids = array();
+	// Iterate
+	while( $number-- > 0) {
 
-	// Export list of games ids
-        $gids = $this->queueManager->getAnalysisGameIds( "Evaluated", $number);
+	  // Get first matching analysis node with Evaluated status
+	  $aid = $this->queueManager->getFirstAnalysis( "Evaluated");
 
-        $output->writeln( 'Selected Analysis game ids ' . implode( ',', $gids));
+          $output->writeln( 'Selected analysis id: '. $aid);
 
-        // Request JSON files update for the list of games
-//        $this->gameManager->exportJSONFiles( $gids);
+	  // No more analysis found, exit
+	  if( $aid == -1) break;
+	
+	  // Get game ID for analyis
+          $gid = $this->queueManager->getAnalysisGameId( $aid);
+
+	  // Error fetching game Id for analysis
+	  if( $gid == -1) {
+
+            $output->writeln( 'Can not fetch game id for analysis');
+
+	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
+
+	    continue;
+	  }
+
+          $output->writeln( 'Selected analysis game id: ' . $gid);
+
+          // Request JSON files update for the game
+          if( $this->gameManager->exportJSONFile( $gid))
+
+	    $this->queueManager->setAnalysisStatus( $aid, "Exported");
+ 	  else
+	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
+	}
 
         return 0;
     }

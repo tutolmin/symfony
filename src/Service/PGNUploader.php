@@ -25,6 +25,29 @@ class PGNUploader
         $this->logger = $logger;
     }
 
+    public function uploadEvals( $file, $hash)
+    {
+	// Filename SHOULD contain 'evals' prefix in order to make sure
+	// the filename is never matches 'games' prefix, reserved for :Game-only db merge
+	// the filename is never matches 'lines' prefix, reserved for :Game-only db merge
+	// Strip '/tmp/' from a filename
+        $fileName = $this->getTargetDirectory() . "/evals-" . $hash . '.json';
+
+        $this->logger->debug( $fileName);
+
+	$filesystem = new Filesystem();
+	try {
+
+	  // Copy the file to a special upload directory
+	  $filesystem->rename( $file, $fileName);
+
+        } catch (IOExceptionInterface $exception) {
+
+          $this->logger->debug( "An error occurred while moving a temp file ".$exception->getPath());
+
+        }
+    }
+
     public function uploadLines( $file)
     {
 	// Filename SHOULD contain 'lines' prefix in order to make sure

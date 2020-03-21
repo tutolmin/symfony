@@ -246,7 +246,8 @@ LIMIT 1";
 	// Game Status Labels
 	$game_statuses	= [ "complete" => "Complete", "processing" => "Processing", 
 		"pending" => "Pending", "skipped" => "Skipped", 
-		"partially" => "Partially", "evaluated" => "Evaluated" ];
+		"partially" => "Partially", "evaluated" => "Evaluated",
+		"exported" => "Exported" ];
 
 	// If player color has been specified
 	$color_specification_flag=FALSE;
@@ -797,6 +798,8 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    $this->item_status = "Partially";
 	  if( in_array( "Evaluated", $labelsArray))
 	    $this->item_status = "Evaluated";
+	  if( in_array( "Exported", $labelsArray))
+	    $this->item_status = "Exported";
 
 	  // Analysis side
 	  if( in_array( "WhiteSide", $labelsArray)) {

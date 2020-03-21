@@ -54,6 +54,10 @@ function loadQueue() {
         status_image="processing";
         status_descr="Game moves have been evaluated";
         break;
+      case "Exported":
+        status_image="processing";
+        status_descr="Game moves have been exported for validation";
+        break;
       default:
         status_image="complete";
         status_descr="Game analysis is complete";

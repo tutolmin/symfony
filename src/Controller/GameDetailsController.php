@@ -39,6 +39,9 @@ class GameDetailsController extends AbstractController
     // Arrays to keep the data
     private $game = array();
     private $moves = array();
+    private $ECOs = array();
+    private $openings = array();
+    private $variations = array();
 
     private $sides = ["White" => "W_", "Black" => "B_"];
 
@@ -148,7 +151,21 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
     private function getMoveList( )
     {
 	$response = $this->fetcher->getFile( $this->game["MoveListHash"].'.json');
-	$this->moves = $response->toArray();
+	$response_eval = $this->fetcher->getFile( 'evals-'.$this->game["MoveListHash"].'.json');
+
+	if( $response_eval != null) {
+
+	  $data = $response_eval->toArray();
+	  foreach( $data as $item) {
+	    $SAN = $item[0];
+	    $this->moves[]		= $SAN;
+	    $this->ECOs[]		= $item[1];
+	    $this->openings[]		= $item[2];
+	    $this->variations[]		= $item[3];
+	  }
+	} else // Only SANs are present
+	  $this->moves = $response->toArray();
+
     }
 /*
     // Fetch move list
@@ -692,9 +709,9 @@ LIMIT 1';
 	foreach( $this->moves as $key => $move) {
           $position = array();
           $position[] = $move;
-          $position[] = $ECOs[$key];
-          $position[] = $openings[$key];
-          $position[] = $variations[$key];
+          $position[] = array_key_exists( $key, $this->ECOs)?$this->ECOs[$key]:"";
+          $position[] = array_key_exists( $key, $this->openings)?$this->openings[$key]:"";
+          $position[] = array_key_exists( $key, $this->variations)?$this->variations[$key]:"";
           $position[] = $evals[$key];
           $position[] = $marks[$key];
           $position[] = $scores[$key];

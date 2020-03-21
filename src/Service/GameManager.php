@@ -244,8 +244,6 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 
 	$query .= " RETURN p.counter as counter LIMIT 1";
 
-        $this->logger->debug( $query);
-
         $result = $this->neo4j_client->run( $query, null);
 
         foreach ($result->records() as $record)
@@ -265,6 +263,9 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
     {
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
+	$skip = 0;
+	do {
+
 	// Select a game plycount
         $params["counter"] = rand( $this->getMinPlyCount( $type), 
 				$this->getMaxPlyCount( $type));
@@ -272,10 +273,10 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
         $this->logger->debug('Selected game plycount '.$params["counter"]);
 
 	// Get total games for a certain plycount
-	$skip = $this->getGamesNumber( $type, $params["counter"])-1;
-	if( $skip > 1000) $skip = 1000;
+	} while( ($skip = $this->getGamesNumber( $type, $params["counter"])) == 0);
 
         // Use SKIP to get a pseudo random game
+	if( $skip > 1000) $skip = 1000; else $skip--;
         $params["SKIP"] = rand( 0, $skip);
 
         $this->logger->debug('Skipping '.$params["SKIP"]. ' games');
@@ -325,6 +326,10 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
     public function lineExists( $gid)
     {
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
+        // Checks if game exists
+        if( !$this->gameExists( $gid))
+	  return false;
 
         $this->logger->debug( "Checking move line existance");
 
@@ -381,6 +386,69 @@ RETURN length(path) AS length LIMIT 1';
 
       // Put the file into special uploads directory
       $this->uploader->uploadLines( $tmp_file);
+    }
+
+    // Exports single JSON file for a game
+    public function exportJSONFile( $gid)
+    {
+      // Checks if the move line for a game exists
+      if( !$this->lineExists( $gid))
+	return false;
+
+	// Fetch movelist, ECOs
+        $query = 'MATCH (g:Game) WHERE id(g) = {gid}
+MATCH (g)-[:FINISHED_ON]->(l:Line) WITH l LIMIT 1
+MATCH path=(l)-[:ROOT*0..]->(r:Root) WITH l,nodes(path) AS moves 
+UNWIND moves AS move 
+ MATCH (move)-[:LEAF]->(p:Ply) 
+ OPTIONAL MATCH (move)-[:COMES_TO]-(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode) 
+  WITH l,
+   reverse( collect( p.san)) AS movelist, 
+   reverse( collect(COALESCE(e.code,""))) AS ecos,
+   reverse( collect(COALESCE(o.opening,""))) AS openings,
+   reverse( collect(COALESCE(o.variation,""))) AS variations
+RETURN l.hash, movelist, ecos, openings, variations LIMIT 1';
+
+        $params = ["gid" => intval( $gid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record) {
+
+	  // Movelist empty, error
+          if( $record->value('movelist') == null)
+            return false;
+
+	  // Use move SANs as keys for all other arrays
+	  $moves	= $record->value('movelist');
+	  $keys		= array_keys( $moves);
+	  $ecos		= array_combine( $keys, $record->value('ecos')); 
+	  $openings	= array_combine( $keys, $record->value('openings')); 
+	  $variations	= array_combine( $keys, $record->value('variations')); 
+
+	  // Go through all the SANs, build huge array
+	  foreach( $moves AS $key => $move)
+	    $arr[] = [$move, $ecos[$key], $openings[$key], $variations[$key]];
+
+	  $filesystem = new Filesystem();
+          try {
+
+            // Filename SHOULD contain 'evals' prefix in order to make sure
+            // the filename is never matches 'games|lines' prefixes
+            $tmp_file = $filesystem->tempnam('/tmp', 'evals-');
+
+            // Save the PGNs into a local temp file
+            file_put_contents( $tmp_file, json_encode( $arr));
+
+          } catch (IOExceptionInterface $exception) {
+
+            $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+          }
+
+          // Put the file into special uploads directory
+          $this->uploader->uploadEvals( $tmp_file, $record->value('l.hash'));
+	}
+
+      return true;
     }
 }
 ?>

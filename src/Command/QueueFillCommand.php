@@ -86,7 +86,7 @@ class QueueFillCommand extends Command
 	// Cap the user input with reasonable max value
 	if( $threshold > self::MAXLENGTH) $threshold=self::MAXLENGTH;
 
-	$output->writeln( 'We are going to add '. $threshold. ' items...');
+	$output->writeln( 'We are going to fill the queue to '. $threshold. ' items...');
 
 	// Check if queue is already full
 	$length = $this->queueManager->getQueueLength();
@@ -137,6 +137,14 @@ class QueueFillCommand extends Command
           $gid = $this->gameManager->getRandomGameId( $type);
 
           $output->writeln( 'Selected game id ' . $gid);
+
+          // Make sure user is allowed to add more items
+          if( !$this->queueManager->checkUserLimit( $userId)) {
+
+            $this->logger->debug(
+                'User has exceeded their submission limit.');
+	     break;
+	  }
 
 	  // Enqueue game analysis node
 	  if( $this->queueManager->queueGameAnalysis(
