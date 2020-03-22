@@ -155,14 +155,30 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 
 	if( $response_eval != null) {
 
-	  $data = $response_eval->toArray();
-	  foreach( $data as $item) {
-	    $SAN = $item[0];
-	    $this->moves[]		= $SAN;
-	    $this->ECOs[]		= $item[1];
-	    $this->openings[]		= $item[2];
-	    $this->variations[]		= $item[3];
-	  }
+//	  $data = $response_eval->toArray();
+	  $content = json_decode( $response_eval->getContent(), true);
+
+	  foreach( $content as $item)
+
+	    // Only SAN is present
+	    if( !is_array( $item))
+
+	      $this->moves[]		= $item;
+
+	    else {
+
+	      // SAN should always be there
+	      $this->moves[]		= $item['san'];
+	      if( array_key_exists( 'eco', $item)) 
+		$this->ECOs[]		= $item['eco'];
+	      else $this->ECOs[]	= "";
+	      if( array_key_exists( 'opening', $item)) 
+	        $this->openings[]	= $item['opening'];
+	      else $this->openings[]	= "";
+	      if( array_key_exists( 'variation', $item)) 
+	        $this->variations[]	= $item['variation'];
+	      else $this->variations[]	= "";
+	    }
 	} else // Only SANs are present
 	  $this->moves = $response->toArray();
 

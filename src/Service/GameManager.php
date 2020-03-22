@@ -426,8 +426,27 @@ RETURN l.hash, movelist, ecos, openings, variations LIMIT 1';
 	  $variations	= array_combine( $keys, $record->value('variations')); 
 
 	  // Go through all the SANs, build huge array
-	  foreach( $moves AS $key => $move)
-	    $arr[] = [$move, $ecos[$key], $openings[$key], $variations[$key]];
+	  $arr = array();
+	  foreach( $moves AS $key => $move) {
+
+	    // Push move SAN as first element	
+	    $item = array();
+	    $item['san'] = $move;
+
+	    // Add eco info for respective moves
+	    if( strlen( $ecos[$key]))
+	      $item['eco'] = $ecos[$key];
+	    if( strlen( $openings[$key]))
+	      $item['opening'] = $openings[$key];
+	    if( strlen( $variations[$key]))
+	      $item['variation'] = $variations[$key];
+
+	    // If array has only SAN add a value, not array
+	    if( count( $item) == 1)
+	      array_push( $arr, $item['san']);
+	    else
+	      array_push( $arr, $item);
+	  }
 
 	  $filesystem = new Filesystem();
           try {
