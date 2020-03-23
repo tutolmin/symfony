@@ -158,27 +158,33 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 //	  $data = $response_eval->toArray();
 	  $content = json_decode( $response_eval->getContent(), true);
 
-	  foreach( $content as $item)
+	  foreach( $content as $key => $item) {
+
+	    $this->moves[$key]		= "";
+	    $this->ECOs[$key]		= "";
+	    $this->openings[$key]	= "";
+	    $this->variations[$key]	= "";
+	    $this->marks[$key]	= "";
 
 	    // Only SAN is present
-	    if( !is_array( $item))
+	    if( !is_array( $item)) {
 
-	      $this->moves[]		= $item;
+	      $this->moves[$key]	= $item;
 
-	    else {
+	    } else {
 
 	      // SAN should always be there
-	      $this->moves[]		= $item['san'];
+	      $this->moves[$key]	= $item['san'];
 	      if( array_key_exists( 'eco', $item)) 
-		$this->ECOs[]		= $item['eco'];
-	      else $this->ECOs[]	= "";
+		$this->ECOs[$key]	= $item['eco'];
 	      if( array_key_exists( 'opening', $item)) 
-	        $this->openings[]	= $item['opening'];
-	      else $this->openings[]	= "";
+	        $this->openings[$key]	= $item['opening'];
 	      if( array_key_exists( 'variation', $item)) 
-	        $this->variations[]	= $item['variation'];
-	      else $this->variations[]	= "";
+	        $this->variations[$key]	= $item['variation'];
+	      if( array_key_exists( 'marks', $item)) 
+	        $this->marks[$key]	= $item['marks'];
 	    }
+	  }
 	} else // Only SANs are present
 	  $this->moves = $response->toArray();
 
@@ -729,7 +735,7 @@ LIMIT 1';
           $position[] = array_key_exists( $key, $this->openings)?$this->openings[$key]:"";
           $position[] = array_key_exists( $key, $this->variations)?$this->variations[$key]:"";
           $position[] = $evals[$key];
-          $position[] = $marks[$key];
+          $position[] = array_key_exists( $key, $this->marks)?$this->marks[$key]:"";
           $position[] = $scores[$key];
           $position[] = $depths[$key];
           $position[] = $times[$key];

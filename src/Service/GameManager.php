@@ -406,8 +406,9 @@ UNWIND moves AS move
    reverse( collect( p.san)) AS movelist, 
    reverse( collect(COALESCE(e.code,""))) AS ecos,
    reverse( collect(COALESCE(o.opening,""))) AS openings,
-   reverse( collect(COALESCE(o.variation,""))) AS variations
-RETURN l.hash, movelist, ecos, openings, variations LIMIT 1';
+   reverse( collect(COALESCE(o.variation,""))) AS variations,
+   reverse( collect(CASE WHEN "Forced" IN labels(move) THEN "Forced" ELSE "" END)) AS marks
+RETURN l.hash, movelist, ecos, openings, variations, marks LIMIT 1';
 
         $params = ["gid" => intval( $gid)];
         $result = $this->neo4j_client->run($query, $params);
@@ -424,6 +425,7 @@ RETURN l.hash, movelist, ecos, openings, variations LIMIT 1';
 	  $ecos		= array_combine( $keys, $record->value('ecos')); 
 	  $openings	= array_combine( $keys, $record->value('openings')); 
 	  $variations	= array_combine( $keys, $record->value('variations')); 
+	  $marks	= array_combine( $keys, $record->value('marks')); 
 
 	  // Go through all the SANs, build huge array
 	  $arr = array();
@@ -440,6 +442,8 @@ RETURN l.hash, movelist, ecos, openings, variations LIMIT 1';
 	      $item['opening'] = $openings[$key];
 	    if( strlen( $variations[$key]))
 	      $item['variation'] = $variations[$key];
+	    if( strlen( $marks[$key]))
+	      $item['marks'] = $marks[$key];
 
 	    // If array has only SAN add a value, not array
 	    if( count( $item) == 1)

@@ -15,7 +15,7 @@ use Psr\Log\LoggerInterface;
 class QueueExportJSONCommand extends Command
 {
     // Maximum number of games to export
-    const NUMBER = 20;
+    const NUMBER = 200;
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:export:json';
@@ -52,12 +52,33 @@ class QueueExportJSONCommand extends Command
         InputOption::VALUE_OPTIONAL,
         'Please specify the number of games to export',
         self::NUMBER // this is the new default value, instead of null
+	)
+	// specific game id
+	->addOption(
+        'gid',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Please specify valid game id to export',
+        -1 // this is the new default value, instead of null
         )
 	;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+	// Parse the user specified game id
+	$gid = intval( $input->getOption('gid'));
+
+	// Game id has been specified, process it
+	if( $gid != -1) {
+
+          $output->writeln( 'Selected analysis game id: ' . $gid);
+
+          // Request JSON files update for the game
+          $this->gameManager->exportJSONFile( $gid);
+
+	} else {
+	
 	// Parse the user specified number of games
 	$number = intval( $input->getOption('number'));
 
@@ -99,7 +120,7 @@ class QueueExportJSONCommand extends Command
  	  else
 	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
 	}
-
+	}
         return 0;
     }
 }
