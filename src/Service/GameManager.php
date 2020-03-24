@@ -335,7 +335,7 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line) WITH g,l LIMIT 1
-MATCH path=(l)-[:ROOT*0..]->(r:Root)
+MATCH path=shortestPath((l)-[:ROOT*0..]->(r:Root))
 RETURN length(path) AS length LIMIT 1';
 
         $params = ["gid" => intval( $gid)];
@@ -392,86 +392,223 @@ RETURN length(path) AS length LIMIT 1';
     public function exportJSONFile( $gid)
     {
       // Checks if the move line for a game exists
-      if( !$this->lineExists( $gid))
-	return false;
+      if( !$this->lineExists( $gid)) return false;
 
-	// Fetch movelist, ECOs
-        $query = 'MATCH (g:Game) WHERE id(g) = {gid}
+      // Fetch movelist, ECOs
+      $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line) WITH l LIMIT 1
-MATCH path=(l)-[:ROOT*0..]->(r:Root) WITH l,nodes(path) AS moves 
+MATCH path=shortestPath((l)-[:ROOT*0..]->(r:Root)) WITH l, nodes(path) AS moves 
 UNWIND moves AS move 
  MATCH (move)-[:LEAF]->(p:Ply) 
  OPTIONAL MATCH (move)-[:COMES_TO]-(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode) 
   WITH l,
+   reverse( collect( id(move))) AS lids, 
    reverse( collect( p.san)) AS movelist, 
    reverse( collect(COALESCE(e.code,""))) AS ecos,
    reverse( collect(COALESCE(o.opening,""))) AS openings,
    reverse( collect(COALESCE(o.variation,""))) AS variations,
    reverse( collect(CASE WHEN "Forced" IN labels(move) THEN "Forced" ELSE "" END)) AS marks
-RETURN l.hash, movelist, ecos, openings, variations, marks LIMIT 1';
+RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 
-        $params = ["gid" => intval( $gid)];
-        $result = $this->neo4j_client->run($query, $params);
+      $params = ["gid" => intval( $gid)];
+      $result = $this->neo4j_client->run($query, $params);
 
-        foreach ($result->records() as $record) {
+      // If there is no record or movelist empty, exit immediately
+      $record = $result->records()[0];
+      if( $record->value('movelist') == null) return false;
 
-	  // Movelist empty, error
-          if( $record->value('movelist') == null)
-            return false;
+      // Arrays
+      $lids		= $record->value('lids');
+      $moves		= $record->value('movelist');
+      $keys		= array_keys( $lids);
+      $ecos		= array_combine( $keys, $record->value('ecos')); 
+      $openings		= array_combine( $keys, $record->value('openings')); 
+      $variations	= array_combine( $keys, $record->value('variations')); 
+      $marks		= array_combine( $keys, $record->value('marks')); 
 
-	  // Use move SANs as keys for all other arrays
-	  $moves	= $record->value('movelist');
-	  $keys		= array_keys( $moves);
-	  $ecos		= array_combine( $keys, $record->value('ecos')); 
-	  $openings	= array_combine( $keys, $record->value('openings')); 
-	  $variations	= array_combine( $keys, $record->value('variations')); 
-	  $marks	= array_combine( $keys, $record->value('marks')); 
+      // Go through all the SANs, build huge array
+      $arr = array();
+      foreach( $lids AS $key => $lid) {
 
-	  // Go through all the SANs, build huge array
-	  $arr = array();
-	  foreach( $moves AS $key => $move) {
+	$move_score_idx	= -1;
+	$best_score_idx	= -1;
+	$var_start_id	= -1;
+	$best_eval_id	= -1;
 
-	    // Push move SAN as first element	
-	    $item = array();
-	    $item['san'] = $move;
+	// Push move SAN as first element	
+	$item = array();
+	$item['san'] = $moves[$key];
 
-	    // Add eco info for respective moves
-	    if( strlen( $ecos[$key]))
-	      $item['eco'] = $ecos[$key];
-	    if( strlen( $openings[$key]))
-	      $item['opening'] = $openings[$key];
-	    if( strlen( $variations[$key]))
-	      $item['variation'] = $variations[$key];
-	    if( strlen( $marks[$key]))
-	      $item['marks'] = $marks[$key];
+        $this->logger->debug( "Fetching eval data for ". $item['san']);
 
-	    // If array has only SAN add a value, not array
-	    if( count( $item) == 1)
-	      array_push( $arr, $item['san']);
-	    else
-	      array_push( $arr, $item);
-	  }
+	// Add eco info for respective moves
+	if( strlen( $ecos[$key]))
+	  $item['eco'] = $ecos[$key];
+	if( strlen( $openings[$key]))
+	  $item['opening'] = $openings[$key];
+	if( strlen( $variations[$key]))
+	  $item['variation'] = $variations[$key];
+	if( strlen( $marks[$key]))
+	  $item['mark'] = $marks[$key];
 
-	  $filesystem = new Filesystem();
-          try {
+	// Get best evaluation for the current move
+	if( $best_eval = $this->getBestEvaluation( $lid)) {
 
-            // Filename SHOULD contain 'evals' prefix in order to make sure
-            // the filename is never matches 'games|lines' prefixes
-            $tmp_file = $filesystem->tempnam('/tmp', 'evals-');
-
-            // Save the PGNs into a local temp file
-            file_put_contents( $tmp_file, json_encode( $arr));
-
-          } catch (IOExceptionInterface $exception) {
-
-            $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
-          }
-
-          // Put the file into special uploads directory
-          $this->uploader->uploadEvals( $tmp_file, $record->value('l.hash'));
+	  $item['depth'] = $best_eval['depth'];
+	  $item['time']  = $best_eval['time'];
+	  $item['score'] = $best_eval['score'];
+	  $move_score_idx = $best_eval['idx'];
 	}
 
+        // No need to check for alternative moves if we have forced line
+        if( !array_key_exists( 'mark', $item) || $item['mark'] != "Forced") {
+
+          // Get best evaluation for the alternative moves
+          $query = 'MATCH (l:Line)<-[:ROOT]-(cl:Line) WHERE id(cl) = {node_id}
+OPTIONAL MATCH (l)<-[:ROOT]-(vl:Line)-[:HAS_GOT]->(v:Evaluation)-[:RECEIVED]->(score:Score)
+RETURN score.idx, id(vl) AS var_start_id, id(v) AS best_eval_id
+ORDER BY score.idx LIMIT 1';
+
+          $this->logger->debug( $lid);
+
+      	  $params_b = ["node_id" => intval( $lid)];
+          $result_b = $this->neo4j_client->run( $query, $params_b);
+
+          // Get Best Move data. Save :Score idx for later comparison
+          foreach ($result_b->records() as $record_b) {
+            $best_score_idx = $record_b->value('score.idx');
+            $var_start_id = $record_b->value('var_start_id');
+            $best_eval_id = $record_b->value('best_eval_id');
+          }
+        }
+
+        $this->logger->debug( "Current move score idx: ". $move_score_idx.
+		" best move score idx: ".$best_score_idx);
+
+        // Actual move better than or equal to the best line score
+        if( $best_score_idx >= $move_score_idx)
+
+          $item['mark'] = "Best";
+
+        else {  // If the scores do NOT match add best variations of top 3 alternative lines
+
+	  $query = 'PROFILE MATCH (l:Line)<-[:ROOT]-(cl:Line) WHERE id(cl) = {node_id}
+OPTIONAL MATCH (l)<-[:ROOT]-(vl:Line) WHERE cl <> vl
+OPTIONAL MATCH (vl)-[:HAS_GOT]->(e:Evaluation)-[:RECEIVED]->(s:Score)
+WITH s,vl ORDER BY s.idx WITH collect( DISTINCT vl) AS lines WITH lines[0..3] AS slice
+UNWIND slice AS node
+MATCH (node)-[:LEAF]->(ply:Ply)
+RETURN ply.san, id(node) AS node_id';
+
+      	  $params_a = ["node_id" => intval( $lid)];
+          $result_a = $this->neo4j_client->run( $query, $params_a);
+
+          // Get Best Move data. Save :Score idx for later comparison
+	  $alt = array();
+          foreach ($result_a->records() as $record_a) {
+
+	    $Titem['san'] = $record_a->value('ply.san');
+	    if( $alt_eval = $this->getBestEvaluation( $record_a->value('node_id'))) {
+
+	      $Titem['depth'] = $alt_eval['depth'];
+	      $Titem['time']  = $alt_eval['time'];
+	      $Titem['score'] = $alt_eval['score'];
+	    }
+
+	    array_push( $alt, $Titem);
+          }
+
+	  // Only add alt key if there is something
+	  if( count( $alt) > 0) $item['alt'] = $alt;
+
+        }
+
+	// If array has only SAN add a value, not array
+	if( count( $item) == 1)
+	  array_push( $arr, $item['san']);
+	else
+	  array_push( $arr, $item);
+      }
+/*
+echo json_encode( $arr);
+die;
+*/
+      $filesystem = new Filesystem();
+      try {
+
+        // Filename SHOULD contain 'evals' prefix in order to make sure
+        // the filename is never matches 'games|lines' prefixes
+        $tmp_file = $filesystem->tempnam('/tmp', 'evals-');
+
+        // Save the PGNs into a local temp file
+        file_put_contents( $tmp_file, json_encode( $arr));
+
+      } catch (IOExceptionInterface $exception) {
+
+        $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+      }
+
+      // Put the file into special uploads directory
+      $this->uploader->uploadEvals( $tmp_file, $record->value('l.hash'));
+
       return true;
+    }
+
+    // Format evaluation time
+    private function formatEvaluationTime( $minute, $second, $msec) 
+    {
+      return str_pad( $minute, 2, '0', STR_PAD_LEFT) . ":" .
+             str_pad( $second, 2, '0', STR_PAD_LEFT) . "." .
+             str_pad( $msec,   3, '0', STR_PAD_LEFT);
+    }
+
+    // Format evaluation score
+    private function formatEvaluationScore( $scoreLabelsArray)
+    {
+      if( in_array( "MateLine", $scoreLabelsArray))
+        return "M";
+      else if( in_array( "Pawn", $scoreLabelsArray))
+        return "P";
+      return "";
+    }
+
+    // Get evaluation data for the best move in the position
+    private function getBestEvaluation( $node_id)
+    {
+      // Get best :Evaluation :Score for the actual game move
+      $query = 'MATCH (line:Line) WHERE id(line) = {node_id}
+OPTIONAL MATCH (line)-[:HAS_GOT]->(evaluation:Evaluation)-[:RECEIVED]->(score:Score)
+OPTIONAL MATCH (seldepth:SelDepth)<-[:REACHED]-(evaluation)-[:REACHED]->(depth:Depth)
+OPTIONAL MATCH (evaluation)-[:TOOK]->(second:Second)-[:OF]->(minute:Minute)-[:OF]->(hour:Hour)
+OPTIONAL MATCH (msec:MilliSecond)<-[:TOOK]-(evaluation)
+RETURN score, depth.level, seldepth.level, minute.minute, second.second, msec.ms
+ORDER BY score.idx LIMIT 1';
+
+      $params_e = ["node_id" => intval( $node_id)];
+      $result_e = $this->neo4j_client->run( $query, $params_e);
+
+      // Fetch actual evaluation data
+      $record_e = $result_e->records()[0];
+      if( $record_e->value('depth.level') == null) return null;
+
+      $eval_data['depth']	= $record_e->value('depth.level');
+      $eval_data['seldepth']	= $record_e->value('seldepth.level');
+      $eval_data['time']	= $this->formatEvaluationTime( 
+		$record_e->value('minute.minute'),
+		$record_e->value('second.second'), 
+		$record_e->value('msec.ms'));
+
+      // Skip if null returned
+      $scoreObj = $record_e->get('score');
+
+      // Save :Score idx for later comparison
+      $eval_data['idx'] = $scoreObj->value('idx');
+
+      // Parse :Score labels
+      $eval_data['score'] = $this->formatEvaluationScore(
+        $scoreObj->labels()) . $scoreObj->value('score');
+
+      return $eval_data;
     }
 }
 ?>

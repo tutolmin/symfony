@@ -522,16 +522,16 @@ const _ECO      = 1;
 const _OPENING  = 2;
 const _VARIATION= 3;
 //const _EVAL     = 6;
-const _MARK     = 5;		// Forced / Sound / Best
-const _SCORE    = 6;
-const _DEPTH    = 7;
-const _TIME     = 8;
-const _T1_MOVE  = 9;
+const _MARK     = 4;		// Forced / Sound / Best
+const _SCORE    = 5;
+const _DEPTH    = 6;
+const _TIME     = 7;
+const _T1_MOVE  = 8;
 //const _T1_FEN   = 12;
 //const _T1_ZKEY  = 13;
-const _T1_SCORE = 10;
-const _T1_DEPTH = 11;
-const _T1_TIME  = 12;
+const _T1_SCORE = 9;
+const _T1_DEPTH = 10;
+const _T1_TIME  = 11;
 
 // New game has been loaded for analysis
 var init = function() {
@@ -820,10 +820,11 @@ var updatePosition = function() {
   var p_time    = Positions[positionIndex][_TIME];
 
   if( variationIndex > 0) { 
+        currentGame.move( Positions[positionIndex][_T1_MOVE][0]);
         FEN     = currentGame.fen();
-        p_eval  = Positions[positionIndex][_T1_SCORE];
-        p_depth = Positions[positionIndex][_T1_DEPTH];
-        p_time  = Positions[positionIndex][_T1_TIME];
+        p_eval  = Positions[positionIndex][_T1_SCORE][0];
+        p_depth = Positions[positionIndex][_T1_DEPTH][0];
+        p_time  = Positions[positionIndex][_T1_TIME][0];
   }
 
   // Mate in X moves handling
@@ -846,9 +847,9 @@ var updatePosition = function() {
   var evalColor = "<span>";
 
   posInd = positionIndex;
-//  if( variationIndex > 0) posInd = positionIndex + variationIndex;
+  if( variationIndex > 0) posInd = positionIndex + variationIndex - 1;
 
-//  console.log( positionIndex + " " + variationIndex + " " + p_eval + " " + p_eval.indexOf("-"));
+  console.log( positionIndex + " " + variationIndex + " " + p_eval + " " + p_eval.indexOf("-"));
 
   // White with negative eval OR Black with Positive eval
   if( (posInd%2==0 && p_eval.indexOf("-") == -1) ||

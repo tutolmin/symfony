@@ -42,6 +42,14 @@ class GameDetailsController extends AbstractController
     private $ECOs = array();
     private $openings = array();
     private $variations = array();
+    private $marks = array();
+    private $scores = array();
+    private $depths = array();
+    private $times = array();
+    private $T1_moves = array();
+    private $T1_depths = array();
+    private $T1_scores = array();
+    private $T1_times = array();
 
     private $sides = ["White" => "W_", "Black" => "B_"];
 
@@ -164,7 +172,14 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	    $this->ECOs[$key]		= "";
 	    $this->openings[$key]	= "";
 	    $this->variations[$key]	= "";
-	    $this->marks[$key]	= "";
+	    $this->marks[$key]		= "";
+	    $this->scores[$key]		= "";
+	    $this->depths[$key]		= "";
+	    $this->times[$key]		= "";
+	    $this->T1_moves[$key]		= array();
+	    $this->T1_depths[$key]		= array();
+	    $this->T1_scores[$key]		= array();
+	    $this->T1_times[$key]		= array();
 
 	    // Only SAN is present
 	    if( !is_array( $item)) {
@@ -181,8 +196,21 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	        $this->openings[$key]	= $item['opening'];
 	      if( array_key_exists( 'variation', $item)) 
 	        $this->variations[$key]	= $item['variation'];
-	      if( array_key_exists( 'marks', $item)) 
-	        $this->marks[$key]	= $item['marks'];
+	      if( array_key_exists( 'mark', $item)) 
+	        $this->marks[$key]	= $item['mark'];
+	      if( array_key_exists( 'score', $item)) 
+	        $this->scores[$key]	= $item['score'];
+	      if( array_key_exists( 'depth', $item)) 
+	        $this->depths[$key]	= $item['depth'];
+	      if( array_key_exists( 'time', $item)) 
+	        $this->times[$key]	= $item['time'];
+	      if( array_key_exists( 'alt', $item)) {
+		$this->T1_moves[$key][0]	= $item['alt'][0]['san'];
+		$this->T1_depths[$key][0]	= $item['alt'][0]['depth'];
+		$this->T1_times[$key][0]	= $item['alt'][0]['time'];
+		$this->T1_scores[$key][0]	= $item['alt'][0]['score'];
+//print_r( $item['alt']);
+	      }
 	    }
 	  }
 	} else // Only SANs are present
@@ -731,18 +759,17 @@ LIMIT 1';
 	foreach( $this->moves as $key => $move) {
           $position = array();
           $position[] = $move;
-          $position[] = array_key_exists( $key, $this->ECOs)?$this->ECOs[$key]:"";
-          $position[] = array_key_exists( $key, $this->openings)?$this->openings[$key]:"";
-          $position[] = array_key_exists( $key, $this->variations)?$this->variations[$key]:"";
-          $position[] = $evals[$key];
-          $position[] = array_key_exists( $key, $this->marks)?$this->marks[$key]:"";
-          $position[] = $scores[$key];
-          $position[] = $depths[$key];
-          $position[] = $times[$key];
-          $position[] = $T1_moves[$key];
-          $position[] = $T1_scores[$key];
-          $position[] = $T1_depths[$key];
-          $position[] = $T1_times[$key];
+          $position[] = array_key_exists( $key, $this->ECOs)		?$this->ECOs[$key]	:"";
+          $position[] = array_key_exists( $key, $this->openings)	?$this->openings[$key]	:"";
+          $position[] = array_key_exists( $key, $this->variations)	?$this->variations[$key]:"";
+          $position[] = array_key_exists( $key, $this->marks)		?$this->marks[$key]	:"";
+          $position[] = array_key_exists( $key, $this->scores)		?$this->scores[$key]	:"";
+          $position[] = array_key_exists( $key, $this->depths)		?$this->depths[$key]	:"";
+          $position[] = array_key_exists( $key, $this->times)		?$this->times[$key]	:"";
+          $position[] = $this->T1_moves[$key];
+          $position[] = $this->T1_scores[$key];
+          $position[] = $this->T1_depths[$key];
+          $position[] = $this->T1_times[$key];
 
           $positions[] = $position;
 	}
