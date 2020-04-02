@@ -70,6 +70,7 @@ class QueueManager
     }
 
     // Checks if there is an analysis queue present
+    // With forced flag do not use cached flag
     public function queueGraphExists( $force_flag = false)
     {
 	if( $_ENV['APP_DEBUG'])
@@ -80,18 +81,18 @@ class QueueManager
 	if( $this->getQueueGraphExistsFlag() && !$force_flag) return true;
 
         // If there is at least one :Queue node in the db       
-        $query = 'MATCH (h:Head) MATCH (t:Tail) 
-RETURN id(h) AS head, id(t) AS tail LIMIT 1';
+        $query = 'MATCH (h:Head) MATCH (t:Tail) MATCH (c:Current)
+RETURN id(h) AS head, id(t) AS tail, id(c) AS current LIMIT 1';
         $result = $this->neo4j_client->run($query, null);
 
         // We expect a single record or null
         foreach ( $result->getRecords() as $record)
           if( $record->value('head') != null &&
-	      $record->value('tail') != null) {
+	      $record->value('tail') != null &&
+	      $record->value('current') != null) {
 	    $this->setQueueGraphExistsFlag( true);
 	    return true;
 	  }
-
         return false;
     }
 
@@ -110,7 +111,37 @@ RETURN id(h) AS head, id(t) AS tail LIMIT 1';
 
           // Create default empty analysis queue
           $this->neo4j_client->run( "CREATE (:Queue:Head:Current:Tail)", null);
+
+	return true;
     }
+
+
+
+    // Erase existing Analysis node
+    public function eraseAnalysisNode( $aid) 
+    {
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
+
+        $this->logger->debug('Erasing analysis node'. $aid);
+
+	if( !$this->analysisNodeExists( $aid)) {
+
+          $this->logger->debug('Analysis node does NOT exist');
+	  return false;
+	}
+
+        // Erase Analysis node and all relationships
+        $this->neo4j_client->run( "MATCH (a:Analysis) WHERE id(a)={aid} 
+OPTIONAL MATCH (a)-[]->(c:Action)
+DETACH DELETE a,c", null);
+
+	return true;
+    }
+
+
 
     // Erase existing queue graph
     public function eraseQueue() 
@@ -129,6 +160,8 @@ RETURN id(h) AS head, id(t) AS tail LIMIT 1';
           $this->neo4j_client->run( "MATCH (q:Queue) 
 OPTIONAL MATCH (a:Analysis) DETACH DELETE q,a", null);
     }
+
+
 
     // return current queue node id, if found
     public function getCurrentQueueNode()
@@ -516,14 +549,19 @@ RETURN id(q) AS qid LIMIT 1';
         return -1;
     }
 
-    // Find :Analysis node in the database
-    // With optional label such as Pending
-    public function analysisExists( $aid, $label = '')
+
+
+    // check :Analysis node existance in the database
+    public function analysisNodeExists( $aid)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug( "Checking for analysis node existance");
 
-        $query = 'MATCH (a:Analysis'.$label.') WHERE id(a) = {aid}
+	// Check if analysis graph present
+	if( !$this->queueGraphExists())
+	  return false;
+
+        $query = 'MATCH (a:Analysis) WHERE id(a) = {aid}
 RETURN id(a) AS aid LIMIT 1';
 
         $params = ["aid" => intval( $aid)];
@@ -711,7 +749,7 @@ RETURN id(a) AS aid LIMIT 1';
 	  return false;
 	}
 
-	if( !$this->analysisExists( $aid)) {
+	if( !$this->analysisNodeExists( $aid)) {
 
           $this->logger->debug('Analysis node does NOT exist');
 	  return false;
@@ -749,7 +787,7 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 	  return false;
 	}
 
-	if( !$this->analysisExists( $aid)) {
+	if( !$this->analysisNodeExists( $aid)) {
 
           $this->logger->debug('Analysis node does NOT exist');
 	  return false;
@@ -783,7 +821,7 @@ REMOVE a:WhiteSide:BlackSide SET a'.$sideLabel;
 	  return false;
 	}
 
-	if( !$this->analysisExists( $aid)) {
+	if( !$this->analysisNodeExists( $aid)) {
 
           $this->logger->debug('Analysis node does NOT exist');
 	  return false;
@@ -871,15 +909,15 @@ RETURN id(g) AS gid';
 
         $this->logger->debug('Promoting analysis node');
 	
-	// Make sure the analysis is Pending
-	if( !$this->analysisExists( $aid, ':Pending')) {
+	// Make sure the analysis exists
+	if( !$this->analysisNodeExists( $aid) {
 
-          $this->logger->debug('Analysis node does NOT exist or NOT Pending');
+          $this->logger->debug('Analysis node does NOT exist');
 	  return false;
 	}
 
 	// Disconnect analysis node from it's current place
-	$this->deleteAnalysis( $aid, false);
+	$this->detachAnalysisNode( $aid);
 
 	// Date/Time items
 	$day	= date( "j");
@@ -915,10 +953,10 @@ MERGE (c)-[:QUEUED]->(a)';
         return true;
     }
 
-    // Delete (:Analysis) node and interconnect affected :Analysys an :Queue nodes
-    public function deleteAnalysis( $aid, $erase_flag = true)
+    // Detach (:Analysis) node and interconnect affected :Analysys an :Queue nodes
+    public function detachAnalysisNode( $aid)
     {
-	if( !$this->analysisExists( $aid)) {
+	if( !$this->analysisNodeExists( $aid)) {
 
           $this->logger->debug('Analysis node does NOT exist');
 	  return false;
