@@ -8,6 +8,11 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\QueueManager;
+use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
+use Symfony\Component\HttpFoundation\Request;
+use App\Security\TokenAuthenticator;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\User;
 
 class QueueInitCommand extends Command
 {
@@ -17,12 +22,29 @@ class QueueInitCommand extends Command
     // Queue manager reference
     private $queueManager;
 
+    // Doctrine EntityManager
+    private $em;
+
+    // User repo
+    private $userRepository;
+
+    // Guard
+    private $guardAuthenticatorHandler;
+
     // Dependency injection of the Queue Manager service
-    public function __construct( QueueManager $qm)
+    public function __construct( QueueManager $qm,
+	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
         $this->queueManager = $qm;
+
+        $this->em = $em;
+
+        // get the User repository
+        $this->userRepository = $this->em->getRepository( User::class);
+
+        $this->guardAuthenticatorHandler = $gah;
     }
 
     protected function configure()
@@ -47,6 +69,14 @@ class QueueInitCommand extends Command
 
 	  return 1;
 	}
+
+        // Initialize security context
+        $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+            $this->userRepository->findOneBy(['id' => $_ENV['SYSTEM_WEB_USER_ID']]),
+            new Request(),
+            new TokenAuthenticator( $this->em),
+            self::FIREWALL_MAIN
+        );
 	
 	// Init empty queue graph
 	$this->queueManager->initQueue();

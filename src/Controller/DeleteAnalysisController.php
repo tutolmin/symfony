@@ -72,7 +72,7 @@ class DeleteAnalysisController extends AbstractController
         $this->logger->debug( 'Deleting analysis ID: '.$aid);
 
 	// delete particular analysis
-	if( $this->queueManager->deleteAnalysis(  $aid))
+	if( $this->queueManager->deleteAnalysis( $aid))
 
 	  // Count successfull analysis deletions
 	  $counter++;

@@ -9,21 +9,45 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\QueueManager;
+use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
+use Symfony\Component\HttpFoundation\Request;
+use App\Security\TokenAuthenticator;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\User;
 
 class QueueEraseCommand extends Command
 {
+    const FIREWALL_MAIN = "main";
+
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:erase';
 
     // Queue manager reference
     private $queueManager;
 
+    // Doctrine EntityManager
+    private $em;
+
+    // User repo
+    private $userRepository;
+
+    // Guard
+    private $guardAuthenticatorHandler;
+
     // Dependency injection of the Queue manager service
-    public function __construct( QueueManager $qm)
+    public function __construct( QueueManager $qm,
+	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
         $this->queueManager = $qm;
+
+        $this->em = $em;
+
+        // get the User repository
+        $this->userRepository = $this->em->getRepository( User::class);
+
+        $this->guardAuthenticatorHandler = $gah;
     }
 
     protected function configure()
@@ -59,6 +83,14 @@ class QueueEraseCommand extends Command
 
           return 1;
 	}
+
+        // Initialize security context
+        $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+            $this->userRepository->findOneBy(['id' => $_ENV['SYSTEM_WEB_USER_ID']]),
+            new Request(),
+            new TokenAuthenticator( $this->em),
+            self::FIREWALL_MAIN
+        );
 
 	// Execute queue manager member function	
 	$this->queueManager->eraseQueue();

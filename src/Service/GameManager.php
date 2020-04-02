@@ -76,6 +76,8 @@ RETURN id(g) AS gid LIMIT 1';
 	return $counter;
     }
 
+
+
     // get number of Games of certain type and length
     public function getGamesNumber( $type = "", $plycount = 80)
     {
@@ -140,6 +142,8 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 	return $counter;
     }
 
+
+
     // get maximum ply count for a certain game type
     private function getMaxPlyCount( $type = "")
     {
@@ -199,6 +203,8 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 	return $counter;
     }
 
+
+
     // get minimum ply count for a certain game type
     private function getMinPlyCount( $type = "")
     {
@@ -257,6 +263,8 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 
 	return $counter;
     }
+
+
 
     // get random game
     public function getRandomGameId( $type = "")
@@ -322,6 +330,8 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 	return $gid;
     }
 
+
+
     // Check if the move line has been already loaded for a game
     public function lineExists( $gid)
     {
@@ -347,6 +357,8 @@ RETURN length(path) AS length LIMIT 1';
 
 	return false;
     }
+
+
 
     // Merge :Lines for the :Games into the DB
     public function loadLines( $gids, $wuid)
@@ -388,13 +400,15 @@ RETURN length(path) AS length LIMIT 1';
       $this->uploader->uploadLines( $tmp_file);
     }
 
+
+
     // Exports single JSON file for a game
-    public function exportJSONFile( $gid)
+    public function exportJSONFile( $gid, $sides_depth)
     {
       // Checks if the move line for a game exists
       if( !$this->lineExists( $gid)) return false;
 
-      // Fetch movelist, ECOs
+      // Fetch movelist, ECOs, Forced labels
       $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line) WITH l LIMIT 1
 MATCH path=shortestPath((l)-[:ROOT*0..]->(r:Root)) WITH l, nodes(path) AS moves 
@@ -430,16 +444,17 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
       $arr = array();
       foreach( $lids AS $key => $lid) {
 
+        $this->logger->debug( "Line id: ". $lid);
+
+	if( $key % 2 == 0) $depth = $sides_depth['white'];
+	else $depth = $sides_depth['black'];
+
+	// We will need it to decide later if it was best move
 	$move_score_idx	= -1;
-	$best_score_idx	= -1;
-	$var_start_id	= -1;
-	$best_eval_id	= -1;
 
 	// Push move SAN as first element	
 	$item = array();
 	$item['san'] = $moves[$key];
-
-        $this->logger->debug( "Fetching eval data for ". $item['san']);
 
 	// Add eco info for respective moves
 	if( strlen( $ecos[$key]))
@@ -451,8 +466,10 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 	if( strlen( $marks[$key]))
 	  $item['mark'] = $marks[$key];
 
+        $this->logger->debug( "Fetching eval data for ". $item['san']);
+
 	// Get best evaluation for the current move
-	if( $best_eval = $this->getBestEvaluation( $lid)) {
+	if( $best_eval = $this->getBestEvaluation( $lid, $depth)) {
 
 	  $item['depth'] = $best_eval['depth'];
 	  $item['time']  = $best_eval['time'];
@@ -463,65 +480,89 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
         // No need to check for alternative moves if we have forced line
         if( !array_key_exists( 'mark', $item) || $item['mark'] != "Forced") {
 
-          // Get best evaluation for the alternative moves
-          $query = 'MATCH (l:Line)<-[:ROOT]-(cl:Line) WHERE id(cl) = {node_id}
-OPTIONAL MATCH (l)<-[:ROOT]-(vl:Line)-[:HAS_GOT]->(v:Evaluation)-[:RECEIVED]->(score:Score)
-RETURN score.idx, id(vl) AS var_start_id, id(v) AS best_eval_id
-ORDER BY score.idx LIMIT 1';
+          $this->logger->debug( "Fetching alternatives for ". $lid);
 
-          $this->logger->debug( $lid);
+	  // Find top 3 alternative lines
+	  $query = 'MATCH (l:Line)<-[:ROOT]-(cl:Line) WHERE id(cl) = {node_id}
+MATCH (l)<-[:ROOT]-(vl:Line) WHERE cl <> vl
+MATCH (vl)-[:HAS_GOT]->(e:Evaluation)-[:RECEIVED]->(s:Score)
+MATCH (e)-[:REACHED]->(d:Depth) WHERE d.level >= {depth}
+WITH vl ORDER BY s.idx WITH collect( DISTINCT vl) AS lines WITH lines[0..3] AS slice
+UNWIND slice AS node RETURN id(node) AS node_id';
 
-      	  $params_b = ["node_id" => intval( $lid)];
-          $result_b = $this->neo4j_client->run( $query, $params_b);
+      	  $params_a = ["node_id" => intval( $lid), "depth" => intval( $depth)];
+          $result_a = $this->neo4j_client->run( $query, $params_a);
 
-          // Get Best Move data. Save :Score idx for later comparison
-          foreach ($result_b->records() as $record_b) {
-            $best_score_idx = $record_b->value('score.idx');
-            $var_start_id = $record_b->value('var_start_id');
-            $best_eval_id = $record_b->value('best_eval_id');
-          }
-        }
+          // Go through all alternative lines root nodes
+	  $alt = array();
+	  $best_check_flag = true;
+          foreach ($result_a->records() as $record_a) {
 
-        $this->logger->debug( "Current move score idx: ". $move_score_idx.
-		" best move score idx: ".$best_score_idx);
+	    $alt_eval = $this->getBestEvaluation( $record_a->value('node_id'), $depth);
 
-        // Actual move better than or equal to the best line score
-        if( $best_score_idx >= $move_score_idx)
+            // Actual move better than or equal to the best line score
+            if( $best_check_flag) {
 
-          $item['mark'] = "Best";
+              $this->logger->debug( "Best check. Current ". $move_score_idx .
+		", best alternative ".$alt_eval['idx']);
+	      $best_check_flag = false;
 
-        else {  // If the scores do NOT match add best variations of top 3 alternative lines
+	      if ($alt_eval['idx'] >= $move_score_idx) $item['mark'] = "Best";
+	    }
 
-	  $query = 'PROFILE MATCH (l:Line)<-[:ROOT]-(cl:Line) WHERE id(cl) = {node_id}
-OPTIONAL MATCH (l)<-[:ROOT]-(vl:Line) WHERE cl <> vl
-OPTIONAL MATCH (vl)-[:HAS_GOT]->(e:Evaluation)-[:RECEIVED]->(s:Score)
-WITH s,vl ORDER BY s.idx WITH collect( DISTINCT vl) AS lines WITH lines[0..3] AS slice
-UNWIND slice AS node
+            $this->logger->debug( "Alternative move score idx: ". $alt_eval['idx']. 
+		" for node id: ". $record_a->value('node_id'));
+
+	    // Fetch all proposed nodes for alternative line
+	    $query = 'MATCH (l:Line) WHERE id(l) = {node_id}
+MATCH (l)-[:HAS_GOT]->(e:Evaluation)-[:RECEIVED]->(s:Score{idx:{idx}})
+MATCH (e)-[:REACHED]->(d:Depth) WHERE d.level >= {depth} WITH l,e LIMIT 1
+OPTIONAL MATCH (e)-[:PROPOSED]->(pl:Line)
+OPTIONAL MATCH path=shortestPath((l)<-[:ROOT*0..]-(pl)) WITH nodes(path) AS nodes
+UNWIND nodes AS node
 MATCH (node)-[:LEAF]->(ply:Ply)
 RETURN ply.san, id(node) AS node_id';
 
-      	  $params_a = ["node_id" => intval( $lid)];
-          $result_a = $this->neo4j_client->run( $query, $params_a);
+      	    $params_v = ["node_id" => intval( $record_a->value('node_id')), 
+			"idx" => intval( $alt_eval['idx']),
+			"depth" => intval( $depth)];
+            $result_v = $this->neo4j_client->run( $query, $params_v);
 
-          // Get Best Move data. Save :Score idx for later comparison
-	  $alt = array();
-          foreach ($result_a->records() as $record_a) {
+	    // Add all variation line moves
+	    $line = array();
+            foreach ($result_v->records() as $record_v) {
 
-	    $Titem['san'] = $record_a->value('ply.san');
-	    if( $alt_eval = $this->getBestEvaluation( $record_a->value('node_id'))) {
+	      // Always store SAN
+	      $var['san'] = $record_v->value('ply.san');
 
-	      $Titem['depth'] = $alt_eval['depth'];
-	      $Titem['time']  = $alt_eval['time'];
-	      $Titem['score'] = $alt_eval['score'];
-	    }
+              $this->logger->debug( "Fetching eval data for variation ". $var['san']);
 
-	    array_push( $alt, $Titem);
+	      // Optionally add evaluations
+	      if( $var_eval = $this->getBestEvaluation( $record_v->value('node_id'), $depth)) {
+
+	        $var['depth'] = $var_eval['depth'];
+	        $var['time']  = $var_eval['time'];
+	        $var['score'] = $var_eval['score'];
+
+	      } else {
+
+	        $var['depth'] = 0;
+	        $var['time']  = 0;
+	        $var['score'] = 0;
+	      }
+
+	      // Add either SAN only or eval array
+	      if( $var['depth'] > 0) array_push( $line, $var);
+	      else array_push( $line, $var['san']);
+            }
+
+	    // Only add line key if there is something
+	    if( count( $line) > 0) array_push( $alt, $line);
           }
 
 	  // Only add alt key if there is something
 	  if( count( $alt) > 0) $item['alt'] = $alt;
-
-        }
+	}
 
 	// If array has only SAN add a value, not array
 	if( count( $item) == 1)
@@ -529,10 +570,7 @@ RETURN ply.san, id(node) AS node_id';
 	else
 	  array_push( $arr, $item);
       }
-/*
-echo json_encode( $arr);
-die;
-*/
+
       $filesystem = new Filesystem();
       try {
 
@@ -554,6 +592,8 @@ die;
       return true;
     }
 
+
+
     // Format evaluation time
     private function formatEvaluationTime( $minute, $second, $msec) 
     {
@@ -561,6 +601,8 @@ die;
              str_pad( $second, 2, '0', STR_PAD_LEFT) . "." .
              str_pad( $msec,   3, '0', STR_PAD_LEFT);
     }
+
+
 
     // Format evaluation score
     private function formatEvaluationScore( $scoreLabelsArray)
@@ -572,23 +614,29 @@ die;
       return "";
     }
 
+
+
     // Get evaluation data for the best move in the position
-    private function getBestEvaluation( $node_id)
+    private function getBestEvaluation( $node_id, $depth)
     {
+      $this->logger->debug( "Fetching eval data for node id: ".$node_id);
+
       // Get best :Evaluation :Score for the actual game move
       $query = 'MATCH (line:Line) WHERE id(line) = {node_id}
-OPTIONAL MATCH (line)-[:HAS_GOT]->(evaluation:Evaluation)-[:RECEIVED]->(score:Score)
-OPTIONAL MATCH (seldepth:SelDepth)<-[:REACHED]-(evaluation)-[:REACHED]->(depth:Depth)
-OPTIONAL MATCH (evaluation)-[:TOOK]->(second:Second)-[:OF]->(minute:Minute)-[:OF]->(hour:Hour)
-OPTIONAL MATCH (msec:MilliSecond)<-[:TOOK]-(evaluation)
+MATCH (line)-[:HAS_GOT]->(evaluation:Evaluation)-[:RECEIVED]->(score:Score)
+MATCH (seldepth:SelDepth)<-[:REACHED]-(evaluation)
+MATCH (evaluation)-[:REACHED]->(depth:Depth) WHERE depth.level >= {depth}
+MATCH (evaluation)-[:TOOK]->(second:Second)-[:OF]->(minute:Minute)-[:OF]->(hour:Hour)
+MATCH (msec:MilliSecond)<-[:TOOK]-(evaluation)
 RETURN score, depth.level, seldepth.level, minute.minute, second.second, msec.ms
 ORDER BY score.idx LIMIT 1';
 
-      $params_e = ["node_id" => intval( $node_id)];
+      $params_e = ["node_id" => intval( $node_id), "depth" => intval( $depth)];
       $result_e = $this->neo4j_client->run( $query, $params_e);
 
       // Fetch actual evaluation data
-      $record_e = $result_e->records()[0];
+      foreach( $result_e->records() as $record_e) {
+
       if( $record_e->value('depth.level') == null) return null;
 
       $eval_data['depth']	= $record_e->value('depth.level');
@@ -609,6 +657,9 @@ ORDER BY score.idx LIMIT 1';
         $scoreObj->labels()) . $scoreObj->value('score');
 
       return $eval_data;
+      }
+
+      return null;
     }
 }
 ?>

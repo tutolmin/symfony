@@ -7,6 +7,7 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Security\Core\Security;
 use App\Entity\User;
 
 class UserManager
@@ -23,20 +24,31 @@ class UserManager
     // User repo
     private $userRepository;
 
+    // Security
+    private $security;
+
     public function __construct( ClientInterface $client, 
-	EntityManagerInterface $em, LoggerInterface $logger)
+	EntityManagerInterface $em, LoggerInterface $logger, Security $security)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
         $this->em = $em;
+	$this->security = $security;
 
         // get the User repository
         $this->userRepository = $this->em->getRepository( User::class);
     }
 
+
+
     // merge specific :WebUser
     public function mergeUser( $uid)
     {
+        if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
+          $this->logger->debug('Access denied');
+          return false;
+        }
+
 	// Get the user by id
         $user = $this->userRepository->findOneBy(['id' => $uid]);
 
@@ -46,9 +58,16 @@ class UserManager
         $this->neo4j_client->run( $query, $params);
     }
 
+
+
     // merge :WebUser nodes for all existing users
     public function mergeAllUsers()
     {
+        if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
+          $this->logger->debug('Access denied');
+          return false;
+        }
+
 	// Get all the users from repository
         $users = $this->userRepository->findAll();
 
@@ -67,6 +86,8 @@ class UserManager
 	return $counter;
     }
 
+
+
     // Get WebUser id property by email
     public function fetchWebUserId( $email) {
 
@@ -84,8 +105,15 @@ class UserManager
 	return null;
     }
 
+
+
     // Set role to a user
     public function promoteUser( $email, $role) {
+
+        if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
+          $this->logger->debug('Access denied');
+          return false;
+        }
 
 	// The role should start with ROLE_
 	if( strpos( $role, 'ROLE_') !== 0)
@@ -111,9 +139,16 @@ class UserManager
 	return false;
     }
 
+
+
     // Erase all existing :WebUser nodes
     public function eraseUsers()
     {
+        if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
+          $this->logger->debug('Access denied');
+          return false;
+        }
+
         // Erase all nodes
         $this->neo4j_client->run( "MATCH (w:WebUser) DETACH DELETE w", null);
     }

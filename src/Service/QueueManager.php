@@ -6,9 +6,14 @@ namespace App\Service;
 
 use Psr\Log\LoggerInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
+use Symfony\Component\Security\Core\Security;
 
 class QueueManager
 {
+    // Array of Analysis node statuses
+    const STATUS = ['Pending','Processing','Partially','Skipped',
+	'Evaluated','Exported','Complete'];
+
     // Default number of games to export
     const NUMBER = 20;
 
@@ -19,21 +24,22 @@ class QueueManager
     // Logger reference
     private $logger;
 
-    // Analysis status labels
-    private $statusLabels = array( "Pending", "Processing", "Partially", 
-	"Skipped", "Evaluated", "Exported", "Complete");
-
     // Neo4j client interface reference
     private $neo4j_client;
+
+    // We need to check roles and get user id
+    private $security;
 
     // Special flags to avoid redundant DB calls
     private $queueGraphExistsFlag;
     private $updateCurrentFlag;
 
-    public function __construct( ClientInterface $client, LoggerInterface $logger)
+    public function __construct( ClientInterface $client, 
+	LoggerInterface $logger, Security $security)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
+	$this->security = $security;
 
 	$this->queueGraphExistsFlag=false;
 	$this->updateCurrentFlag=false;
@@ -92,6 +98,11 @@ RETURN id(h) AS head, id(t) AS tail LIMIT 1';
     // Init empty analysis queue
     public function initQueue()
     {
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
+
         $this->logger->debug('Initializing analysis queue graph');
 
 	// Check if there is already analysis graph present
@@ -102,7 +113,12 @@ RETURN id(h) AS head, id(t) AS tail LIMIT 1';
     }
 
     // Erase existing queue graph
-    public function eraseQueue() {
+    public function eraseQueue() 
+    {
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
 
         $this->logger->debug('Erasing analysis queue graph');
 
@@ -150,17 +166,26 @@ MATCH (q:Queue:Current) RETURN id(q) AS qid LIMIT 1', null);
 
 	  // Move :Current label forward
           $query = 'MATCH (t:Queue:Tail) 
-MATCH (c:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(:Pending)<-[:QUEUED]-(q:Queue)
+OPTIONAL MATCH (c:Current)-[:FIRST]->(s:Analysis)
+OPTIONAL MATCH (s)-[:NEXT*0..]->(e:Pending)
+OPTIONAL MATCH (e)<-[:QUEUED]-(q:Queue)
 WITH c, CASE q WHEN null THEN t ELSE q END AS q LIMIT 1
 REMOVE c:Current SET q:Current';
 
-	  // There is no Current Queue node, set it up (lengthy)
-	  if( $qid = $this->getCurrentQueueNode() == -1 || $force_flag)
+	  // There is no Current Queue node, set it up
+	  if( $qid = $this->getCurrentQueueNode() == -1 || $force_flag) {
+
+            $this->logger->debug('No current queue node. Investigate!');
+
 	    $query = 'MATCH (h:Queue:Head) MATCH (t:Queue:Tail) 
-OPTIONAL MATCH (h)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(:Pending)<-[:QUEUED]-(q:Queue)
+OPTIONAL MATCH (h)-[:FIRST]->(s:Analysis)
+OPTIONAL MATCH (s)-[:NEXT*0..]->(e:Pending)
+OPTIONAL MATCH (e)<-[:QUEUED]-(q:Queue)
 WITH CASE q WHEN null THEN t ELSE q END AS q LIMIT 1
 OPTIONAL MATCH (c:Current)
 REMOVE c:Current SET q:Current';
+
+	  }
 
 	  // Send request to the DB
           $result = $this->neo4j_client->run( $query, null);
@@ -288,43 +313,26 @@ RETURN node, d.level AS depth, p.counter AS plies';
         return round($interval/1000);
     }
 
-    // get user limit
-    private function getUserLimit( $userId)
+
+
+    // return number of Pending queue items
+    private function getUserQueueItems()
     {
-        $query = 'MATCH (w:WebUser{id:{uid}}) 
-RETURN w.queueLimit AS limit LIMIT 1';
-
-        $params = ["uid" => intval( $userId)];
-        $result = $this->neo4j_client->run( $query, $params);
-
-        $limit = $_ENV['USER_QUEUE_SUBMISSION_LIMIT'];
-        foreach ($result->records() as $record)
-          if( $record->value('limit') != null)
-            $limit = $record->value('limit');
+        // returns User object or null if not authenticated
+        $user = $this->security->getUser();
 
         if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Submission limit for user id '.
-		$userId.' = '.$limit);
-
-	return $limit;
-    }
-
-    // check user limit, true if ok
-    public function checkUserLimit( $userId)
-    {
-        if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Checking submission limit for '.$userId);
-
-        // get user limit from the DB
-        $limit = $this->getUserLimit( $userId);
+          $this->logger->debug('Checking number of Pending queue items for '.
+		$user->getEmail());
 
         $query = 'MATCH (w:WebUser{id:{uid}}) 
 OPTIONAL MATCH(w)<-[:REQUESTED_BY]->(a:Pending) 
 RETURN count(a) AS items LIMIT 1';
 
-        $params = ["uid" => intval( $userId)];
+        $params = ["uid" => intval( $user->getId())];
         $result = $this->neo4j_client->run( $query, $params);
 
+	$items = 0;
         foreach ($result->records() as $record)
           if( $record->value('items') != null)
             $items = $record->value('items');
@@ -332,8 +340,52 @@ RETURN count(a) AS items LIMIT 1';
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Pending queue items '.$items);
 
+	return $items;
+    }
+
+
+
+    // check user limit, true if ok
+    public function checkUserLimit()
+    {
+	if( !$this->security->isGranted('ROLE_USER')) {
+
+          $this->logger->debug('Access denied');
+
+	  return false;
+	}
+	
+	// Queue manager is allowed to override the limit
+        if ($this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+
+          $this->logger->debug(
+		'User posesses a queue manager privileges.');
+
+	  return true;
+	}
+
+        // returns User object or null if not authenticated
+        $user = $this->security->getUser();
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Checking submission limit for '.
+		$user->getEmail());
+
+        // get user limit from the DB
+        $limit = $user->getQueueLimit();
+	if( $limit == null)
+	  $limit = $_ENV['USER_QUEUE_SUBMISSION_LIMIT'];
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('User queue submission limit '.$limit);
+
+	// Fetch user items currently in the queue
+	$items = $this->getUserQueueItems();
+
 	return $items < $limit;
     }
+
+
 
     // get analysis queue width
     public function getQueueWidth( $type)
@@ -485,32 +537,80 @@ RETURN id(a) AS aid LIMIT 1';
         return false;
     }
 
+
+
+    // Returns an array of evaluated analysis depths for both sides
+    public function getGameAnalysisDepths( $gid) 
+    {
+	$depth = ['white' => 0, 'black' => 0];
+	$status = array_search( "Evaluated", self::STATUS);
+
+        // If Analysis status is more than necessary value
+        if( $this->matchAnalysis( $gid, 
+	$_ENV['DEEP_ANALYSIS_DEPTH'], ":WhiteSide") >= $status)
+
+          $depth['white'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
+
+        else if( $this->matchAnalysis( $gid, 
+	$_ENV['FAST_ANALYSIS_DEPTH'], ":WhiteSide") >= $status)
+
+          $depth['white'] = $_ENV['FAST_ANALYSIS_DEPTH'];
+
+        if( $this->matchAnalysis( $gid, 
+	$_ENV['DEEP_ANALYSIS_DEPTH'], ":BlackSide") >= $status)
+
+          $depth['black'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
+
+        else if( $this->matchAnalysis( $gid, 
+	$_ENV['FAST_ANALYSIS_DEPTH'], ":BlackSide") >= $status)
+
+          $depth['black'] = $_ENV['FAST_ANALYSIS_DEPTH'];
+
+        $this->logger->debug( 'Analysis depth for White: ' .
+                $depth['white'] . ' Black: '. $depth['black']);
+
+	return $depth;
+    }
+
+
+
     // Match existing Analysis request
     public function matchAnalysis( $gid, $depth, $sideLabel)
     {
-        $this->logger->debug('Matching analysis node');
+        $this->logger->debug('Matching analysis node for depth: '. 
+		$depth. ' side: '.$sideLabel);
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line)
 MATCH (d:Depth{level:{depth}})
 MATCH (l)<-[:PERFORMED_ON]-(a:Analysis'.$sideLabel.')-[:REQUIRED_DEPTH]->(d)
-RETURN id(a) AS aid LIMIT 1';
+RETURN a LIMIT 1';
 
         $params = ["gid" => intval( $gid), "depth" => intval( $depth)];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('aid') != null)
-            return true;
+          if( $record->get('a')->identity() != null) {
 
-        // Return FALSE by default
-        return false;
+	    // Get Analysis node labels
+	    $labels = $record->get('a')->labels();
+	    foreach( self::STATUS as $key => $status)
+	      if( in_array( $status, $labels))
+		return $key;
+	  }
+
+        // Return -1 by default
+        return -1;
     }
 
     // Find appropriate (:Queue) node for a given (:WebUser)
-    private function findWebUserNextQueueNode( $wuid)
+    private function findWebUserNextQueueNode()
     {
         $this->logger->debug('Finding suitable queue node for a user');
+
+        // returns User object or null if not authenticatedna
+
+        $user = $this->security->getUser();
 
         // Maintenane operation
         $this->updateCurrentQueueNode();
@@ -520,7 +620,7 @@ MATCH (:Current)-[:NEXT*0..]->(q:Queue)
 WHERE NOT (q)-[:QUEUED]->(:Analysis)-[:REQUESTED_BY]->(w) 
 RETURN id(q) AS qid LIMIT 1';
 
-        $params = ["wuid" => intval( $wuid)];
+        $params = ["wuid" => intval( $user->getId())];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
@@ -532,16 +632,19 @@ RETURN id(q) AS qid LIMIT 1';
     }
 
     // Attach new (Analysis) to a (:Queue) node
-    private function createAnalysisNode( $gid, $depth, $sideLabel, $wuid)
+    private function createAnalysisNode( $gid, $depth, $sideLabel)
     {
         $this->logger->debug('Creating new analysis node');
+
+        // returns User object or null if not authenticated
+        $user = $this->security->getUser();
 
 	// Check if analysis graph present
 	if( !$this->queueGraphExists())
 	  return -1;
 
 	// Queue node id to attach Analysis node for a user
-	$qid = $this->findWebUserNextQueueNode( $wuid);
+	$qid = $this->findWebUserNextQueueNode();
 
         // Get appropriate (:Queue) node to attach the new (:Analysis)
         if( $qid == -1) $qid = $this->createQueueNode();
@@ -549,10 +652,10 @@ RETURN id(q) AS qid LIMIT 1';
 	// Could NOT match/create an appropriate queue node
         if( $qid == -1) return -1; 
 
-	// Check analysis side labels
+	// Check analysis side labels (all valid combinations)
 	if( $sideLabel != ":WhiteSide" && $sideLabel != ":BlackSide" &&
 	  $sideLabel != ":WhiteSide:BlackSide" && $sideLabel != ":BlackSide:WhiteSide")
-        $sideLabel = ":WhiteSide:BlackSide";
+          $sideLabel = ":WhiteSide:BlackSide";
 
 	// Date/Time items
 	$day	= date( "j");
@@ -579,7 +682,7 @@ RETURN id(a) AS aid LIMIT 1';
 
         $params = ["qid" => intval( $qid), 
           "gid"		=> intval( $gid),
-          "wuid"	=> intval( $wuid), 
+          "wuid"	=> intval( $user->getId()), 
           "depth"	=> intval( $depth),
           "day"		=> intval( $day),
           "month"	=> intval( $month),
@@ -598,9 +701,16 @@ RETURN id(a) AS aid LIMIT 1';
         return -1;
     }
 
+
+
     // Set Analysis status label
     public function setAnalysisStatus( $aid, $label)
     {
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
+
 	if( !$this->analysisExists( $aid)) {
 
           $this->logger->debug('Analysis node does NOT exist');
@@ -608,12 +718,12 @@ RETURN id(a) AS aid LIMIT 1';
 	}
 
 	// Check if the status label is valid
-	if( !in_array( $label, $this->statusLabels))
+	if( !in_array( $label, self::STATUS))
 	  return false;
 
         $this->logger->debug('Setting analysis node status label '.$label);
 	
-	$statusLabels = implode( ':', $this->statusLabels);
+	$statusLabels = implode( ':', self::STATUS);
 
 	// Deleting existing status labels and adding new
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
@@ -629,9 +739,16 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 	return true;
     }
 
+
+
     // Set Analysis side (WhiteSide/BlackSide)
     public function setAnalysisSide( $aid, $side)
     {
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
+
 	if( !$this->analysisExists( $aid)) {
 
           $this->logger->debug('Analysis node does NOT exist');
@@ -656,9 +773,16 @@ REMOVE a:WhiteSide:BlackSide SET a'.$sideLabel;
 	return true;
     }
 
+
+
     // Set Analysis depth
     public function setAnalysisDepth( $aid, $value)
     {
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
+
 	if( !$this->analysisExists( $aid)) {
 
           $this->logger->debug('Analysis node does NOT exist');
@@ -685,6 +809,33 @@ CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
 	return true;
     }
 
+
+
+    // Return Analysis depth for a particular node
+    public function getAnalysisDepth( $aid) {
+
+	// Check if analysis graph present
+	if( !$this->queueGraphExists())
+	  return [];
+
+        $this->logger->debug('Fetching Analysis depth');
+	
+	$query = '
+MATCH (a:Analysis)-[:REQUIRED]->(d:Depth) WHERE id(a)={aid}
+RETURN d.depth AS depth';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('depth') != null)
+            return $record->value('depth');
+
+	return -1; // Negative to indicate error
+    }
+
+
+	
     // Return a Game Id for an Analysis
     public function getAnalysisGameId( $aid) {
 
@@ -708,9 +859,16 @@ RETURN id(g) AS gid';
 	return -1; // Negative to indicate error
     }
 
+
+
     // Promote (:Analysis) node 
     public function promoteAnalysis( $aid)
     {
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
+
         $this->logger->debug('Promoting analysis node');
 	
 	// Make sure the analysis is Pending
@@ -772,17 +930,20 @@ MERGE (c)-[:QUEUED]->(a)';
 	// Current :Queue previous :Analysis node
 	// Current :Queue next Analysis node
 	// Next :Queue first :analysis node
+	// current = :Current:Queue node flag
 	$pl_id=-1;
 	$cp_id=-1;
 	$cn_id=-1;
 	$nf_id=-1;
+	$current = false;
 
 	$query = 'MATCH (a:Analysis)<-[:QUEUED]-(q:Queue) WHERE id(a)={aid} 
 OPTIONAL MATCH (pl:Analysis)<-[:LAST]-(:Queue)-[:NEXT]->(q) 
 OPTIONAL MATCH (q)-[:NEXT]->(:Queue)-[:FIRST]->(nf:Analysis) 
 OPTIONAL MATCH (q)-[:QUEUED]->(cp:Analysis)-[:NEXT]->(a) 
 OPTIONAL MATCH (a)-[:NEXT]->(cn:Analysis)<-[:QUEUED]-(q) 
-RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id';
+RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id,
+	"Current" IN labels(q) AS current';
 
         $params = ["aid" => intval( $aid)];
         $result = $this->neo4j_client->run($query, $params);
@@ -792,6 +953,7 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id';
           $cp_id = $record->value('cp_id');
           $cn_id = $record->value('cn_id');
           $nf_id = $record->value('nf_id');
+          $current = $record->value('current');
         }
 
         $this->logger->debug( "pl: $pl_id, cp: $cp_id, cn: $cn_id, nf: $nf_id");
@@ -811,8 +973,15 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id';
 
 	// 2) The only :Analysis node for the :Head, next :Queue node(s) exist 
         if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id != null) {
-	  $query .= 'MATCH (q)-[:NEXT]->(n:Queue) SET n:Head DETACH DELETE q';
-          $this->logger->debug( "Delete Analysis type2");
+
+	  // Assign Current label to the next Queue node
+	  $query_current = "";
+	  if( $current) $query_current = ":Current";
+
+	  $query .= 'MATCH (q)-[:NEXT]->(n:Queue) 
+SET n:Head'.$quey_current.' DETACH DELETE q';
+
+          $this->logger->debug( "Delete Analysis type2 ". ($current?":Current":""));
 	}
 
 	// 3) First :Analysis node for single :Head node (:Tail) 
@@ -855,16 +1024,29 @@ MERGE (cp)-[:NEXT]->(cn)';
 
 	// 9) The only :Analysis node for the :Tail 
         if( $pl_id != null && $cp_id == null && $cn_id == null && $nf_id == null) {
-	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q) SET p:Tail DETACH DELETE q'; 
-          $this->logger->debug( "Delete Analysis type9");
+
+	  // Assign Current label to the next Queue node
+	  $query_current = "";
+	  if( $current) $query_current = ":Current";
+
+	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q) 
+SET p:Tail'.$query_current.' DETACH DELETE q'; 
+
+          $this->logger->debug( "Delete Analysis type9 ".($current?":Current":""));
 	}
 
 	// 10) The only :Analysis node for the regular :Queue 
         if( $pl_id != null && $cp_id == null && $cn_id == null && $nf_id != null) {
+	
+	  // Assign Current label to the next Queue node
+	  $query_current = "";
+	  if( $current) $query_current = "SET n:Current";
+
 	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q)-[:NEXT]->(n:Queue) 
 MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis) 
-MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) DETACH DELETE q';
-          $this->logger->debug( "Delete Analysis type10");
+MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) '.$query_current.' DETACH DELETE q';
+
+          $this->logger->debug( "Delete Analysis type10 ".($current?":Current":""));
 	}
 
 	// 11) First :Analysis node for the :Tail
@@ -890,13 +1072,10 @@ MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
 	  // Delete relationships to siblings and :Queue
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
 OPTIONAL MATCH (:Analysis)-[s:NEXT]-(a) 
-OPTIONAL MATCH (:Queue)-[q]->(a) DELETE s,q';
+OPTIONAL MATCH (:Queue)-[r]->(a) DELETE s,r';
 
 	// Send the query, we do NOT expect any return
         $this->neo4j_client->run($query, $params);
-
-        // Forcefully update :Current label as it may have been deleted
-        $this->updateCurrentQueueNode( true);
 
         // Return 
         return true;
@@ -931,18 +1110,21 @@ RETURN id(p) AS pid, id(l) AS lid, id(f) AS fid LIMIT 1';
 
         $this->logger->debug( "pid: $p_id, lid: $l_id, fid: $f_id");
 
-        // Default query, all ids are null, very first (:Analysis) node
-        $query = '
-MATCH (q:Queue)-[:QUEUED]->(a:Analysis) WHERE id(a)={aid}
+        $query = 'MATCH (q:Queue)-[:QUEUED]->(a:Analysis) WHERE id(a)={aid}';
+
+        // All ids are null, very first (:Analysis) node
+        if( $p_id == null && $l_id == null && $f_id == null) {
+
+          $query .= '
 MERGE (q)-[:FIRST]->(a)
 MERGE (q)-[:LAST]->(a)
 RETURN id(a) AS aid LIMIT 1';
-
+	}
+	
         // Adding (:Analysis) node to a new (:Tail) node
         if( $p_id != null && $l_id == null && $f_id == null) {
 
-          $query = '
-MATCH (q:Queue)-[:QUEUED]->(a:Analysis) WHERE id(a)={aid}
+          $query .= '
 MATCH (p:Analysis) WHERE id(p)={pid}
 MERGE (q)-[:FIRST]->(a)
 MERGE (q)-[:LAST]->(a)
@@ -953,8 +1135,7 @@ RETURN id(a) AS aid LIMIT 1';
         // Adding to an existing (:Tail) node
         if( $l_id != null && $f_id == null) {
 
-          $query = '
-MATCH (q:Queue)-[:QUEUED]->(a:Analysis) WHERE id(a)={aid}
+          $query .= '
 MATCH (l:Analysis) WHERE id(l)={lid}
 MATCH (q)-[r:LAST]->(l)
 MERGE (l)-[:NEXT]->(a)
@@ -966,8 +1147,7 @@ RETURN id(a) AS aid LIMIT 1';
         // Regular addition
         if( $l_id != null && $f_id != null) {
 
-          $query = '
-MATCH (q:Queue)-[:QUEUED]->(a:Analysis) WHERE id(a)={aid}
+          $query .= '
 MATCH (l:Analysis)-[r1:NEXT]->(f:Analysis) WHERE id(l)={lid}
 MATCH (q)-[r2:LAST]->(l)
 MERGE (l)-[:NEXT]->(a)-[:NEXT]->(f)
@@ -990,31 +1170,51 @@ RETURN id(a) AS aid LIMIT 1';
     }
 
     // Queue Game Analysis function
-    public function queueGameAnalysis( $gid, $depth, $sideLabel, $userId) {
+    public function queueGameAnalysis( $gid, $depth, $sideLabel) 
+    {
+	if( !$this->security->isGranted('ROLE_USER')) {
+          $this->logger->debug('Access denied');
+	  return false;
+	}
 
         $this->logger->debug('Staring game anaysis enqueueing process.');
 
-        // Check if the :Game has already been queued
-        if( $this->matchAnalysis( $gid, $depth, $sideLabel)) {
+	// Match analysis for both sides
+	$sides = array_unique( array_slice( explode( ':', $sideLabel), 1));
+
+	// Check if the side analysis is already present
+	foreach( $sides as $key => $side) {
+
+          // Check if the :Game has already been queued
+	  $status = $this->matchAnalysis( $gid, $depth, ':'.$side);
+          if( $status != -1) {
 
             $this->logger->debug(
-		'The game has already been queued for analysys.');
+		'The game has already been queued for analysys for '. 
+		$side. ' status '.self::STATUS[$status]);
 
-            return false;
-        }
+	    // Delete array element
+	    unset( $sides[$key]);
+          }
+	}
+
+	// If sides array is not empty build sides label
+	if( count( $sides) > 0)
+	  $sideLabel = ':'.implode( ':', $sides);
+	else
+	  return false;
 
 	// Make sure user is allowd to add more items
-	if( !$this->checkUserLimit( $userId)) {
+	if( !$this->checkUserLimit()) {
 
             $this->logger->debug(
 		'User has exceeded their submission limit.');
 
-            return false;
+              return false;
 	}
 
         // Create a new (:Analysis) node
-        $aid = $this->createAnalysisNode(
-                $gid, $depth, $sideLabel, $userId);
+        $aid = $this->createAnalysisNode( $gid, $depth, $sideLabel);
 
         // Finally create necessary relationships
 	if( $aid != -1)

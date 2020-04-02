@@ -74,8 +74,11 @@ class QueueExportJSONCommand extends Command
 
           $output->writeln( 'Selected analysis game id: ' . $gid);
 
+	  // Get available depth for each side
+	  $depth = $this->queueManager->getGameAnalysisDepths( $gid);
+
           // Request JSON files update for the game
-          $this->gameManager->exportJSONFile( $gid);
+          $this->gameManager->exportJSONFile( $gid, $depth);
 
 	} else {
 	
@@ -106,6 +109,7 @@ class QueueExportJSONCommand extends Command
 
             $output->writeln( 'Can not fetch game id for analysis');
 
+	    // We need to mark it somehow, otherwise we will fetch it again
 	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
 
 	    continue;
@@ -113,9 +117,13 @@ class QueueExportJSONCommand extends Command
 
           $output->writeln( 'Selected analysis game id: ' . $gid);
 
-          // Request JSON files update for the game
-          if( $this->gameManager->exportJSONFile( $gid))
+	  // Fetch analysis depth
+	  $depth = $this->queueManager->getGameAnalysisDepths( $gid);
 
+          // Request JSON files update for the game
+          if( $this->gameManager->exportJSONFile( $gid, $depth))
+
+	    // Mark the Analysis so we do not fetch it again
 	    $this->queueManager->setAnalysisStatus( $aid, "Exported");
  	  else
 	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");

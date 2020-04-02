@@ -11,9 +11,16 @@ use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\GameManager;
 use App\Service\QueueManager;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
+use Symfony\Component\HttpFoundation\Request;
+use App\Security\TokenAuthenticator;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\User;
 
 class QueueFillCommand extends Command
 {
+    const FIREWALL_MAIN = "main";
+
     // Default desired queue length
     const THRESHOLD = 20;
     const MAXLENGTH = 2000;
@@ -25,8 +32,18 @@ class QueueFillCommand extends Command
     private $queueManager;
     private $gameManager;
 
+    // Doctrine EntityManager
+    private $em;
+
+    // User repo
+    private $userRepository;
+
+    // Guard
+    private $guardAuthenticatorHandler;
+
     // Dependency injection of the GameManager service
-    public function __construct( LoggerInterface $logger, GameManager $gm, QueueManager $qm)
+    public function __construct( LoggerInterface $logger, GameManager $gm, QueueManager $qm,
+	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         $this->logger = $logger;
 
@@ -34,6 +51,13 @@ class QueueFillCommand extends Command
 
         $this->gameManager = $gm;
         $this->queueManager = $qm;
+
+        $this->em = $em;
+
+        // get the User repository
+        $this->userRepository = $this->em->getRepository( User::class);
+
+        $this->guardAuthenticatorHandler = $gah;
     }
 
     protected function configure()
@@ -117,6 +141,15 @@ class QueueFillCommand extends Command
         $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
         $userId = $_ENV['SYSTEM_WEB_USER_ID'];
 
+        // Get the user by email
+        $user = $this->userRepository->findOneBy(['id' => $userId]);
+        $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+            $user,
+            new Request(),
+            new TokenAuthenticator( $this->em),
+            self::FIREWALL_MAIN
+        );
+
         // Validate depth option
         $depthOption = intval( $input->getOption('depth'));
         if( $depthOption != 0) $depth = $depthOption;
@@ -138,17 +171,9 @@ class QueueFillCommand extends Command
 
           $output->writeln( 'Selected game id ' . $gid);
 
-          // Make sure user is allowed to add more items
-          if( !$this->queueManager->checkUserLimit( $userId)) {
-
-            $this->logger->debug(
-                'User has exceeded their submission limit.');
-	     break;
-	  }
-
 	  // Enqueue game analysis node
 	  if( $this->queueManager->queueGameAnalysis(
-                $gid, $depth, $sideLabel, $userId))
+                $gid, $depth, $sideLabel))
 	    $gids[] = $gid;	
 	  else
             $output->writeln( 'Game has already beed analysed');

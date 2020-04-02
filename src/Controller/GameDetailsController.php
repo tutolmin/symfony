@@ -204,13 +204,26 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	        $this->depths[$key]	= $item['depth'];
 	      if( array_key_exists( 'time', $item)) 
 	        $this->times[$key]	= $item['time'];
-	      if( array_key_exists( 'alt', $item)) {
-		$this->T1_moves[$key][0]	= $item['alt'][0]['san'];
-		$this->T1_depths[$key][0]	= $item['alt'][0]['depth'];
-		$this->T1_times[$key][0]	= $item['alt'][0]['time'];
-		$this->T1_scores[$key][0]	= $item['alt'][0]['score'];
-//print_r( $item['alt']);
-	      }
+
+	      // Parse alternative lines for best moves only
+	      if( $this->marks[$key] != "Best" 
+		&& array_key_exists( 'alt', $item))
+
+		// Take into account only fisrt(best) line
+		foreach( $item['alt'][0] as $variation)
+
+		// Only SAN with no eval data
+		if( !is_array( $variation)) {
+		  array_push( $this->T1_moves[$key],  $variation);
+		  array_push( $this->T1_depths[$key], 0);
+		  array_push( $this->T1_scores[$key], "");
+		  array_push( $this->T1_times[$key],  "00:00.000");
+		} else {	
+		  array_push( $this->T1_moves[$key],  $variation['san']);
+		  array_push( $this->T1_scores[$key], $variation['score']);
+		  array_push( $this->T1_depths[$key], $variation['depth']);
+		  array_push( $this->T1_times[$key],  $variation['time']);
+		}
 	    }
 	  }
 	} else // Only SANs are present
@@ -766,10 +779,10 @@ LIMIT 1';
           $position[] = array_key_exists( $key, $this->scores)		?$this->scores[$key]	:"";
           $position[] = array_key_exists( $key, $this->depths)		?$this->depths[$key]	:"";
           $position[] = array_key_exists( $key, $this->times)		?$this->times[$key]	:"";
-          $position[] = $this->T1_moves[$key];
-          $position[] = $this->T1_scores[$key];
-          $position[] = $this->T1_depths[$key];
-          $position[] = $this->T1_times[$key];
+          $position[] = array_key_exists( $key, $this->T1_moves)	?$this->T1_moves[$key]	:[];
+          $position[] = array_key_exists( $key, $this->T1_scores)	?$this->T1_scores[$key]	:[];
+          $position[] = array_key_exists( $key, $this->T1_depths)	?$this->T1_depths[$key]	:[];
+          $position[] = array_key_exists( $key, $this->T1_times)	?$this->T1_times[$key]	:[];
 
           $positions[] = $position;
 	}

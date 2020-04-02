@@ -794,7 +794,7 @@ function setMove( pIndex, vIndex) {
       currentGame.move( Positions[pIndex][_T1_MOVE][index]);
   }
 
-//  console.log( currentGame.fen());
+  console.log( currentGame.fen());
 
   board.position( currentGame.fen());
 
@@ -820,11 +820,13 @@ var updatePosition = function() {
   var p_time    = Positions[positionIndex][_TIME];
 
   if( variationIndex > 0) { 
-        currentGame.move( Positions[positionIndex][_T1_MOVE][0]);
+
+//        currentGame.move( Positions[positionIndex][_T1_MOVE][0]);
+
         FEN     = currentGame.fen();
-        p_eval  = Positions[positionIndex][_T1_SCORE][0];
-        p_depth = Positions[positionIndex][_T1_DEPTH][0];
-        p_time  = Positions[positionIndex][_T1_TIME][0];
+        p_eval  = Positions[positionIndex][_T1_SCORE][variationIndex-1];
+        p_depth = Positions[positionIndex][_T1_DEPTH][variationIndex-1];
+        p_time  = Positions[positionIndex][_T1_TIME][variationIndex-1];
   }
 
   // Mate in X moves handling

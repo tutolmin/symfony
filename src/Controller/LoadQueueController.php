@@ -733,6 +733,15 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	}
 //    AND [x IN labels(second_result) WHERE x IN {second_results}] 
 
+
+
+
+
+
+
+
+
+
 	// We do not need to begin with Head for Pending/Processing
 	// User Current instead
 	$start_node = "Head";
@@ -747,10 +756,15 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	  $params["wu_id"] = intval( $this->wu_id);
 	}
 
+	// Game ID has been specified
+	$game_id_condition = "";
+	if( array_key_exists( "id", $params))
+	  $game_id_condition = "WHERE id(game) = {id}";
+
 	// Default query
 	$query = "MATCH (:".$start_node.")-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:".$this->item_status.") WITH p LIMIT 1 
 MATCH path=(p)-[:NEXT*0..]->(a:".$this->item_status.$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) ". $game_id_condition. "
 RETURN a, length(path) AS idx, d.level, id(game) AS gid 
 $skip_records 
 LIMIT ".self::RECORDS_PER_PAGE;
@@ -762,7 +776,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 MATCH (:Tail)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:".$this->item_status.") WITH f,l LIMIT 1 
 MATCH dist=(f)-[:NEXT*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
 MATCH path=(l)<-[:NEXT*0..]-(a:".$this->item_status.$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) ". $game_id_condition. "
 RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid 
 $skip_records 
 LIMIT ".self::RECORDS_PER_PAGE;
