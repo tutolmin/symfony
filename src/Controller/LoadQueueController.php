@@ -73,7 +73,7 @@ class LoadQueueController extends AbstractController
 
         $this->wu_id = null;
 
-	$this->item_status = "Analysis";
+	$this->item_status = "";
 
 	$this->item_interval = 0;
 
@@ -244,7 +244,7 @@ LIMIT 1";
 		"king" => "King", "bishop" => "Bishop", "knight" => "Knight" ];
 
 	// Game Status Labels
-	$game_statuses	= [ "complete" => "Complete", "processing" => "Processing", 
+	$analysis_statuses	= [ "complete" => "Complete", "processing" => "Processing", 
 		"pending" => "Pending", "skipped" => "Skipped", 
 		"partially" => "Partially", "evaluated" => "Evaluated",
 		"exported" => "Exported" ];
@@ -409,8 +409,8 @@ echo "<br/>\n";
 		  case "status":
 
 		    // Check for valid status
-		    if( array_key_exists( strtolower( $tag_value), $game_statuses))
-		      $this->item_status = $game_statuses[strtolower( $tag_value)];
+		    if( array_key_exists( strtolower( $tag_value), $analysis_statuses))
+		      $this->item_status = $analysis_statuses[strtolower( $tag_value)];
 		    break;
 
 		  case "eco":
@@ -741,7 +741,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 
 
 
-
+/*
 	// We do not need to begin with Head for Pending/Processing
 	// User Current instead
 	$start_node = "Head";
@@ -749,29 +749,72 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	  $this->queueManager->updateCurrentQueueNode();
 	  $start_node = "Current";	
 	}
-
+*/
 	// Add web user parameter
 	if( $this->wu_id) {
 	  $webuser = "{id:{wu_id}}";
 	  $params["wu_id"] = intval( $this->wu_id);
 	}
-
+/*
 	// Game ID has been specified
 	$game_id_condition = "";
 	if( array_key_exists( "id", $params))
 	  $game_id_condition = "WHERE id(game) = {id}";
+*/
+	// Specific game id
+	if( array_key_exists( "id", $params)) {
 
-	// Default query
-	$query = "MATCH (:".$start_node.")-[:FIRST]->(:Analysis)-[:NEXT*0..]->(p:".$this->item_status.") WITH p LIMIT 1 
-MATCH path=(p)-[:NEXT*0..]->(a:".$this->item_status.$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) ". $game_id_condition. "
+	  // Reset status
+	  $this->item_status = "";
+
+	  $query = "MATCH (a:Analysis)-[:REQUESTED_FOR]->(game:Game)
+WHERE id(game) = {id}
+MATCH (s:Status)<-[:HAS_GOT]-(a)
+MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)
+RETURN a, 1 AS idx, d.level, id(game) AS gid, s.status LIMIT 1";
+
+	} else { 
+	
+	  // All analysis nodes starting from head
+	  $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
+MATCH path=(f)-[:NEXT*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
+MATCH (s:Status)<-[:HAS_GOT]-(a)
+MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+RETURN a, length(path) AS idx, d.level, id(game) AS gid, s.status 
+$skip_records LIMIT ".self::RECORDS_PER_PAGE;
+
+	  // Items for specific status
+	  if( strlen( $this->item_status) > 0)
+	    $query = "MATCH (:Status{status:'".$this->item_status."'})-[:FIRST]->(f:Analysis)
+MATCH path=(f)-[:NEXT_BY_STATUS*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
+MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
 RETURN a, length(path) AS idx, d.level, id(game) AS gid 
-$skip_records 
-LIMIT ".self::RECORDS_PER_PAGE;
+$skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
-	// Descending sorting
-	if( strlen( $descending)) {
+	  // Descending sorting
+	  if( strlen( $descending)) {
 
+	  // All analysis nodes starting from tail
+	  $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
+MATCH (:Tail:Queue)-[:LAST]->(l:Analysis)
+MATCH dist=(f)-[:NEXT*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
+MATCH path=(l)<-[:NEXT*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
+MATCH (s:Status)<-[:HAS_GOT]-(a)
+MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid, s.status
+$skip_records LIMIT ".self::RECORDS_PER_PAGE;
+
+	  // Items for specific status
+	  if( strlen( $this->item_status) > 0)
+	    $query = "MATCH (:Status{status:'".$this->item_status."'})-[:FIRST]->(f:Analysis)
+MATCH (:Status{status:'".$this->item_status."'})-[:LAST]->(l:Analysis)
+MATCH dist=(f)-[:NEXT_BY_STATUS*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
+MATCH path=(l)<-[:NEXT_BY_STATUS*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
+MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid 
+$skip_records LIMIT ".self::RECORDS_PER_PAGE;
+
+/*
 	  $query = "MATCH (:Head)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:".$this->item_status.") WITH f LIMIT 1
 MATCH (:Tail)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:".$this->item_status.") WITH f,l LIMIT 1 
 MATCH dist=(f)-[:NEXT*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
@@ -780,7 +823,8 @@ MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) ". $game_id
 RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid 
 $skip_records 
 LIMIT ".self::RECORDS_PER_PAGE;
-
+*/
+	  }
 	}
 
 //print_r( $params);
@@ -799,6 +843,11 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	  $this->analysis_id = $labelsObj->identity();
 	  $labelsArray = $labelsObj->labels();
 
+	  // We selected games without specific status
+	  if( strlen( $this->item_status) == 0)
+	    if( in_array( $record->value('s.status'), $analysis_statuses))
+	      $this->item_status = $record->value('s.status');
+/*
 	  // Analysis status
 	  if( in_array( "Pending", $labelsArray))
 	    $this->item_status = "Pending";
@@ -814,6 +863,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    $this->item_status = "Evaluated";
 	  if( in_array( "Exported", $labelsArray))
 	    $this->item_status = "Exported";
+*/
 
 	  // Analysis side
 	  if( in_array( "WhiteSide", $labelsArray)) {
@@ -828,7 +878,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    else
 	      $this->item_side = "Black";
 	  }
-
+/*
 	  // If Pending, calculate estimate
 	  if( $this->item_status == "Pending") {
 
@@ -855,7 +905,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 
 	    $said = $this->analysis_id;
 	  }
-
+*/
 	  $this->game_id = $record->value('gid');
 	  $this->item_depth = $record->value('d.level');
 	  $this->queue_idx = $record->value('idx');

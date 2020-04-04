@@ -172,11 +172,11 @@ class QueueFillCommand extends Command
           $output->writeln( 'Selected game id ' . $gid);
 
 	  // Enqueue game analysis node
-	  if( $this->queueManager->queueGameAnalysis(
+	  if( $this->queueManager->enqueueGameAnalysis(
                 $gid, $depth, $sideLabel))
 	    $gids[] = $gid;	
 	  else
-            $output->writeln( 'Game has already beed analysed');
+            $output->writeln( 'Error queueing the game!');
 
 	} while( $this->queueManager->getQueueLength() < $threshold);
 

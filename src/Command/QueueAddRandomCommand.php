@@ -1,6 +1,6 @@
 <?php
 
-// src/Command/QueueAddCommand.php
+// src/Command/QueueAddRandomCommand.php
 
 namespace App\Command;
 
@@ -17,7 +17,7 @@ use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
 
-class QueueAddCommand extends Command
+class QueueAddRandomCommand extends Command
 {
     const FIREWALL_MAIN = "main";
 
@@ -130,7 +130,7 @@ class QueueAddCommand extends Command
 	$output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth);
 
         // enqueue particular game 
-        if( $this->queueManager->queueGameAnalysis(
+        if( $this->queueManager->enqueueGameAnalysis(
                 $gid, $depth, $sideLabel))
 
 	  // Request :Line load for the list of games

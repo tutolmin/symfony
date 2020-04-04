@@ -93,14 +93,15 @@ class QueueEraseCommand extends Command
         );
 
 	// Execute queue manager member function	
-	$this->queueManager->eraseQueue();
+	if( $this->queueManager->eraseQueueGraph()) {
 
-	$output->writeln( 'Analysis queue nodes and relationships have been deleted successfully!');
+	  $output->writeln( 'Analysis queue nodes and relationships have been deleted successfully!');
 
-        // Init empty queue graph
-        $this->queueManager->initQueue();
+          // Init empty queue graph
+          if( $this->queueManager->initQueueGraph()) 
 
-        $output->writeln( 'Empty analysis queue has been initialized successfully');
+            $output->writeln( 'Empty analysis queue has been initialized successfully');
+	}
 
         return 0;
     }
