@@ -20,7 +20,7 @@ function loadQueue() {
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
-        '<td>Status' +
+        '<td>History</td><td>Status' +
 '<br/><select name="AnalysisStatus" id="AnalysisStatus" onchange="setAnalysisParamList(this, \'status\')">' +
 '<option value="">Select</option>' +
 '<option value="Pending">Pending</option>' +
@@ -83,10 +83,23 @@ function loadQueue() {
         status_descr="Game analysis is complete";
     }
 
+	white_elo = '';
+	black_elo = '';
+	if( val["ELO_W"] != "") white_elo = ' (' + val["ELO_W"] + ') ';
+	if( val["ELO_B"] != "") black_elo = ' (' + val["ELO_B"] + ') ';
+
+	action_rows = '';
+	val["Actions"].forEach(function(item, i, arr) {
+	  action_rows += '<tr><td>' + val["ADateTimes"][i] + '</td><td>' + item + '</td><td>' + val["AParams"][i] + '</td></tr>';
+	});
+
     items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["AId"] + '" name="queue_items[]"/>' +
 	'</td><td style="text-align:center">' + val["Index"] +
+        '</td><td style="text-align:center"><div class="tooltip"><img src="img/actions.png"/>' +
+	'<span class="tooltiptext"><table>' + action_rows + '</table></span></div>' +
         '</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' +
-        '</td><td>' + val["White"] + ' vs. ' + val["Black"] + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
+        '</td><td>' + val["White"] + white_elo + ' vs. ' + val["Black"] + black_elo + 
+	' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
         '</td><td>' + 
 '<select name="AnalysisSide" id="AnalysisSide" onchange="setAnalysisParam(this, \'side\', ' + val["AId"] + ')">' +
 '<option value=""' + ((val["Side"]=="Both")?'selected="selected"':'') + '>Both sides</option>' +
@@ -94,7 +107,7 @@ function loadQueue() {
 '<option value="BlackSide"' + ((val["Side"]=="Black")?'selected="selected"':'') + '>Black Only</option>' +
 '</select>' +
 	'</td><td>' +
-'<select name="AnalysisDepth" id="AnalysisDepth" onchange="setAnalysisParam(this, \'depht\', ' + val["AId"] + ')">' +
+'<select name="AnalysisDepth" id="AnalysisDepth" onchange="setAnalysisParam(this, \'depth\', ' + val["AId"] + ')">' +
 '<option value=""' + ((val["Depth"]==18)?'selected="selected"':'') + '>18+ plies</option>' +
 '<option value="20"' + ((val["Depth"]==20)?'selected="selected"':'') + '>20+ plies</option>' +
 '<option value="23"' + ((val["Depth"]==23)?'selected="selected"':'') + '>23+ plies</option>' +

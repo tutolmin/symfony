@@ -46,6 +46,9 @@ class LoadQueueController extends AbstractController
     private $item_depth;
     private $item_date;
     private $item_interval;
+    private $item_actions;
+    private $item_action_dts;
+    private $item_action_params;
 
     // User nameger reference
     private $userManager;
@@ -70,11 +73,8 @@ class LoadQueueController extends AbstractController
         $this->game_id = -1;
 
 	$this->idx = 0;
-
         $this->wu_id = null;
-
 	$this->item_status = "";
-
 	$this->item_interval = 0;
 
         // starts event named 'eventName'
@@ -141,7 +141,9 @@ LIMIT 1";
         $this->items[$idx]['Side'] = $this->item_side;
         $this->items[$idx]['Depth'] = $this->item_depth;
         $this->items[$idx]['Date'] = $this->item_date;
-
+        $this->items[$idx]['Actions'] = $this->item_actions;
+        $this->items[$idx]['ADateTimes'] = $this->item_action_dts;
+        $this->items[$idx]['AParams'] = $this->item_action_params;
 
         $this->items[$idx]['Interval'] = $this->item_interval?$this->formatInterval():"";
 
@@ -847,23 +849,6 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	  if( strlen( $this->item_status) == 0)
 	    if( in_array( $record->value('s.status'), $analysis_statuses))
 	      $this->item_status = $record->value('s.status');
-/*
-	  // Analysis status
-	  if( in_array( "Pending", $labelsArray))
-	    $this->item_status = "Pending";
-	  if( in_array( "Processing", $labelsArray))
-	    $this->item_status = "Processing";
-	  if( in_array( "Complete", $labelsArray))
-	    $this->item_status = "Complete";
-	  if( in_array( "Skipped", $labelsArray))
-	    $this->item_status = "Skipped";
-	  if( in_array( "Partially", $labelsArray))
-	    $this->item_status = "Partially";
-	  if( in_array( "Evaluated", $labelsArray))
-	    $this->item_status = "Evaluated";
-	  if( in_array( "Exported", $labelsArray))
-	    $this->item_status = "Exported";
-*/
 
 	  // Analysis side
 	  if( in_array( "WhiteSide", $labelsArray)) {
@@ -906,6 +891,44 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    $said = $this->analysis_id;
 	  }
 */
+	  // Fetch actions taken on specific analysis node
+	  $query = "MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (a)<-[:WAS_TAKEN_ON]-(f:Action{action:'Creation'})
+MATCH (f)-[:NEXT*0..]->(t:Action)
+  MATCH (t)-[:WAS_PERFORMED_DATE]->(d:Day)-[:OF]->(m:Month)-[:OF]->(y:Year)
+  MATCH (t)-[:WAS_PERFORMED_TIME]->(s:Second)-[:OF]->(n:Minute)-[:OF]->(h:Hour)
+    OPTIONAL MATCH (t)-[:CHANGED_TO]->(status:Status)
+    OPTIONAL MATCH (t)-[:CHANGED_TO]->(depth:Depth)
+RETURN t.action, 
+  apoc.temporal.format( datetime({ year: y.year, month: m.month, 
+				day: d.day, hour: h.hour, 
+				minute: n.minute, second: s.second}), 
+				'YYYY-MM-dd HH:mm:ss') AS dts, 
+  t.parameter, status.status, depth.level";
+
+	  $params["aid"] = intval( $this->analysis_id);
+          $result_a = $this->neo4j_client->run($query, $params);
+
+	  // Store all actions and parameters in an array
+	  $this->item_actions = array();
+	  $this->item_action_dts = array();
+	  $this->item_action_params = array();
+          foreach ( $result_a->records() as $record_a) {
+	
+	    // Fill in arrays
+	    $this->item_actions[] = $record_a->value('t.action');
+	    $this->item_action_dts[] = $record_a->value('dts');
+
+	    if( $record_a->value('t.parameter') != null)
+	      $this->item_action_params[] = $record_a->value('t.parameter');
+	    else if( $record_a->value('status.status') != null)
+	      $this->item_action_params[] = $record_a->value('status.status');
+	    else if( $record_a->value('depth.level') != null)
+	      $this->item_action_params[] = $record_a->value('depth.level');
+	    else
+	      $this->item_action_params[] ='';
+	  }
+
 	  $this->game_id = $record->value('gid');
 	  $this->item_depth = $record->value('d.level');
 	  $this->queue_idx = $record->value('idx');

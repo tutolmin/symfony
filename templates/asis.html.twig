@@ -11,6 +11,8 @@
 
 {% block body %}
 
+<div>
+<div style="float:left;">
 <!-- Tab links -->
 <div class="tab">
   <button onclick="openTab(event, 'Analyze')">
@@ -31,7 +33,7 @@
   <button class="tablinks" onclick="openTab(event, 'Analyze')" id="analysisTab">
 <img src="img/analysis.png" style="float:left"/>&nbsp;&nbsp;Analyze</button>
 </div>
-
+</div>
 <div style="float:right;">
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {{ app.user.email }}&nbsp;<a href="/logout">Logout</a>
@@ -40,8 +42,14 @@
 {% endif %}
 </div>
 
+</div>
+
 <!-- Tab content -->
 <div id="Upload" class="tabcontent">
+
+<table width=70%>
+<tr>
+<td>
   <h3>Upload Game(s)</h3>
 
 {{ form_start(form) }}
@@ -73,6 +81,11 @@ Use the form below to upload your games.</p>
 {% endif %}
 
 {{ form_end(form) }}
+
+</td>
+</tr>
+</table>
+
 </div>
 
 <!-- Tab content -->
@@ -209,36 +222,27 @@ Use the form below to upload your games.</p>
 
 <div id="Queue" class="tabcontent">
 <table><tr><td style="vertical-align:top">
-  <h3>Predefined Tags</h3>
-<div class="predefinedTags">
-<b>My games</b><br/>
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( '{{ app.user.email }}');"
-{% else %}
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( '');" disabled="disabled"
-{% endif %}
->My games<br/>
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-{% else %}
-(<a href="/connect">login</a> required)<br/>
-{% endif %}
-<b>Side</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black<br/>
-<b>Status</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'pending');" checked="checked">Pending<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'processing');">Processing<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'skipped');">Skipped<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'evaluated');">Evaluated<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'exported');">Exported<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'complete');">Complete<br/>
-</div>
-</td>
-<td style="vertical-align:top">
-  <p>Enter player name, event, result or start typing to select tag from the dropdown list. You can also select from a predefined list of tags below.</p>
+  <p>Tags for analysis requests selection are a little bit different. Please use predefined tags below</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#queue-form-tags').importTags( '');loadQueue();">Delete all tags</button>
   </span><form id="queue_form"><input id="queue-form-tags" name="tags" class="tagsinput" type="text"></form>
+<br/>
+  <span style="font-size:18pt;float:left;">Predefined tags:&nbsp;</span>
+<span>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'pending');">Pending</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'processing');">Processing</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'skipped');">Skipped</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'evaluated');">Evaluated</button>
+
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+<button onclick="$('.tagsinput#queue-form-tags').addTag( '{{ app.user.email }}');">My games</button>
+{% else %}
+<button onclick="$('.tagsinput#queue-form-tags').addTag( '');" disabled="disabled">My games</button>
+(<a href="/connect">login</a> required)
+{% endif %}
+</span>
 
   <div class="analysisQueue" id="analysisQueue"></div>
 
@@ -279,6 +283,12 @@ Use the form below to upload your games.</p>
 </td></tr></table>
 
 </td>
+
+<td valign="top">
+<h3>Available tags</h3>
+<p>There are a lot of tag you can use to select the particular analysis types such as depth, side, etc.</p>
+</td>
+
 </tr>
 </table>
 </div>

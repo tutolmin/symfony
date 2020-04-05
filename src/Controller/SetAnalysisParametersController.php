@@ -76,7 +76,8 @@ class SetAnalysisParametersController extends AbstractController
 
 	$this->stopwatch->lap('setAnalysisParameters');
 
-        $this->logger->debug( 'Changing analysis ' .$param. ' for Id: '.$aid);
+        $this->logger->debug( 'Changing analysis ' .$param. 
+		' (value: '.$value.') for Id: '.$aid);
 
 	// change depth for a particular analysis node
 	if( $param == "depth")
@@ -89,9 +90,11 @@ class SetAnalysisParametersController extends AbstractController
 	    $counter++;
 
 	// change status label for a particular analysis node
-	if( $param == "status")
-	  if( $this->queueManager->setAnalysisStatus( $aid, $value))
+	if( $param == "status") {
+	  if( $this->queueManager->promoteAnalysis( $aid, $value))
+//	  if( $this->queueManager->setAnalysisStatus( $aid, $value))
 	    $counter++;
+	}
       }
 
       return new Response( $counter . " analysis nodes have been modified.");

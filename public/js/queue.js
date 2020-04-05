@@ -63,9 +63,14 @@ function loadQueue() {
         status_descr="Game analysis is complete";
     }
 
+        white_elo = '';
+        black_elo = '';
+        if( val["ELO_W"] != "") white_elo = ' (' + val["ELO_W"] + ') ';
+        if( val["ELO_B"] != "") black_elo = ' (' + val["ELO_B"] + ') ';
+
     items.push('<tr class="tableRow"><td style="text-align:center">' + val["Index"] +
         '</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' +
-        '</td><td>' + val["White"] + ' vs. ' + val["Black"] + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
+        '</td><td>' + val["White"] + white_elo + ' vs. ' + val["Black"] + black_elo + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
         '</td><td>' + val["Side"] + '</td><td>' + val["Depth"] + '</td><td>' + val["Interval"] +
         '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
     });
