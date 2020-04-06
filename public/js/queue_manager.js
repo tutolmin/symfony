@@ -25,6 +25,8 @@ function loadQueue() {
 '<option value="">Select</option>' +
 '<option value="Pending">Pending</option>' +
 '<option value="Evaluated">Evaluated</option>' +
+'<option value="Skipped">Skipped</option>' +
+'<option value="Partially">Partially</option>' +
 '<option value="Exported">Exported</option>' +
 '<option value="Complete">Complete</option>' +
 '</select></td><td>Game</td><td style="text-align:center">Side' +
@@ -33,12 +35,11 @@ function loadQueue() {
 '<option value="">Both sides</option>' +
 '<option value="WhiteSide">White Only</option>' +
 '<option value="BlackSide">Black Only</option>' +
-'</select></td><td>Depth' +
+'</select></td><td>Type' +
 '<br/><select name="AnalysisDepth" id="AnalysisDepth" onchange="setAnalysisParamList(this, \'depth\')">' +
 '<option value="">Select</option>' +
-'<option value="">18+ plies</option>' +
-'<option value="20">20+ plies</option>' +
-'<option value="23">23+ plies</option>' +
+'<option value="fast">Fast</option>' +
+'<option value="deep">Deep</option>' +
 '</select>' +
 '</td><td>Estimated</td>' +
         '<td></td></tr>');
@@ -108,9 +109,8 @@ function loadQueue() {
 '</select>' +
 	'</td><td>' +
 '<select name="AnalysisDepth" id="AnalysisDepth" onchange="setAnalysisParam(this, \'depth\', ' + val["AId"] + ')">' +
-'<option value=""' + ((val["Depth"]==18)?'selected="selected"':'') + '>18+ plies</option>' +
-'<option value="20"' + ((val["Depth"]==20)?'selected="selected"':'') + '>20+ plies</option>' +
-'<option value="23"' + ((val["Depth"]==23)?'selected="selected"':'') + '>23+ plies</option>' +
+'<option value="fast"' + ((val["Depth"]<20)?'selected="selected"':'') + '>Fast</option>' +
+'<option value="deep"' + ((val["Depth"]>20)?'selected="selected"':'') + '>Deep</option>' +
 '</select>' +
 	'</td><td>' + val["Interval"] +
         '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');

@@ -92,7 +92,6 @@ class SetAnalysisParametersController extends AbstractController
 	// change status label for a particular analysis node
 	if( $param == "status") {
 	  if( $this->queueManager->promoteAnalysis( $aid, $value))
-//	  if( $this->queueManager->setAnalysisStatus( $aid, $value))
 	    $counter++;
 	}
       }

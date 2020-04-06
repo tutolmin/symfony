@@ -11,22 +11,21 @@ use Symfony\Component\Security\Core\Security;
 class QueueManager
 {
     // Array of Analysis node statuses
-    const STATUS = ['Pending','Processing','Partially','Skipped',
-	'Evaluated','Exported','Complete'];
+    const STATUS = ['Pending','Processing','Partially',
+	'Skipped','Evaluated','Exported','Complete'];
 
     // Array of valit analysis node actions
     const ACTION = ['Creation','Promotion','StatusChange',
 	'DepthChange','SideChange'];
 
-    // Array of valit analysis node actions
+    // Array of valid analysis node actions
     const SIDE = ['white' => 'WhiteSide', 'black' => 'BlackSide'];
 
     // Default number of games to export
     const NUMBER = 20;
 
     // Analysis types
-    private $FAST = 0;
-    private $DEEP = 0;
+    private $depth = ['fast' => 0, 'deep' => 0];
 
     // Logger reference
     private $logger;
@@ -53,8 +52,8 @@ class QueueManager
 	$this->analysisNodeExistsFlag=false;
 	$this->updateCurrentFlag=false;
 
-	$this->FAST = $_ENV['FAST_ANALYSIS_DEPTH'];
-	$this->DEEP = $_ENV['DEEP_ANALYSIS_DEPTH'];
+	$this->depth['fast'] = $_ENV['FAST_ANALYSIS_DEPTH'];
+	$this->depth['deep'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
     }
 
     // Getter/setter for the flags
@@ -211,7 +210,7 @@ RETURN id(a) AS aid LIMIT 1';
         // Erase Analysis node and all relationships
         $params = ["aid" => intval( $aid)];
         $this->neo4j_client->run( "MATCH (a:Analysis) WHERE id(a)={aid} 
-OPTIONAL MATCH (a)<-[:WAS_TAKEN_ON]->(c:Action)
+OPTIONAL MATCH (a)<-[:WAS_TAKEN_ON]-(c:Action)
 DETACH DELETE a,c", $params);
 
 	return true;
@@ -360,36 +359,39 @@ MATCH (a:Analysis) RETURN id(a) AS aid LIMIT 1', null);
 
 
 
-/*
     // get first analysis node of certain type
-    public function getFirstAnalysis( $label = "Pending")
+    public function getFirstAnalysisStatusNode( $status = "Pending")
     {
-        $this->logger->debug('Getting first '.$label.' analysis node');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting first '.$status.' analysis node');
+
+	// Indicate error if status is not in the list
+	if( !in_array( $status, self::STATUS)) return -1;
 
 	// Check if there is already analysis graph present
-	if( !$this->updateCurrentQueueNode())
-	  return -1; // Negative to indicat ethe error
+	if( !$this->updateCurrentQueueNode()) return -1;
 
 	// Look backward, by default
-        $query = '
-MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(f:'.$label.') 
-RETURN id(f) AS aid LIMIT 1';
+        $query = 'MATCH (s:Status{status:{status}})
+OPTIONAL MATCH (s)-[:FIRST]->(a:Analysis)
+RETURN id(a) AS aid LIMIT 1';
 
-	// Look forward
-	if( $label == "Pending")
-          $query = '
-MATCH (:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:'.$label.') 
-RETURN id(f) AS aid LIMIT 1';
-
-        $result = $this->neo4j_client->run( $query, null);
+	$params = ['status' => $status];
+        $result = $this->neo4j_client->run( $query, $params);
 
         foreach ($result->records() as $record)
           if( $record->value('aid') != null)
             return $record->value('aid');
 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Analysis node was NOT found!');
+
         // Return non-existing id if not found
         return -1;
     }
+
+
+
 /*
     // get last analysis node of certain type
     public function getLastAnalysis( $label = "Processing")
@@ -414,7 +416,9 @@ RETURN id(l) AS aid LIMIT 1';
         return -1;
     }
 */
-    // return interval in seconds between two Analysis nodes
+
+
+    // Returns interval in seconds between two Analysis nodes
     // taking into account current evaluation speed
     public function getAnalysisInterval( $said, $faid)
     {
@@ -422,15 +426,16 @@ RETURN id(l) AS aid LIMIT 1';
           $this->logger->debug('Calculating interval between '. $said.' and '.$faid);
 
         // Check if there is already analysis graph present
-        if( !$this->updateCurrentQueueNode())
-          return -1; // negative to indicate error
+        if( !$this->updateCurrentQueueNode()) return -1;
 
 	// Get current evaluation speed
 	$games_number = $_ENV['SPEED_EVAL_GAMES_LIMIT'];
-	$fast = $this->getEvaluationSpeed( $this->FAST, $games_number);
-	$deep = $this->getEvaluationSpeed( $this->DEEP, $games_number);
+	$fast = $this->getEvaluationSpeed( $this->depth['fast'], $games_number);
+	$deep = $this->getEvaluationSpeed( $this->depth['deep'], $games_number);
 
-        $this->logger->debug('Current speeds are: '. $fast.' and '.$deep. ' ms per ply');
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Current speeds are: '. $fast.
+		' and '.$deep. ' ms per ply');
 
         $query = '
 MATCH (s:Analysis) WHERE id(s)={said}
@@ -448,12 +453,13 @@ RETURN node, d.level AS depth, p.counter AS plies';
 	$records = $result->records();
 
 	// Process all but last element
-        foreach ( array_slice( $records, 0, count( $records) - 1) as $record){ 
+        foreach ( array_slice( $records, 0, count( $records) - 1) as $record) { 
 
           $labelsObj = $record->get('node');
           $labelsArray = $labelsObj->labels();
 
-          $this->logger->debug( 'Node: '.implode (',', $labelsArray). ', depth: '.
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( 'Node: '.implode (',', $labelsArray). ', depth: '.
 		$record->value('depth'). ', plies: '.$record->value('plies'));
 
           // Analysis sides, do not divide if both labels present
@@ -463,16 +469,17 @@ RETURN node, d.level AS depth, p.counter AS plies';
 	    $divider = 1;
 
 	  // Select analysis type
-          if( $record->value('depth') == $this->FAST)
+          if( $record->value('depth') == $this->depth['fast'])
 	    $interval += $fast * $record->value('plies') / $divider; 
 	  else
 	    $interval += $deep * $record->value('plies') / $divider; 
 	}
 
-        $this->logger->debug( 'Interval: '. round($interval/1000));
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( 'Interval: '. round($interval/1000));
 
-        // Return negative to indicate error
-        return round($interval/1000);
+        // Return seconds
+        return round(  $interval/1000);
     }
 
 
@@ -488,15 +495,13 @@ RETURN node, d.level AS depth, p.counter AS plies';
 		' queue items for '. $user->getEmail());
 
 	// Indicate error if status is not in the list
-	$status_label='';
 	if( !in_array( $status, self::STATUS)) return -1;
-	else $status_label = ':'.$status;
 
         $query = 'MATCH (w:WebUser{id:{uid}}) 
-OPTIONAL MATCH (w)<-[:REQUESTED_BY]-(a:Analysis)-[:HAS_GOT]->(:Status'.
-$status_label.') RETURN count(a) AS items LIMIT 1';
+OPTIONAL MATCH (w)<-[:REQUESTED_BY]-(a:Analysis)-[:HAS_GOT]->(:Status{status:{status}}) 
+RETURN count(a) AS items LIMIT 1';
 
-        $params = ["uid" => intval( $user->getId())];
+        $params = ['uid' => intval( $user->getId()), 'status' => $status];
         $result = $this->neo4j_client->run( $query, $params);
 
 	$items = 0;
@@ -558,9 +563,9 @@ $status_label.') RETURN count(a) AS items LIMIT 1';
     public function getQueueWidth( $type)
     {
         // Depth paramaeter
-        $depth = $this->FAST;
-        if( intval( $type) == $this->DEEP)
-          $depth = $this->DEEP;
+        $depth = $this->depth['fast'];
+        if( intval( $type) == $this->depth['deep'])
+          $depth = $this->depth['deep'];
 
         if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching queue size for depth '.$depth);
@@ -731,8 +736,8 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
     {
 	$depth = ['white' => 0, 'black' => 0];
 	$status = array_search( "Evaluated", self::STATUS);
-	$fast = $_ENV['FAST_ANALYSIS_DEPTH'];
-	$deep = $_ENV['DEEP_ANALYSIS_DEPTH'];
+	$fast = $this->depth['fast'];
+	$deep = $this->depth['deep'];
 
         // If Analysis status is more than necessary value
         $aid = $this->matchGameAnalysis( $gid, $deep, ':'.self::SIDE['white']);
@@ -1183,7 +1188,7 @@ DELETE r';
 
 	// Status queue empty
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
-MATCH (s:Status{status:"'.$status.'"})
+MATCH (s:Status{status:{status}})
 MERGE (a)-[:HAS_GOT]->(s)
 MERGE (s)-[:FIRST]->(a)
 MERGE (s)-[:LAST]->(a)';
@@ -1192,7 +1197,7 @@ MERGE (s)-[:LAST]->(a)';
 	// Promotion when only one node present
 	if( $last != -1)
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
-MATCH (s:Status{status:"'.$status.'"})
+MATCH (s:Status{status:{status}})
 MATCH (s)-[rl:LAST]-(l:Analysis)
 MERGE (a)-[:HAS_GOT]->(s)
 MERGE (s)-[:LAST]->(a)
@@ -1204,7 +1209,7 @@ DELETE rl';
 	if( $status == 'Pending' && $first != $last 
 		&& !$this->analysisOnQueueTail( $aid))
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
-MATCH (s:Status{status:"'.$status.'"})
+MATCH (s:Status{status:{status}})
 MATCH (p)-[:NEXT]->(a)
 MATCH (p)-[r:NEXT_BY_STATUS]->(n)
 MERGE (a)-[:HAS_GOT]->(s)
@@ -1266,7 +1271,7 @@ DELETE r';
 	  }
 	}
 */
-        $params = ["aid" => intval( $aid)];
+        $params = ['aid' => intval( $aid), 'status' => $status];
         $this->neo4j_client->run($query, $params);
 
 /*	
@@ -1297,12 +1302,12 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 
 
     // Set Analysis side (WhiteSide/BlackSide)
-    public function setAnalysisSide( $aid, $side)
+    public function setAnalysisSide( $aid, $value)
     {
 	// Sides to analyze
 	$sides = self::SIDE;
-        if( $side == self::SIDE['white'] || $side == self::SIDE['black']) 
-	  $sides = [$side];
+        if( in_array( $value, self::SIDE))
+	  $sides = [$value];
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Suggested analysis node labels :'.
@@ -1354,7 +1359,8 @@ SET a:' . implode( ':', $sides);
         $this->neo4j_client->run($query, $params);
 
 	// Record action
-	$this->createAnalysisActionNode( $aid, 'SideChange', $side);
+	$this->createAnalysisActionNode( $aid, 
+		'SideChange', implode( ' ',$sides));
 
 	return true;
     }
@@ -1365,9 +1371,9 @@ SET a:' . implode( ':', $sides);
     public function setAnalysisDepth( $aid, $value)
     {
 	// Depth paramaeter
-	$depth = $this->FAST;
-	if( intval( $value) == $this->DEEP) 
-	  $depth = $this->DEEP;
+	$depth = $this->depth['fast'];
+	if( array_key_exists( $value, $this->depth))
+	  $depth = $this->depth[$value];
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Setting analysis node depth '.$depth);
@@ -1482,11 +1488,12 @@ RETURN t.status AS status';
 	$rel = 'FIRST';
 	if( $type == 'last') $rel ='LAST';
 
-	$query = 'MATCH (s:Status{status:"'.$status.'"}) 
+	$query = 'MATCH (s:Status{status:{status}}) 
 OPTIONAL MATCH (s)-[:'.$rel.']->(a:Analysis)
 RETURN id(a) AS aid';
 
-        $result = $this->neo4j_client->run($query, null);
+	$params = ['status' => $status];
+        $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
           if( $record->value('aid') != null)
@@ -1986,17 +1993,17 @@ RETURN id(a) AS aid LIMIT 1';
     public function getEvaluationSpeed( $type, $number)
     {
 	// Depth paramaeter
-	$depth = $this->FAST;
-	if( intval( $type) == $this->DEEP) 
-	  $depth = $this->DEEP;
+	$depth = $this->depth['fast'];
+	if( $type == $this->depth['deep']) 
+	  $depth = $this->depth['deep'];
 
 	// Limit number of games to get
-	if( !is_numeric( $number) || $number < 0 || $number > 100)
+	if( !is_numeric( $number) || $number < 1 || $number > 100)
 	  return -1; // Negative to indicate error
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Getting analysis '.$depth.
-		' evaluation speed for '.$number.' games');
+		' evaluation speed for '.$number.' game(s)');
 
         // Check if the value is in the cache already
 	$speed=0;
@@ -2012,9 +2019,8 @@ RETURN id(a) AS aid LIMIT 1';
           return $speed;
         }
 
-	// Check if there is already analysis graph present
-	if( !$this->updateCurrentQueueNode())
-	  return -1; // negative indicate error
+	// Maintenance
+	if( !$this->updateCurrentQueueNode()) return -1;
 
         $query = '
 MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1 
@@ -2040,8 +2046,13 @@ RETURN average.milliseconds AS speed';
           if( $record->value('speed') != null)
             $speed = $record->value('speed');
 
+	// Nothing has been fetched from the DB, set dummy
+	if( $speed == 0)
+	  if( $depth == $this->depth['fast']) $speed = 2000;
+	    else $speed = 8000;
+
 	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug( $speed);
+          $this->logger->debug( 'Fetched speed: '.$speed. ' ms');
 
         // Storing the value in cache
         apcu_add( $cacheVarName, $speed, 3600);

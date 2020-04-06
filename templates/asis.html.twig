@@ -176,9 +176,8 @@ Use the form below to upload your games.</p>
 <option value="BlackSide">Black Only</option>
 </select>
 <select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">
-<option value="">18+ plies</option>
-<option value="20">20+ plies</option>
-<option value="23">23+ plies</option>
+<option value="fast">Fast</option>
+<option value="deep">Deep</option>
 </select>
 <div id="analysis_submit_group">
      <button type="submit"
@@ -231,6 +230,8 @@ Use the form below to upload your games.</p>
 <span>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'fast');">Fast</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'deep');">Deep</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'pending');">Pending</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'processing');">Processing</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'skipped');">Skipped</button>
@@ -322,9 +323,8 @@ Use the form below to upload your games.</p>
 <option value="BlackSide">Black Only</option>
 </select>
 <select style="float:left;" name="AnalysisDepth" id="AnalysisDepth">
-<option value="">18+ plies</option>
-<option value="20">20+ plies</option>
-<option value="23">23+ plies</option>
+<option value="fast">fast</option>
+<option value="deep">deep</option>
 </select>
 <div id="analysis_submit">
      <button type="submit" 

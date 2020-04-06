@@ -224,6 +224,7 @@ LIMIT 1";
 			"result", "ending",
 			"status",
 			"side",
+			"type",
 			"email",
 			"eco",
 			"piece",
@@ -239,6 +240,12 @@ LIMIT 1";
 	$side_colors	 = [ "white" => "White", "black" => "Black" ];
 	$side_results	 = [ "wins" => "Win", "draws" => "Draw", "loses" => "Loss" ];
 	$side_label = "";
+
+	// Analysis type
+	$analysis_types	= [ "fast" => $_ENV['FAST_ANALYSIS_DEPTH'], 
+			"deep" => $_ENV['DEEP_ANALYSIS_DEPTH'] ];
+	$analysis_depth = 0;
+	$depth_param	= "";
 
 	// Valid tag values
 	$valid_ending	= [ "checkmate" => "CheckMate", "stalemate" => "StaleMate" ];
@@ -394,6 +401,13 @@ echo "<br/>\n";
 		    if( $params["end_day"] > 31 || $params["end_day"] < 1) $params["end_day"] = 0;
 		    break;
 		
+		  case "type":
+
+		    // Check for valid analysis type
+		    if( array_key_exists( strtolower( $tag_value), $analysis_types))
+		      $analysis_depth = $analysis_types[strtolower( $tag_value)];
+		    break;
+
 		  case "side":
 
 		    // Check for valid side
@@ -757,6 +771,12 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	  $webuser = "{id:{wu_id}}";
 	  $params["wu_id"] = intval( $this->wu_id);
 	}
+
+	// Add depth paramteer
+	if( $analysis_depth > 0) {
+	  $depth_param = "{level:{depth}}";
+	  $params["depth"] = intval( $analysis_depth);
+	}
 /*
 	// Game ID has been specified
 	$game_id_condition = "";
@@ -765,9 +785,6 @@ LIMIT ".self::RECORDS_PER_PAGE;
 */
 	// Specific game id
 	if( array_key_exists( "id", $params)) {
-
-	  // Reset status
-	  $this->item_status = "";
 
 	  $query = "MATCH (a:Analysis)-[:REQUESTED_FOR]->(game:Game)
 WHERE id(game) = {id}
@@ -778,54 +795,45 @@ RETURN a, 1 AS idx, d.level, id(game) AS gid, s.status LIMIT 1";
 	} else { 
 	
 	  // All analysis nodes starting from head
-	  $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
+	  $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis) USING SCAN f:Analysis
 MATCH path=(f)-[:NEXT*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
 MATCH (s:Status)<-[:HAS_GOT]-(a)
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
 RETURN a, length(path) AS idx, d.level, id(game) AS gid, s.status 
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
 	  // Items for specific status
 	  if( strlen( $this->item_status) > 0)
-	    $query = "MATCH (:Status{status:'".$this->item_status."'})-[:FIRST]->(f:Analysis)
+	    $query = "
+MATCH (:Status{status:'".$this->item_status."'})-[:FIRST]->(f:Analysis) USING SCAN f:Analysis
 MATCH path=(f)-[:NEXT_BY_STATUS*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
 RETURN a, length(path) AS idx, d.level, id(game) AS gid 
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
 	  // Descending sorting
 	  if( strlen( $descending)) {
 
-	  // All analysis nodes starting from tail
-	  $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
-MATCH (:Tail:Queue)-[:LAST]->(l:Analysis)
+	    // All analysis nodes starting from tail
+	    $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
+MATCH (:Tail:Queue)-[:LAST]->(l:Analysis) USING SCAN l:Analysis
 MATCH dist=(f)-[:NEXT*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
 MATCH path=(l)<-[:NEXT*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
 MATCH (s:Status)<-[:HAS_GOT]-(a)
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
 RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid, s.status
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
-	  // Items for specific status
-	  if( strlen( $this->item_status) > 0)
-	    $query = "MATCH (:Status{status:'".$this->item_status."'})-[:FIRST]->(f:Analysis)
-MATCH (:Status{status:'".$this->item_status."'})-[:LAST]->(l:Analysis)
+	    // Items for specific status
+	    if( strlen( $this->item_status) > 0)
+	      $query = "MATCH (:Status{status:'".$this->item_status."'})-[:FIRST]->(f:Analysis)
+MATCH (:Status{status:'".$this->item_status."'})-[:LAST]->(l:Analysis) USING SCAN l:Analysis
 MATCH dist=(f)-[:NEXT_BY_STATUS*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
 MATCH path=(l)<-[:NEXT_BY_STATUS*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
 RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid 
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
-/*
-	  $query = "MATCH (:Head)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:".$this->item_status.") WITH f LIMIT 1
-MATCH (:Tail)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:".$this->item_status.") WITH f,l LIMIT 1 
-MATCH dist=(f)-[:NEXT*0..]->(l) WITH max(length(dist))+2 as distance, f, l LIMIT 1 
-MATCH path=(l)<-[:NEXT*0..]-(a:".$this->item_status.$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) ". $game_id_condition. "
-RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid 
-$skip_records 
-LIMIT ".self::RECORDS_PER_PAGE;
-*/
 	  }
 	}
 
@@ -863,17 +871,15 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    else
 	      $this->item_side = "Black";
 	  }
-/*
+
 	  // If Pending, calculate estimate
 	  if( $this->item_status == "Pending") {
 
 	    // Get first Pending Analysis in the queue once
 	    if( $said == -1) {
 
-	      $said = $this->queueManager->getFirstAnalysis( "Pending");
-
-	      // There can be NO processing analysises atm
-	      //$said = $this->queueManager->getLastAnalysis( "Processing");
+	      // Pending by default
+	      $said = $this->queueManager->getFirstAnalysisStatusNode();
 
 	      $this->item_interval = 
 		$this->queueManager->getAnalysisInterval( $said, $this->analysis_id);
@@ -890,7 +896,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 
 	    $said = $this->analysis_id;
 	  }
-*/
+
 	  // Fetch actions taken on specific analysis node
 	  $query = "MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (a)<-[:WAS_TAKEN_ON]-(f:Action{action:'Creation'})
@@ -929,6 +935,7 @@ RETURN t.action,
 	      $this->item_action_params[] ='';
 	  }
 
+	  // Fetch item details
 	  $this->game_id = $record->value('gid');
 	  $this->item_depth = $record->value('d.level');
 	  $this->queue_idx = $record->value('idx');
