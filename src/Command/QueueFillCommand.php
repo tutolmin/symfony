@@ -23,7 +23,6 @@ class QueueFillCommand extends Command
 
     // Default desired queue length
     const THRESHOLD = 20;
-    const MAXLENGTH = 2000;
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:fill';
@@ -108,7 +107,8 @@ class QueueFillCommand extends Command
 	$threshold = intval( $input->getOption('threshold'));
 
 	// Cap the user input with reasonable max value
-	if( $threshold > self::MAXLENGTH) $threshold=self::MAXLENGTH;
+	if( $threshold > $_ENV['PENDING_QUEUE_LIMIT']) 
+		$threshold = $_ENV['PENDING_QUEUE_LIMIT'];
 
 	$output->writeln( 'We are going to fill the queue to '. $threshold. ' items...');
 

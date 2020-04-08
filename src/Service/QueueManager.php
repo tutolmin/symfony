@@ -27,6 +27,8 @@ class QueueManager
     // Analysis types
     private $depth = ['fast' => 0, 'deep' => 0];
 
+    private $analysis_id = -1;
+
     // Logger reference
     private $logger;
 
@@ -238,7 +240,6 @@ DETACH DELETE a,c", $params);
 
 	  // Reset analysis existance flag for each new node 
 	  $this->setAnalysisNodeExistsFlag( false);
-break;
 	}
 	return true;
     }
@@ -308,7 +309,7 @@ REMOVE c:Current SET q:Current';
 	  }
 */
 
-	// Attach to tail by default
+	// Attach Current label to tail by default
 	$query = 'MATCH (t:Tail)
 OPTIONAL MATCH (c:Current)
 REMOVE c:Current SET t:Current';
@@ -420,6 +421,8 @@ RETURN id(l) AS aid LIMIT 1';
 
     // Returns interval in seconds between two Analysis nodes
     // taking into account current evaluation speed
+    // Makes sence for Pending status only
+    // Takes a lot DB hits for descending order
     public function getAnalysisInterval( $said, $faid)
     {
         if( $_ENV['APP_DEBUG'])
@@ -440,7 +443,8 @@ RETURN id(l) AS aid LIMIT 1';
         $query = '
 MATCH (s:Analysis) WHERE id(s)={said}
 MATCH (f:Analysis) WHERE id(f)={faid}
-MATCH path=(s)-[:NEXT*0..]->(f) WITH nodes(path) AS nodes LIMIT 1
+MATCH path=shortestPath((s)-[:NEXT_BY_STATUS*0..]->(f)) 
+ WITH nodes(path) AS nodes LIMIT 1
 UNWIND nodes AS node 
 MATCH (node)-[:REQUIRED_DEPTH]->(d:Depth) 
 MATCH (node)-[:PERFORMED_ON]->(l:Line)-[:GAME_HAS_LENGTH]->(p:GamePlyCount)
@@ -559,13 +563,13 @@ RETURN count(a) AS items LIMIT 1';
 
 
 
-    // get analysis queue width
-    public function getQueueWidth( $type)
+    // get analysis queue width (fast|deep)
+    public function getQueueWidth( $type = 'fast')
     {
         // Depth paramaeter
         $depth = $this->depth['fast'];
-        if( intval( $type) == $this->depth['deep'])
-          $depth = $this->depth['deep'];
+        if( array_key_exists( $type, $this->depth))
+          $depth = $this->depth[$type];
 
         if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching queue size for depth '.$depth);
@@ -592,6 +596,15 @@ RETURN count(a) AS width';
     }
 
     // Median/Average wait time for queue items
+/*
+*
+*	Should take timestamp from ChangeStatus Processing :Action
+*	but there can be many: one for WhiteSide, another for BlackSide
+*	There can also be Skipped or Partially events
+*	So latest interval between Pending - Processing should be taken into account
+*	Why latest, take all intervals!
+*
+*/
     public function getQueueWaitTime( $type = "median", $number)
     {
 	$function = 'apoc.agg.median';
@@ -602,8 +615,7 @@ RETURN count(a) AS width';
           $this->logger->debug('Calculating '.$type.' wait time for '.$number. ' games');
 
         // Check if there is already analysis graph present
-        if( !$this->updateCurrentQueueNode())
-          return -1; // negative wait time to indicate error
+        if( !$this->updateCurrentQueueNode()) return -1;
 
         $query = 'MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1 
 MATCH (s)<-[:NEXT*0..]-(a:Analysis)-[:EVALUATED]->(p:PlyCount) WITH a,p LIMIT {number}
@@ -641,27 +653,19 @@ RETURN round('.$function.'( duration.seconds)) AS wait';
           $this->logger->debug('Calculating queue length');
 
 	// Check if there is already analysis graph present
-	if( !$this->updateCurrentQueueNode())
-	  return -1; // Negative to indicat ethe error
+	if( !$this->updateCurrentQueueNode()) return -1;
 
         // Indicate error if status is not in the list
-        $status_label='';
         if( !in_array( $status, self::STATUS)) return -1;
-        else $status_label = ':'.$status;
 
-/*
-        $query = '
-MATCH (:Queue:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:Pending) WITH f LIMIT 1 
-MATCH (:Queue:Tail)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:Pending) WITH f,l LIMIT 1 
-MATCH path=(f)-[:NEXT*0..]-(l) RETURN size(nodes(path)) AS length LIMIT 1';
-*/
-	$query = 'MATCH (s:Status'.$status_label.')
+	$query = 'MATCH (s:Status{status:{status}})
 OPTIONAL MATCH (s)-[:FIRST]->(f:Analysis) 
 OPTIONAL MATCH (s)-[:LAST]->(l:Analysis) 
 OPTIONAL MATCH path=(f)-[:NEXT_BY_STATUS*0..]->(l)
-RETURN count(nodes(path)) AS length LIMIT 1';
+RETURN size(nodes(path)) AS length LIMIT 1';
 
-        $result = $this->neo4j_client->run( $query, null);
+	$params = ['status' => $status];
+        $result = $this->neo4j_client->run( $query, $params);
 
         $length = -1;
         foreach ($result->records() as $record)
@@ -705,7 +709,7 @@ RETURN id(q) AS qid LIMIT 1';
     }
 
 
-
+/*
     // check if analysis is linked to a queue tail
     private function analysisOnQueueTail( $aid)
     {
@@ -728,7 +732,7 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
         // Return 
         return false;
     }
-
+*/
 
 
     // Returns an array of evaluated analysis depths for both sides
@@ -1091,7 +1095,7 @@ DELETE r, pr, nr';
 	// Detaching head of the status queue
 	if( $first == $aid)
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
-MATCH (a)-[r]->(s:Status)
+MATCH (a)-[r]-(s:Status)
 MATCH (a)-[nr:NEXT_BY_STATUS]->(n:Analysis)
 MERGE (s)-[:FIRST]->(n)
 DELETE r, nr';
@@ -1099,7 +1103,7 @@ DELETE r, nr';
 	// Detaching tail of the status queue
 	if( $last == $aid)
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
-MATCH (a)-[r]->(s:Status)
+MATCH (a)-[r]-(s:Status)
 MATCH (p:Analysis)-[pr:NEXT_BY_STATUS]->(a)
 MERGE (s)-[:LAST]->(p)
 DELETE r, pr';
@@ -1170,6 +1174,9 @@ DELETE r';
 	// Check if the status is valid
 	if( !in_array( $status, self::STATUS)) return false;
 
+	// Query params
+        $params = ['aid' => intval( $aid), 'status' => $status];
+
 	// Get current analysis status
 	$current_status = $this->getAnalysisStatus( $aid);
 
@@ -1194,7 +1201,7 @@ MERGE (s)-[:FIRST]->(a)
 MERGE (s)-[:LAST]->(a)';
 
 	// Status queue NOT empty, attach to tail
-	// Promotion when only one node present
+	// Promotion when only one node present, no -[:NEXT]->
 	if( $last != -1)
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})
@@ -1204,20 +1211,42 @@ MERGE (s)-[:LAST]->(a)
 MERGE (l)-[:NEXT_BY_STATUS]->(a)
 DELETE rl';
 
-	// Pending is always a promotion
-	// unless tail queue node or the only Pending node
-	if( $status == 'Pending' && $first != $last 
-		&& !$this->analysisOnQueueTail( $aid))
-	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+	// Pending is always a promotion,
+	// Multiple pending nodes
+//		&& !$this->analysisOnQueueTail( $aid))
+	if( $status == 'Pending' && $first != $last) {
+
+	  // Object-oriented way
+	  $this->analysis_id = $aid;
+
+	  // Fetch previous Pending node
+	  $prev = $this->getStatusQueueNode( $status, 'prev');
+
+	  // Add one more parameter to the query
+	  $params['pid'] = intval( $prev);
+
+	  // We are not working with tail
+	  if( $prev != $last)
+	    $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (p:Analysis) WHERE id(p)={pid}
 MATCH (s:Status{status:{status}})
-MATCH (p)-[:NEXT]->(a)
 MATCH (p)-[r:NEXT_BY_STATUS]->(n)
 MERGE (a)-[:HAS_GOT]->(s)
 MERGE (p)-[:NEXT_BY_STATUS]->(a)
 MERGE (a)-[:NEXT_BY_STATUS]->(n)
 DELETE r';
 
+	}
 /*
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:{status}})
+MATCH (:Status{status:{status}})<-[:HAS_GOT]-(p:Analysis)-[:NEXT*0..]->(a) 
+  WITH p LIMIT 1
+MATCH (p)-[r:NEXT_BY_STATUS]->(n)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (p)-[:NEXT_BY_STATUS]->(a)
+MERGE (a)-[:NEXT_BY_STATUS]->(n)
+DELETE r';
 	// Change status
 	if( $current_status != -1) {
 
@@ -1271,7 +1300,6 @@ DELETE r';
 	  }
 	}
 */
-        $params = ['aid' => intval( $aid), 'status' => $status];
         $this->neo4j_client->run($query, $params);
 
 /*	
@@ -1367,8 +1395,8 @@ SET a:' . implode( ':', $sides);
 
 
 
-    // Set Analysis depth
-    public function setAnalysisDepth( $aid, $value)
+    // Set Analysis depth (fast|deep)
+    public function setAnalysisDepth( $aid, $value = 'fast')
     {
 	// Depth paramaeter
 	$depth = $this->depth['fast'];
@@ -1492,7 +1520,16 @@ RETURN t.status AS status';
 OPTIONAL MATCH (s)-[:'.$rel.']->(a:Analysis)
 RETURN id(a) AS aid';
 
-	$params = ['status' => $status];
+	// Previous node requires var-length path
+	if( $type == 'prev')
+	  $query = '
+MATCH (a:Analysis) WHERE id(a) = {aid}
+MATCH (s:Status{status:{status}}) 
+MATCH path=(a)<-[:NEXT*1..]-(p:Analysis)-[:HAS_GOT]->(s) 
+ WITH size(nodes(path)) as distance, p
+RETURN id(p) AS aid ORDER BY distance LIMIT 1';
+
+	$params = ['status' => $status, 'aid' => intval( $this->analysis_id)];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
@@ -1968,6 +2005,16 @@ RETURN id(a) AS aid LIMIT 1';
 	    if( $_ENV['APP_DEBUG'])
               $this->logger->debug(
 		'User has exceeded their submission limit.');
+
+              return false;
+	}
+
+	// Check system wide limit
+	if( $this->getQueueLength() >= $_ENV['PENDING_QUEUE_LIMIT']) {
+
+	    if( $_ENV['APP_DEBUG'])
+              $this->logger->debug(
+		'System wide submission limit reached.');
 
               return false;
 	}

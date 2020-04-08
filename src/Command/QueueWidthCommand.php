@@ -37,11 +37,11 @@ class QueueWidthCommand extends Command
         ->setHelp('This command allows you to get game analysis queue width.')
 
         ->addOption(
-        'depth',
+        'type',
         null,
         InputOption::VALUE_OPTIONAL,
         'Please specify analysis depth',
-        $_ENV['FAST_ANALYSIS_DEPTH'] // Default
+        'fast' // Default
         )
     ;
     }
@@ -49,12 +49,12 @@ class QueueWidthCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // Get specified option
-        $depth = $input->getOption('depth');
+        $type = $input->getOption('type');
 
 	// Execute queue manager member function	
-	$depth = $this->queueManager->getQueueWidth( $depth);
+	$depth = $this->queueManager->getQueueWidth( $type);
 
-        $output->writeln( 'Current analysis queue depth is: '.$depth);
+        $output->writeln( 'Current '.$type.' analysis queue width: '.$depth);
 
         return 0;
     }
