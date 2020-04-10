@@ -20,7 +20,7 @@ function loadQueue() {
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
-        '<td>Status</td><td>Game</td><td style="text-align:center">Side</td><td>Type</td><td>Estimated</td>' +
+        '<td><abbr title="Analysis status">S</abbr></td><td>Game</td><td style="text-align:center">Side</td><td>Type</td><td>Estimated</td>' +
         '<td></td></tr>');
 
     // Iterate through all the loaded games
@@ -68,13 +68,14 @@ function loadQueue() {
         if( val["ELO_W"] != "") white_elo = ' (' + val["ELO_W"] + ') ';
         if( val["ELO_B"] != "") black_elo = ' (' + val["ELO_B"] + ') ';
 
-	analysis_type = 'Fast';
-	if( val["Depth"] > 20) analysis_type = 'Deep';
+      var analysis_icon = '<img src="img/fast.png" title="Fast analysis"/>';
+      if( val["Depth"] > 20)
+        analysis_icon = '<img src="img/deep.png" title="Deep analysis"/>';
 
     items.push('<tr class="tableRow"><td style="text-align:center">' + val["Index"] +
         '</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' +
         '</td><td>' + val["White"] + white_elo + ' vs. ' + val["Black"] + black_elo + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
-        '</td><td>' + val["Side"] + '</td><td>' + analysis_type + '</td><td>' + val["Interval"] +
+        '</td><td>' + val["Side"] + '</td><td class="centered">' + analysis_icon + '</td><td>' + val["Interval"] +
         '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
     });
 

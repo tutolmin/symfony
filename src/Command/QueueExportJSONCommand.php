@@ -110,7 +110,7 @@ class QueueExportJSONCommand extends Command
             $output->writeln( 'Can not fetch game id for analysis');
 
 	    // We need to mark it somehow, otherwise we will fetch it again
-	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
+	    $this->queueManager->promoteAnalysis( $aid, "Skipped");
 
 	    continue;
 	  }
@@ -124,9 +124,9 @@ class QueueExportJSONCommand extends Command
           if( $this->gameManager->exportJSONFile( $gid, $depth))
 
 	    // Mark the Analysis so we do not fetch it again
-	    $this->queueManager->setAnalysisStatus( $aid, "Exported");
+	    $this->queueManager->promoteAnalysis( $aid, "Exported");
  	  else
-	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
+	    $this->queueManager->promoteAnalysis( $aid, "Skipped");
 	}
 	}
         return 0;

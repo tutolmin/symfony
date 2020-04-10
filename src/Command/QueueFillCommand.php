@@ -113,7 +113,7 @@ class QueueFillCommand extends Command
 	$output->writeln( 'We are going to fill the queue to '. $threshold. ' items...');
 
 	// Check if queue is already full
-	$length = $this->queueManager->getQueueLength();
+	$length = $this->queueManager->countAnalysisNodes( 'Pending');
 
 	$output->writeln( 'Current analysis queue length = '. $length);
 
@@ -143,6 +143,14 @@ class QueueFillCommand extends Command
 
         // Get the user by email
         $user = $this->userRepository->findOneBy(['id' => $userId]);
+/*
+        // Get all active users
+        $users = $this->userRepository->findAll();
+
+        // Get random user
+        $userId = rand( 0, count( $users)-1);
+        $user = $users[$userId];
+*/
         $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
             $user,
             new Request(),
@@ -159,7 +167,8 @@ class QueueFillCommand extends Command
         if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
           $sideLabel = ":".$sideToAnalyze;
 
-        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth.' type: '.$type);
+        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth.
+		' type: '.$type.' user: '.$user->getEmail());
 
 	// Array of queued game ids
 	$gids = array();
@@ -169,16 +178,20 @@ class QueueFillCommand extends Command
           // Get the game id
           $gid = $this->gameManager->getRandomGameId( $type);
 
-          $output->writeln( 'Selected game id ' . $gid);
+          $output->writeln( 'Selected game id ' . $gid . ' depth: ' . 
+		$depth . ' label ' . $sideLabel);
 
 	  // Enqueue game analysis node
-	  if( $this->queueManager->enqueueGameAnalysis(
-                $gid, $depth, $sideLabel))
+	  if(( $aid = $this->queueManager->enqueueGameAnalysis(
+                $gid, $depth, $sideLabel)) != -1) {
+
+            $output->writeln( 'New analysis id: '.$aid);
+
 	    $gids[] = $gid;	
-	  else
+	  } else
             $output->writeln( 'Error queueing the game!');
 
-	} while( $this->queueManager->getQueueLength() < $threshold);
+	} while( $this->queueManager->countAnalysisNodes( 'Pending') < $threshold);
 
         $output->writeln( 'Loading :Game lines');
 

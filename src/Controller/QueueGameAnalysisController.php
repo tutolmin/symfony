@@ -102,7 +102,7 @@ class QueueGameAnalysisController extends AbstractController
 
 	// enqueue particular game 
 	if( $this->queueManager->enqueueGameAnalysis( 
-		$gid, $depth, $sideLabel, $userId)) {
+		$gid, $depth, $sideLabel, $userId) != -1) {
 
 	  // Build the list of :Game ids to request :Line merge
 	  $this->gids[] = $gid;

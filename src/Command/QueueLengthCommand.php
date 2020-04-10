@@ -35,15 +35,25 @@ class QueueLengthCommand extends Command
         // the full command description shown when running the command with
         // the "--help" option
         ->setHelp('This command allows you to get game analysis queue length.')
+        ->addOption(
+        'status',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Please specify analysis status',
+        'Pending' // Default
+        )
     ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-	// Execute queue manager member function	
-	$length = $this->queueManager->getQueueLength();
+        // Get specified option
+        $status = $input->getOption('status');
 
-        $output->writeln( 'Current analysis queue length is: '.$length);
+	// Execute queue manager member function	
+	$length = $this->queueManager->countAnalysisNodes( $status);
+
+        $output->writeln( 'Current '.$status.' analysis queue length is: '.$length);
 
         return 0;
     }

@@ -20,7 +20,7 @@ class QueueEraseCommand extends Command
     const FIREWALL_MAIN = "main";
 
     // the name of the command (the part after "bin/console")
-    protected static $defaultName = 'queue:erase';
+    protected static $defaultName = 'queue:erase:all';
 
     // Queue manager reference
     private $queueManager;

@@ -316,13 +316,15 @@ function loadGames() {
     // Build a table, start with header
     var items = [];
     items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll"/></td>' +
-        '<td>White</td><td>ELO W</td><td>Black</td><td>ELO B</td><td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +
+        '<td><abbr title="Avaliable analysis for White">A</abbr></td><td>White</td><td>ELO</td>' +
+	'<td><abbr title="Avaliable analysis for Black">A</abbr></td><td>Black</td><td>ELO</td>' +
+	'<td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +
         '<td><a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'gl_sort\',\'Date\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Date&nbsp;' +
         '<a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'gl_sort\',\'DateDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'gl_sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Moves&nbsp;'+
+        '#" onclick="setCookie(\'gl_sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;<abbr title="Number of game moves">M</abbr>&nbsp;'+
         '<a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'gl_sort\',\'MovesDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<td></td></tr>');
@@ -330,11 +332,20 @@ function loadGames() {
     // Iterate through all the loaded games
     $.each(data, function(key, val) {
 
-    items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
-	'<td' + (val["Analysis_W"]?' class="analysisCell"':'') + '>' + val["White"] + '</td><td>' + val["ELO_W"] + 
-	'</td><td' + (val["Analysis_B"]?' class="analysisCell"':'') + '>' + 
-	val["Black"] + '</td><td>' + val["ELO_B"] + '</td><td class="centered">' + 
-        val["Result"] + "</td><td>" + val["ECO"] + "</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
+      var W_analysis_icon = '';
+      var B_analysis_icon = '';
+      if( typeof val["Analysis_W"] == 'string' && val["Analysis_W"].length > 0) 
+	W_analysis_icon = '<img src="img/' + val["Analysis_W"] + '.png" title="' + val["Analysis_W"] + ' analysis present"/>';
+      if( typeof val["Analysis_B"] == 'string' && val["Analysis_B"].length > 0) 
+	B_analysis_icon = '<img src="img/' + val["Analysis_B"] + '.png" title="' + val["Analysis_B"] + ' analysis present"/>';
+
+      items.push('<tr class="tableRow"><td class="centered"><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
+	'<td class="centered">' + W_analysis_icon + '</td>' +
+	'<td>' + val["White"] + '</td><td class="centered">' + val["ELO_W"] + '</td>' +
+	'<td class="centered">' + B_analysis_icon + '</td>' +
+	'<td>' + val["Black"] + '</td><td class="centered">' + val["ELO_B"] + '</td>' +
+	'<td class="centered">' + val["Result"] + '</td><td class="centered">' + val["ECO"] +
+	"</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
         '<td class="centered">' + val["Moves"] + 
         '</td><!--<td class="centered">' + val["W_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["W_cheat_score"]-val["White_ELO"]) + 

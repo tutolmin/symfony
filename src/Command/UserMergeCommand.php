@@ -12,7 +12,7 @@ use App\Service\UserManager;
 class UserMergeCommand extends Command
 {
     // the name of the command (the part after "bin/console")
-    protected static $defaultName = 'user:merge';
+    protected static $defaultName = 'user:merge:all';
 
     // User nameger reference
     private $userManager;
