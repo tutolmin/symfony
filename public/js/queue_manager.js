@@ -20,7 +20,7 @@ function loadQueue() {
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
-        '<td>History</td><td>Status' +
+        '<td>H</td><td>Status' +
 '<br/><select name="AnalysisStatus" id="AnalysisStatus" onchange="setAnalysisParamList(this, \'status\')">' +
 '<option value="">Select</option>' +
 '<option value="Pending">Pending</option>' +

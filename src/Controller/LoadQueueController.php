@@ -786,9 +786,14 @@ LIMIT ".self::RECORDS_PER_PAGE;
 
 	  $query = "MATCH (a:Analysis)-[:REQUESTED_FOR]->(game:Game)
 WHERE id(game) = {id}
+MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
+MATCH dist=shortestPath((f)-[:NEXT*0..]->(a)) WITH a,game,length(dist)+1 as distance
 MATCH (s:Status)<-[:HAS_GOT]-(a)
 MATCH (d:Depth)<-[:REQUIRED_DEPTH]-(a)
-RETURN a, 1 AS idx, d.level, id(game) AS gid, s.status LIMIT 1";
+RETURN a, distance AS idx, d.level, id(game) AS gid, s.status ORDER BY idx";
+
+	  // Descending sorting
+	  if( strlen( $descending)) $query .= " DESC";
 
 	} else { 
 	

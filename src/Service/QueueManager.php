@@ -350,7 +350,12 @@ REMOVE c:Current SET q:Current';
 
 	$total = $this->countAnalysisNodes( $status);
 	if( $total < 1) return -1;
-	$params = ['status' => $status, 'SKIP' => rand(0, $total-1)];
+	else if( $total > 100) $total = 100; // Cap random
+	$skip = rand(0, $total-1);
+	$params = ['status' => $status, 'SKIP' => $skip];
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('There are '.$total.' Analysis nodes, skipping '. $skip);
 
         $query = 'MATCH (:Head)-[:FIRST]->(s:Analysis) 
 MATCH (s)-[:NEXT*0..]->(a:Analysis)
@@ -1269,7 +1274,7 @@ DELETE r';
 	  return false;
 	}
 
-	// Status queue empty
+	// Status queue empty, add very first item
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})
 MERGE (a)-[:HAS_GOT]->(s)
@@ -1277,7 +1282,8 @@ MERGE (s)-[:FIRST]->(a)
 MERGE (s)-[:LAST]->(a)';
 
 	// Status queue NOT empty, attach to tail
-	// Promotion when only one node present, no -[:NEXT]->
+	// Any status except for Pending
+	// Pending when only one node present, no (a)-[:NEXT]->
 	if( $last != -1)
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})
@@ -1287,9 +1293,14 @@ MERGE (s)-[:LAST]->(a)
 MERGE (l)-[:NEXT_BY_STATUS]->(a)
 DELETE rl';
 
-	// Pending is always a promotion,
 	// Multiple pending nodes
 //		&& !$this->analysisOnQueueTail( $aid))
+	// It is possible that Current node has muntiple Skipped
+	// Partially, etc. so previous Pending is NOT just (p)-[:NEXT]->(a)
+	// One has to *find* it.
+	// But the variable length path will expand to all prev nodes
+	// It cna be either a promotion (attached to Current)
+	// or regular addition to Tail
 	if( $status == 'Pending' && $first != $last) {
 
 	  // Object-oriented way
@@ -1599,14 +1610,25 @@ OPTIONAL MATCH (s)-[:'.$rel.']->(a:Analysis)
 RETURN id(a) AS aid';
 
 	// Previous node requires var-length path
+	// But we limit it to a :Queue node 
+	// so it does NOT expand till :Head
 	if( $type == 'prev')
+	  $query = '
+MATCH (f:Analysis)<-[:FIRST]-(:Queue)-[:QUEUED]->(l:Analysis)-[:NEXT]->(a:Analysis) 
+WHERE id(a) = {aid} 
+MATCH path=shortestPath((f)-[:NEXT*0..]->(l)) WITH a,nodes(path) as nodes 
+UNWIND nodes AS node 
+MATCH (node)-[:HAS_GOT]->(:Status{status:{status}}) 
+MATCH path=shortestPath((node)-[:NEXT*0..]->(a)) WITH id(node) AS aid, size(nodes(path)) AS dist 
+RETURN aid ORDER BY dist LIMIT 1';
+/*
 	  $query = '
 MATCH (a:Analysis) WHERE id(a) = {aid}
 MATCH (s:Status{status:{status}}) 
 MATCH path=(a)<-[:NEXT*1..]-(p:Analysis)-[:HAS_GOT]->(s) 
  WITH size(nodes(path)) as distance, p
 RETURN id(p) AS aid ORDER BY distance LIMIT 1';
-
+*/
 	$params = ['status' => $status, 'aid' => intval( $this->analysis_id)];
         $result = $this->neo4j_client->run($query, $params);
 

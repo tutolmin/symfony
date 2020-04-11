@@ -103,6 +103,18 @@ function processGame() {
     function(result) { document.getElementById('processGameStatus').innerHTML = result });
 }
 
+// Display analysis queue with certain tag
+function showQueueTag( tag) {
+
+  console.log( "Game ID: " + tag);
+
+  $('.tagsinput#queue-form-tags').importTags( tag + ';');
+
+  loadQueue();
+
+  // Issue a click event on a Queue tab
+  document.getElementById("queueTab").click();
+}
 
 // Display game data on the Analyze tab
 function showGameDetails( gid) {
@@ -335,9 +347,11 @@ function loadGames() {
       var W_analysis_icon = '';
       var B_analysis_icon = '';
       if( typeof val["Analysis_W"] == 'string' && val["Analysis_W"].length > 0) 
-	W_analysis_icon = '<img src="img/' + val["Analysis_W"] + '.png" title="' + val["Analysis_W"] + ' analysis present"/>';
+	W_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["ID"] + ')"><img src="img/' + 
+	val["Analysis_W"] + '.png" title="' + val["Analysis_W"] + ' analysis present"/></a>';
       if( typeof val["Analysis_B"] == 'string' && val["Analysis_B"].length > 0) 
-	B_analysis_icon = '<img src="img/' + val["Analysis_B"] + '.png" title="' + val["Analysis_B"] + ' analysis present"/>';
+	B_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["ID"] + ')"><img src="img/' + 
+	val["Analysis_B"] + '.png" title="' + val["Analysis_B"] + ' analysis present"/></a>';
 
       items.push('<tr class="tableRow"><td class="centered"><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
 	'<td class="centered">' + W_analysis_icon + '</td>' +
