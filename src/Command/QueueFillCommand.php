@@ -113,7 +113,7 @@ class QueueFillCommand extends Command
 	$output->writeln( 'We are going to fill the queue to '. $threshold. ' items...');
 
 	// Check if queue is already full
-	$length = $this->queueManager->countAnalysisNodes( 'Pending');
+	$length = $this->queueManager->countAnalysisNodes( 'Pending', true);
 
 	$output->writeln( 'Current analysis queue length = '. $length);
 
@@ -191,7 +191,7 @@ class QueueFillCommand extends Command
 	  } else
             $output->writeln( 'Error queueing the game!');
 
-	} while( $this->queueManager->countAnalysisNodes( 'Pending') < $threshold);
+	} while( $this->queueManager->countAnalysisNodes( 'Pending', true) < $threshold);
 
         $output->writeln( 'Loading :Game lines');
 

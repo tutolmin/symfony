@@ -365,7 +365,8 @@ function loadGames() {
         '</td><td class="centered">' + colorScore( val["W_cheat_score"]-val["White_ELO"]) + 
         '</td><td class="centered">' + val["B_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["B_cheat_score"]-val["Black_ELO"]) + 
-        '</td>--><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></tr>');
+        '</td>--><td><a href="#" onclick="showGameDetails( ' + val["ID"] + 
+	')"><img src="img/analysis.png" width="16px" title="Show game analysis"/></a></td></tr>');
     });
 
     // Clear existing table, display new data

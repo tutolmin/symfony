@@ -71,7 +71,7 @@ queue_fill () {
  random_depth
  random_side
 
- number=$((15 + RANDOM % 10))
+ number=$((45 + RANDOM % 10))
 
  php bin/console queue:fill --threshold=$number --side=$side --type=$type --depth=$depth
 }

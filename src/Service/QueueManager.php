@@ -27,6 +27,7 @@ class QueueManager
     // Analysis types
     private $depth = ['fast' => 0, 'deep' => 0];
 
+    private $queue_id = -1;
     private $analysis_id = -1;
 
     // Logger reference
@@ -350,23 +351,31 @@ REMOVE c:Current SET q:Current';
 
 	$total = $this->countAnalysisNodes( $status);
 	if( $total < 1) return -1;
-	else if( $total > 100) $total = 100; // Cap random
+//	else if( $total > 100) $total = 100; // Cap random
 	$skip = rand(0, $total-1);
 	$params = ['status' => $status, 'SKIP' => $skip];
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('There are '.$total.' Analysis nodes, skipping '. $skip);
 
+	// What is the point to folow the NEXT rels!?
+/*
         $query = 'MATCH (:Head)-[:FIRST]->(s:Analysis) 
 MATCH (s)-[:NEXT*0..]->(a:Analysis)
 RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
+*/
+        $query = 'MATCH (a:Analysis) RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
 
 	// Query for specific status
 	if( strlen( $status))
-
+/*
           $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(s:Analysis) 
 MATCH (s)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
 RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
+*/
+          $query = 'MATCH (:Status{status:{status}})<-[:HAS_GOT]-(a:Analysis) 
+RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
+
 
 	$result = $this->neo4j_client->run( $query, $params);
 
@@ -383,12 +392,51 @@ RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
 
 
 
+    // Count Queue nodes
+    public function countQueueNodes()
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting total number of :Queue nodes');
+
+	// Check if there is already analysis graph present
+	if( !$this->queueGraphExists()) return -1;
+
+        $result = $this->neo4j_client->run( 'MATCH (q:Queue)
+RETURN count(q) AS total LIMIT 1', null);
+
+        foreach ($result->records() as $record)
+          if( $record->value('total') !== null)
+            return $record->value('total');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching total number of Queue nodes!');
+
+        // Return negative to indicate error
+        return -1;
+    }
+
+
+
     // Count Analysis node, status is optional
-    public function countAnalysisNodes( $status = '')
+    public function countAnalysisNodes( $status = '', $forced = false)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Getting total number of '.
 		$status.' analysis nodes');
+
+	// Fetch value from the cache
+	$counter=0;
+        $cacheVarName = $status.'AnalysisNodeCounter';
+        if( apcu_exists( $cacheVarName))
+          $counter = apcu_fetch( $cacheVarName);
+
+        // Return counter, stored in the cache
+        if( $counter > 0 && !$forced) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Total number of '.
+              $status.' analysis nodes (cached): '.$counter);
+          return $counter;
+        }
 
 	// Check if there is already analysis graph present
 	if( !$this->queueGraphExists()) return -1;
@@ -415,8 +463,13 @@ RETURN
         $result = $this->neo4j_client->run( $query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('total') !== null)
+          if( $record->value('total') !== null) {
+
+            // Storing the value in cache
+            apcu_add( $cacheVarName, $record->value('total'), 3600);
+
             return $record->value('total');
+	}
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Error fetching total number of Analysis nodes!');
@@ -627,6 +680,47 @@ RETURN count(a) AS items LIMIT 1';
 	$items = $this->getUserQueueItems();
 
 	return $items < $limit;
+    }
+
+
+
+    // get queue node items (QUEUED|FIRST|LAST)
+    public function getQueueNodeItems( $type = 'QUQUED')
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting '.$type.' queue node item(s)');
+
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return false;
+	}
+
+	// Valid Queue node rel types
+	$rels = ['QUEUED', 'FIRST', 'LAST'];
+	if( !in_array( $type, $rels)) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Invalid queue node rel type '. $type);
+
+	  return -1;
+	}
+
+        $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+MATCH (q)-[:'.$type.']->(a:Analysis) 
+RETURN count(a) AS total';
+
+        $params = ["qid" => intval( $this->queue_id)];
+        $result = $this->neo4j_client->run( $query, $params);
+
+        $total = 0;
+        foreach ($result->records() as $record)
+          $total = $record->value('total');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Queue items: ' .$total);
+
+	return $total;
     }
 
 
@@ -1237,6 +1331,26 @@ DELETE r';
     }
 */
 
+
+    public function syncAnalysisStatus( $status = 'Pending')
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Syncing analysis status '.$status);
+
+	// Check if the status is valid
+	if( !in_array( $status, self::STATUS)) return false;
+
+	// Query params
+        $params = ['status' => $status];
+
+
+
+
+	return true;
+    }
+
+
+
     // Set Analysis status 
     // Should NEVER be called directly
     // Call promoteAnalysis instead to rearrange all rels properly
@@ -1588,18 +1702,77 @@ RETURN t.status AS status';
     }
 
 
+    // Get various Queue nodes (Head|Current|Tail|Next)
+    public function getQueueNode( $type = 'Next') {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting '.$type.' queue node');
+
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return false;
+	}
+
+	// Valid Queue node labels
+	$labels = ['Head', 'Current', 'Tail'];
+	if( !in_array( $type, $labels) && $type != 'Next') {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Invalid queue node label '. $type);
+
+	  return -1;
+	}
+
+	// Basic label check
+	if( !$this->queueGraphExists()) return -1;
+	
+        // Match queue node by label by default
+        $query = 'MATCH (q:'.$type.') RETURN id(q) AS qid LIMIT 2';
+
+	if( $type == 'Next')
+          $query = 'MATCH (q:Queue) WHERE id(q)={qid} 
+OPTIONAL MATCH (q)-[:NEXT]->(n:Queue) RETURN id(n) AS qid LIMIT 2';
+
+	$params = ['qid' => intval( $this->queue_id)];
+        $result = $this->neo4j_client->run($query, $params);
+	$records = $result->getRecords();
+
+        // We expect a single record
+	if( count( $records) > 1) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Expected single record but got '. count( $records));
+
+	  return -1;
+	}
+
+        // We expect a single record or null
+        foreach ( $records as $record)
+          if( $record->value('qid') != null) {
+
+	    $this->queue_id = $record->value('qid');
+	    return $this->queue_id;
+	  }
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching queue node');
+
+        return -1;
+    }
+
 	
     // Return node id for given status (first/last/previous)
     public function getStatusQueueNode( $status = 'Pending', $type = 'first') {
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching '.$type.' '.$status.' node');
-	
-	// Check if analysis node exists
-	if( !$this->queueGraphExists()) return -1;
 
 	// Check if the status is valid
 	if( !in_array( $status, self::STATUS)) return -1;
+	
+	// Check if analysis node exists
+	if( !$this->queueGraphExists()) return -1;
 	
 	// By default we want first node
 	$rel = 'FIRST';
@@ -2110,7 +2283,7 @@ RETURN id(a) AS aid LIMIT 1';
 	}
 
 	// Check system wide limit
-	if( $this->countAnalysisNodes( 'Pending') >= 
+	if( $this->countAnalysisNodes( 'Pending', true) >= 
 		$_ENV['PENDING_QUEUE_LIMIT']) {
 
 	    if( $_ENV['APP_DEBUG'])

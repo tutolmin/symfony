@@ -51,7 +51,7 @@ class QueueLengthCommand extends Command
         $status = $input->getOption('status');
 
 	// Execute queue manager member function	
-	$length = $this->queueManager->countAnalysisNodes( $status);
+	$length = $this->queueManager->countAnalysisNodes( $status, true);
 
         $output->writeln( 'Current '.$status.' analysis queue length is: '.$length);
 

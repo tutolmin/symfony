@@ -76,7 +76,8 @@ function loadQueue() {
         '</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' +
         '</td><td>' + val["White"] + white_elo + ' vs. ' + val["Black"] + black_elo + ' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
         '</td><td>' + val["Side"] + '</td><td class="centered">' + analysis_icon + '</td><td>' + val["Interval"] +
-        '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
+        '</td><td><a href="#" onclick="showGameDetails( ' + val["ID"] + 
+        ')"><img src="img/analysis.png" width="16px" title="Show game analysis"/></a></td></td></tr>');
     });
 
     // Clear existing table, display new data
