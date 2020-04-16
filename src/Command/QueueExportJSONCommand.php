@@ -94,7 +94,7 @@ class QueueExportJSONCommand extends Command
 	while( $number-- > 0) {
 
 	  // Get first matching analysis node with Evaluated status
-	  $aid = $this->queueManager->getFirstAnalysis( "Evaluated");
+	  $aid = $this->queueManager->getStatusQueueNode( "Complete");
 
           $output->writeln( 'Selected analysis id: '. $aid);
 

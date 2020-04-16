@@ -258,7 +258,7 @@ Use the form below to upload your games.</p>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'pending');">Pending</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'processing');">Processing</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'skipped');">Skipped</button>
-<button onclick="$('.tagsinput#queue-form-tags').addTag( 'evaluated');">Evaluated</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'complete');">Complete</button>
 
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 <button onclick="$('.tagsinput#queue-form-tags').addTag( '{{ app.user.email }}');">My games</button>

@@ -1250,7 +1250,7 @@ RETURN id(a) AS aid LIMIT 1';
 		($first != -1 && $last == -1)) {
 
 	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Inconsistent status queue');
+            $this->logger->debug('!!! Critical Error !!! Inconsistent status queue');
 	  return false;
         }
 
@@ -1343,8 +1343,37 @@ DELETE r';
 	// Query params
         $params = ['status' => $status];
 
+	$query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
+WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 10';
 
+	if( $status == 'Processing')
+	  $query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
+WHERE exists(a.status) AND a.status IN ["Skipped","Invalid","Complete"] 
+RETURN id(a) AS aid, a.status LIMIT 10';
+	
+	// Iterate through all the fetched records
+        $result = $this->neo4j_client->run($query, $params);
 
+        foreach ($result->records() as $record)
+          if( ($aid = $record->value('aid')) != null) {
+
+	    $property = $record->value('a.status');
+	    $status = 'Skipped';
+
+	    // Skipped and invalid trigger Skipped status
+	    if( $property == 'Skipped' || $property == 'Invalid')
+	      $status = 'Skipped';
+
+	    else if( $property == 'Processing' || $property == 'Partially' 
+		|| $property == 'Evaluated')
+	      $status = 'Processing';
+
+	    else if( $property == 'Valid')
+	      $status = 'Complete';
+
+	    // Promote analysis with selected status
+	    $this->promoteAnalysis( $aid, $status);
+	}
 
 	return true;
     }
@@ -1438,6 +1467,11 @@ MERGE (a)-[:NEXT_BY_STATUS]->(n)
 DELETE r';
 
 	}
+
+	// Delete any status properties for Pending nodes
+	if( $status == 'Pending')
+	  $query .= ' REMOVE a.status';
+
 /*
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})
@@ -1500,9 +1534,9 @@ DELETE r';
 
 	  }
 	}
-*/
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug( $query . ' ' . implode( ',', $params));
+*/
         $this->neo4j_client->run($query, $params);
 
 /*	

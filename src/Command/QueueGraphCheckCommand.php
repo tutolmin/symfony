@@ -19,6 +19,9 @@ class QueueGraphCheckCommand extends Command
 {
     const FIREWALL_MAIN = "main";
 
+    const STATUS = ['Pending','Processing','Partially',
+        'Skipped','Evaluated','Exported','Complete'];
+
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:graph:check';
 
@@ -119,7 +122,7 @@ class QueueGraphCheckCommand extends Command
 	// Proceed until end of queue or error
 	$node_id = $head_id;
 	$counter = 0;
-	while( $node_id != -1) {
+	while( false && $node_id != -1) {
 
 	  $output->writeln( 'Checking validity of the: '. $node_id);
 
@@ -158,6 +161,20 @@ class QueueGraphCheckCommand extends Command
 
 	  $output->writeln( 'Total number of validated nodes do NOT match'.
 		'the number of :Queue nodes in the db: '. $total);
+	}
+
+	// Check status queues consistency
+	foreach( self::STATUS as $status) {
+
+	  $first_id = $this->queueManager->getStatusQueueNode( $status, 'first');
+	  $last_id = $this->queueManager->getStatusQueueNode( $status, 'last');
+	
+	  $output->writeln( $status.' first node id: '.$first_id.
+		' last node id: '.$last_id);
+
+	  if( ($first_id == -1 && $last_id != -1) 
+		|| ($first_id != -1 && $last_id == -1))
+	    $output->writeln( $status.' status queue inconsistent!'); 
 	}
 
         return 0;

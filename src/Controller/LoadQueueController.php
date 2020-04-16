@@ -891,8 +891,8 @@ $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 	    // Get first Pending Analysis in the queue once
 	    if( $said == -1) {
 
-	      // Pending by default
-	      $said = $this->queueManager->getFirstAnalysisStatusNode();
+	      // First Pending by default
+	      $said = $this->queueManager->getStatusQueueNode();
 
 	      $this->item_interval = 
 		$this->queueManager->getAnalysisInterval( $said, $this->analysis_id);

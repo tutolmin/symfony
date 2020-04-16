@@ -623,14 +623,14 @@ LIMIT 1";
         $analysis_requests = $game_record->value('analysises');
 	$analysis_depths = ['WhiteSide' => 0, 'BlackSide' => 0];
 	foreach( $analysis_requests as $request)
-	  if( is_array( $request[0]))
+	  if( is_array( $request[0])) {
 	    if( in_array( 'WhiteSide', $request[0]) 
 		&& $request[1] > $analysis_depths['WhiteSide'])
 	      $analysis_depths['WhiteSide'] = $request[1];
-	    else if( in_array( 'BlackSide', $request[0]) 
+	    if( in_array( 'BlackSide', $request[0]) 
 		&& $request[1] > $analysis_depths['BlackSide'])
 	      $analysis_depths['BlackSide'] = $request[1];
-
+	  }
 	if( $analysis_depths["WhiteSide"] > 0)
           $games[$index]['Analysis_W'] = 'fast';
 	if( $analysis_depths["WhiteSide"] > 20)

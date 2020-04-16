@@ -113,7 +113,8 @@ function loadQueue() {
 '<option value="deep"' + ((val["Depth"]>20)?'selected="selected"':'') + '>Deep</option>' +
 '</select>' +
 	'</td><td>' + val["Interval"] +
-        '</td><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></td></tr>');
+        '</td><td><a href="#" onclick="showGameDetails( ' + val["ID"] +
+        ')"><img src="img/analysis.png" width="16px" title="Show game analysis"/></a></td></td></tr>');
     });
 
     // Clear existing table, display new data
