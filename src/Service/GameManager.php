@@ -518,7 +518,7 @@ UNWIND slice AS node RETURN id(node) AS node_id';
 MATCH (l)-[:HAS_GOT]->(e:Evaluation)-[:RECEIVED]->(s:Score{idx:{idx}})
 MATCH (e)-[:REACHED]->(d:Depth) WHERE d.level >= {depth} WITH l,e LIMIT 1
 OPTIONAL MATCH (e)-[:PROPOSED]->(pl:Line)
-OPTIONAL MATCH path=shortestPath((l)<-[:ROOT*0..]-(pl)) WITH nodes(path) AS nodes
+OPTIONAL MATCH path=shortestPath((l)<-[:ROOT*0..11]-(pl)) WITH nodes(path) AS nodes
 UNWIND nodes AS node
 MATCH (node)-[:LEAF]->(ply:Ply)
 RETURN ply.san, id(node) AS node_id';
@@ -637,26 +637,26 @@ ORDER BY score.idx LIMIT 1';
       // Fetch actual evaluation data
       foreach( $result_e->records() as $record_e) {
 
-      if( $record_e->value('depth.level') == null) return null;
+        if( $record_e->value('depth.level') == null) return null;
 
-      $eval_data['depth']	= $record_e->value('depth.level');
-      $eval_data['seldepth']	= $record_e->value('seldepth.level');
-      $eval_data['time']	= $this->formatEvaluationTime( 
+        $eval_data['depth']	= $record_e->value('depth.level');
+        $eval_data['seldepth']	= $record_e->value('seldepth.level');
+        $eval_data['time']	= $this->formatEvaluationTime( 
 		$record_e->value('minute.minute'),
 		$record_e->value('second.second'), 
 		$record_e->value('msec.ms'));
 
-      // Skip if null returned
-      $scoreObj = $record_e->get('score');
+        // Skip if null returned
+        $scoreObj = $record_e->get('score');
 
-      // Save :Score idx for later comparison
-      $eval_data['idx'] = $scoreObj->value('idx');
+        // Save :Score idx for later comparison
+        $eval_data['idx'] = $scoreObj->value('idx');
 
-      // Parse :Score labels
-      $eval_data['score'] = $this->formatEvaluationScore(
-        $scoreObj->labels()) . $scoreObj->value('score');
+        // Parse :Score labels
+        $eval_data['score'] = $this->formatEvaluationScore(
+          $scoreObj->labels()) . $scoreObj->value('score');
 
-      return $eval_data;
+        return $eval_data;
       }
 
       return null;
