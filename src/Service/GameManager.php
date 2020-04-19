@@ -614,6 +614,10 @@ RETURN ply.san, id(node) AS node_id';
 	    if( count( $line) > 0) array_push( $alt, $line);
           }
 
+	  // Dummy records to count T3 properly
+	  $alt_lines = count( $T_scores);
+	  while( count( $T_scores) < 4) $T_scores[] = -1; 
+
 	  // Count T1/2/3
 	  foreach( $T_scores as $skey => $index) {
 
@@ -623,7 +627,11 @@ RETURN ply.san, id(node) AS node_id';
 	    }
 
 	    // Special treatment of T3 line
-            if( $skey == $index && $skey == 2)
+            if( $skey == $alt_lines && $skey == 2)
+              $Totals[$side]['t'.($skey+1)]++;
+
+	    // Special treatment of T3 line
+            if( $skey == $alt_lines && $skey == 1)
               $Totals[$side]['t'.($skey+1)]++;
 	  }
 
@@ -786,7 +794,7 @@ s.mean = $mean, s.median = $median, s.stddev = $stddev';
 
       if( $counter > 0)
         if ($counter % 2 != 0)
-          return $array[floor($counter/2)];
+          return round($array[floor($counter/2)],1);
 	else
           return round(($array[floor(($counter-1)/2)] + $array[$counter/2])/2,1);
 
