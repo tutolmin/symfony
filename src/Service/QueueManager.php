@@ -19,7 +19,7 @@ class QueueManager
 	'DepthChange','SideChange'];
 
     // Array of valid analysis node actions
-    const SIDE = ['white' => 'WhiteSide', 'black' => 'BlackSide'];
+    const SIDE = ['White' => 'WhiteSide', 'Black' => 'BlackSide'];
 
     // Default number of games to export
     const NUMBER = 20;
@@ -479,9 +479,9 @@ RETURN
     }
 
 
-
-    // get first analysis node of certain type
-    public function getFirstAnalysisStatusNode( $status = "Pending")
+/*
+    // get analysis node of certain type
+    public function getAnalysisStatusNode( $status = "Pending" First)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Getting first '.$status.' analysis node');
@@ -510,7 +510,7 @@ RETURN id(a) AS aid LIMIT 1';
         // Return non-existing id if not found
         return -1;
     }
-
+*/
 
 
 /*
@@ -588,8 +588,8 @@ RETURN node, d.level AS depth, p.counter AS plies';
 
           // Analysis sides, do not divide if both labels present
 	  $divider = 2;
-          if( in_array( self::SIDE['white'], $labelsArray) 
-	   && in_array( self::SIDE['black'], $labelsArray))
+          if( in_array( self::SIDE['White'], $labelsArray) 
+	   && in_array( self::SIDE['Black'], $labelsArray))
 	    $divider = 1;
 
 	  // Select analysis type
@@ -685,7 +685,7 @@ RETURN count(a) AS items LIMIT 1';
 
 
     // get queue node items (QUEUED|FIRST|LAST)
-    public function getQueueNodeItems( $type = 'QUQUED')
+    public function getQueueNodeItems( $type = 'QUEUED')
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Getting '.$type.' queue node item(s)');
@@ -900,53 +900,45 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
     // Returns an array of evaluated analysis depths for both sides
     public function getGameAnalysisDepths( $gid) 
     {
-	$depth = ['white' => 0, 'black' => 0];
-	$status = array_search( "Evaluated", self::STATUS);
+	$depths = ['White' => 0, 'Black' => 0];
+	$processing = array_search( "Processing", self::STATUS);
+	$complete   = array_search( "Complete", self::STATUS);
 	$fast = $this->depth['fast'];
 	$deep = $this->depth['deep'];
 
-        // If Analysis status is more than necessary value
-        $aid = $this->matchGameAnalysis( $gid, $deep, ':'.self::SIDE['white']);
-
-	// Analysis id exists and status is ok
-	if( $aid != -1 && $this->getAnalysisStatus( $aid)  >= $status)
-          $depth['white'] = $deep;
-
-	// Continue with fast depth check
-        if( $depth['white'] == 0) {
-
-	  // Need to reset whenever new anaysis is examined
-	  $this->setAnalysisExistsFlag( false);
-
-	  $aid = $this->matchGameAnalysis( $gid, $fast, ':'.self::SIDE['white']);
-
-	  if( $aid != -1 && $this->getAnalysisStatus( $aid)  >= $status)
-            $depth['white'] = $fast;
-	}
+        // Repeat for both sides
+	foreach( $depths as $side => $value) {
 
 	// Need to reset whenever new anaysis is examined
-	$this->setAnalysisExistsFlag( false);
+	$this->setAnalysisNodeExistsFlag( false);
 
         // If Analysis status is more than necessary value
-        $aid = $this->matchGameAnalysis( $gid, $deep, ':'.self::SIDE['black']);
+        $aid = $this->matchGameAnalysis( $gid, $deep, ':'.self::SIDE[$side]);
 
 	// Analysis id exists and status is ok
-	if( $aid != -1 && $this->getAnalysisStatus( $aid)  >= $status)
-          $depth['black'] = $deep;
+	$status = $this->getAnalysisStatus( $aid);
+	$property = $this->getAnalysisStatusProperty( $aid);
+	if( $aid != -1 && (($property != $processing) &&
+		($status == $processing || $status == $complete)))
+          $depths[$side] = $deep;
 
 	// Continue with fast depth check
-        if( $depth['black'] == 0) {
+        if( $depths[$side] == 0) {
 
 	  // Need to reset whenever new anaysis is examined
-	  $this->setAnalysisExistsFlag( false);
+	  $this->setAnalysisNodeExistsFlag( false);
 
-	  $aid = $this->matchGameAnalysis( $gid, $fast, ':'.self::SIDE['black']);
+	  $aid = $this->matchGameAnalysis( $gid, $fast, ':'.self::SIDE[$side]);
 
-	  if( $aid != -1 && $this->getAnalysisStatus( $aid)  >= $status)
-            $depth['black'] = $fast;
+	  $status = $this->getAnalysisStatus( $aid);
+	  $property = $this->getAnalysisStatusProperty( $aid);
+	  if( $aid != -1 && (($property != $processing) &&
+                ($status == $processing || $status == $complete)))
+            $depths[$side] = $fast;
+	}
 	}
 
-	return $depth;
+	return $depths;
     }
 
 
@@ -1186,9 +1178,9 @@ RETURN id(t) AS tid LIMIT 1';
         if( $qid == -1) return -1; 
 
 	// Check analysis side labels (all valid combinations)
-	if( $sideLabel != ':'.self::SIDE['white'] 
-		&& $sideLabel != ':'.self::SIDE['black'])
-          $sideLabel = ':'.self::SIDE['white'].':'.self::SIDE['black'];
+	if( $sideLabel != ':'.self::SIDE['White'] 
+		&& $sideLabel != ':'.self::SIDE['Black'])
+          $sideLabel = ':'.self::SIDE['White'].':'.self::SIDE['Black'];
 
         $query = 'MATCH (q:Queue) WHERE id(q)={qid}
 MATCH (g:Game) WHERE id(g)={gid}
@@ -1616,7 +1608,7 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 
 	// Deleting existing labels and adding new
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
-REMOVE a:'.self::SIDE['white'].':'.self::SIDE['black'].' 
+REMOVE a:'.self::SIDE['White'].':'.self::SIDE['Black'].' 
 SET a:' . implode( ':', $sides);
 
 	// Send the query, we do NOT expect any return
@@ -1709,6 +1701,35 @@ CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
 
 
 
+    // Return Analysis status property for a particular node
+    public function getAnalysisStatusProperty( $aid) {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching Analysis status property');
+	
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid))
+	  return -1;
+
+	$query = '
+MATCH (a:Analysis) WHERE id(a)={aid}
+RETURN a.status AS status';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+        foreach ($result->records() as $record)
+          if( $record->value('status') != null)
+            return array_search( $record->value('status'), self::STATUS);
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching analysis status property');
+
+	return -1; // Negative to indicate error
+    }
+
+
+
+    // Get various Queue nodes (Head|Current|Tail|Next)
     // Return Analysis status code for a particular node
     public function getAnalysisStatus( $aid) {
 
