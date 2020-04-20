@@ -15,11 +15,12 @@ use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
+use App\Entity\Analysis;
 
 class QueueSyncStatusCommand extends Command
 {
     // Maximum number of items to process
-    const NUMBER = 100;
+    const NUMBER = 5;
     const FIREWALL_MAIN = "main";
 
     // the name of the command (the part after "bin/console")
@@ -113,15 +114,20 @@ class QueueSyncStatusCommand extends Command
 	// Execute queue manager member function	
 	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1) {
 
-          $status = $this->getAnalysisStatus( $aid);
+          $status = $this->queueManager->getAnalysisStatus( $aid);
+	  if( $status == -1) continue;
 
-	  $output->writeln( 'Analysis node '.$aid.' status '.$status.' sync complete!');
+	  $output->writeln( 'Analysis node '.$aid.' status '.
+		Analysis::STATUS[$status].' sync complete!');
 
           // Complete analysis needs JSON export
-          if( $status == 'Complete') {
+          if( Analysis::STATUS[$status] == 'Complete') {
 
             // Get game ID for analyis
             $gid = $this->queueManager->getAnalysisGameId( $aid);
+
+            // Get available depth for each side
+            $depths = $this->queueManager->getGameAnalysisDepths( $gid);
 
             // Request JSON files update for the game
             $this->gameManager->exportJSONFile( $gid, $depths);

@@ -7,6 +7,7 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Security\Core\Security;
+use App\Entity\Analysis;
 
 class QueueManager
 {
@@ -346,7 +347,7 @@ REMOVE c:Current SET q:Current';
 	if( !$this->queueGraphExists()) return -1;
 
 	// Indicate error if status is not in the list
-	if( strlen( $status) && !in_array( $status, self::STATUS)) 
+	if( strlen( $status) && !in_array( $status, Analysis::STATUS)) 
 	  return -1;
 
 	$total = $this->countAnalysisNodes( $status);
@@ -442,7 +443,7 @@ RETURN count(q) AS total LIMIT 1', null);
 	if( !$this->queueGraphExists()) return -1;
 
 	// Indicate error if status is not in the list
-	if( strlen( $status) && !in_array( $status, self::STATUS)) 
+	if( strlen( $status) && !in_array( $status, Analysis::STATUS)) 
 	  return -1;
 
 	$query = 'MATCH (a:Analysis) 
@@ -619,7 +620,7 @@ RETURN node, d.level AS depth, p.counter AS plies';
 		' queue items for '. $user->getEmail());
 
 	// Indicate error if status is not in the list
-	if( !in_array( $status, self::STATUS)) return -1;
+	if( !in_array( $status, Analysis::STATUS)) return -1;
 
         $query = 'MATCH (w:WebUser{id:{uid}}) 
 MATCH (s:Status{status:{status}})
@@ -901,8 +902,8 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
     public function getGameAnalysisDepths( $gid) 
     {
 	$depths = ['White' => 0, 'Black' => 0];
-	$processing = array_search( "Processing", self::STATUS);
-	$complete   = array_search( "Complete", self::STATUS);
+	$processing = array_search( "Processing", Analysis::STATUS);
+	$complete   = array_search( "Complete", Analysis::STATUS);
 	$fast = $this->depth['fast'];
 	$deep = $this->depth['deep'];
 
@@ -1234,8 +1235,8 @@ RETURN id(a) AS aid LIMIT 1';
 	if( $current_status == -1) return true;
 
 	// get first and last nodes for a given status
-	$first = $this->getStatusQueueNode( self::STATUS[$current_status]);
-	$last = $this->getStatusQueueNode( self::STATUS[$current_status], 'last');
+	$first = $this->getStatusQueueNode( Analysis::STATUS[$current_status]);
+	$last = $this->getStatusQueueNode( Analysis::STATUS[$current_status], 'last');
 
 	// Inconsistent status queue
 	if( ($first == -1 && $last != -1) ||
@@ -1330,7 +1331,7 @@ DELETE r';
           $this->logger->debug('Syncing analysis status '.$status);
 
 	// Check if the status is valid
-	if( !in_array( $status, self::STATUS)) return -1;
+	if( !in_array( $status, Analysis::STATUS)) return -1;
 
 	// Query params
         $params = ['status' => $status];
@@ -1340,11 +1341,19 @@ DELETE r';
 WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 1';
 
 	// Special handling of Processing status queue nodes
-	if( $status == 'Processing')
+	if( $status == 'Processing') {
+/*
 	  $query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
-WHERE exists(a.status) AND a.status IN ["Skipped","Invalid","Complete"] 
+WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"] 
 RETURN id(a) AS aid, a.status LIMIT 1';
-	
+*/
+	  $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(f:Analysis)
+MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis) 
+ WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"] 
+ WITH a LIMIT 1
+RETURN id(a) AS aid, a.status';
+	}	
+
 	// Iterate through all the fetched records
         $result = $this->neo4j_client->run($query, $params);
 
@@ -1397,7 +1406,7 @@ RETURN id(a) AS aid, a.status LIMIT 1';
 	if( !$this->analysisNodeExists( $aid)) return false;
 
 	// Check if the status is valid
-	if( !in_array( $status, self::STATUS)) return false;
+	if( !in_array( $status, Analysis::STATUS)) return false;
 
 	// Query params
         $params = ['aid' => intval( $aid), 'status' => $status];
@@ -1563,7 +1572,7 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 */
 
 	// Record status change if NOT promotion
-	if( $current_status != array_search( $status, self::STATUS))
+	if( $current_status != array_search( $status, Analysis::STATUS))
 	  $this->createAnalysisActionNode( $aid, 'StatusChange', $status);
 
 	return true;
@@ -1732,7 +1741,7 @@ RETURN a.status AS status';
         $result = $this->neo4j_client->run($query, $params);
         foreach ($result->records() as $record)
           if( $record->value('status') != null)
-            return array_search( $record->value('status'), self::STATUS);
+            return array_search( $record->value('status'), Analysis::STATUS);
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Error fetching analysis status property');
@@ -1761,7 +1770,7 @@ RETURN t.status AS status';
         $result = $this->neo4j_client->run($query, $params);
         foreach ($result->records() as $record)
           if( $record->value('status') != null)
-            return array_search( $record->value('status'), self::STATUS);
+            return array_search( $record->value('status'), Analysis::STATUS);
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Error fetching analysis status');
@@ -1837,7 +1846,7 @@ OPTIONAL MATCH (q)-[:NEXT]->(n:Queue) RETURN id(n) AS qid LIMIT 2';
           $this->logger->debug('Fetching '.$type.' '.$status.' node');
 
 	// Check if the status is valid
-	if( !in_array( $status, self::STATUS)) return -1;
+	if( !in_array( $status, Analysis::STATUS)) return -1;
 	
 	// Check if analysis node exists
 	if( !$this->queueGraphExists()) return -1;
@@ -1914,7 +1923,7 @@ RETURN d.level AS depth';
 
 	
     // Return a Game Id for an Analysis
-    private function getAnalysisGameId( $aid) {
+    public function getAnalysisGameId( $aid) {
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching Game Id for '. $aid);
@@ -1980,7 +1989,7 @@ RETURN id(g) AS gid';
 	}
 
 	// Check if the status is valid
-	if( !in_array( $status, self::STATUS)) {
+	if( !in_array( $status, Analysis::STATUS)) {
 
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug('Invalid status '.$status);
