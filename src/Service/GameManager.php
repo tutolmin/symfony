@@ -472,17 +472,16 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 		)
 		);
 
+      // Go through all the game moves
       foreach( $lids as $key => $lid) {
 
         $this->logger->debug( "Line id: ". $lid);
 
+	// Switch side/depth based on ply nnumber
 	$side = 'White';
 	if( $key % 2) $side = 'Black'; 
 	$depth = $sides_depth[$side];
-/*
-	if( $key % 2 == 0) $depth = $sides_depth['white'];
-	else $depth = $sides_depth['black'];
-*/
+	
 	// We will need it to decide later if it was best move
 	$move_score_idx	= -1;
 
@@ -493,23 +492,20 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 	// total plies counter
 	$Totals[$side]['plies']++;
 
-	// Analyzed plies counter
-//	$Totals[$side]['analyzed']++;
-
 	// Add eco info for respective moves
 	if( strlen( $ecos[$key])) {
 	  $item['eco'] = $ecos[$key];
 	  $Totals[$side]['ecos']++;
-//	  $Totals[$side]['analyzed']++;
 	}
 	if( strlen( $openings[$key]))
 	  $item['opening'] = $openings[$key];
 	if( strlen( $variations[$key]))
 	  $item['variation'] = $variations[$key];
+
+	// We can only fetch Forced mark from DB
 	if( strlen( $marks[$key])) {
 	  $item['mark'] = $marks[$key];
 	  $Totals[$side]['forced']++;
-//	  $Totals[$side]['analyzed']++;
 	}
 
         $this->logger->debug( "Fetching eval data for ". $item['san']);
@@ -542,25 +538,11 @@ UNWIND slice AS node RETURN id(node) AS node_id';
 
           // Go through all alternative lines root nodes
 	  $alt = array();
-//	  $best_check_flag = true;
 	  $T_scores = array();
           foreach ($result_a->records() as $record_a) {
 
 	    $alt_eval = $this->getBestEvaluation( $record_a->value('node_id'), $depth);
-/*
-            // Actual move better than or equal to the best line score
-            if( $best_check_flag) {
 
-              $this->logger->debug( "Best check. Current ". $move_score_idx .
-		", best alternative ".$alt_eval['idx']);
-	      $best_check_flag = false;
-
-	      if ($alt_eval['idx'] >= $move_score_idx) {
-		$item['mark'] = "Best";
-		$Totals['T1']++;
-	      }
-	    }
-*/
 	    // Push alternative move score into array
 	    $T_scores[] = $alt_eval['idx'];
 
@@ -703,6 +685,8 @@ RETURN ply.san, id(node) AS node_id';
       } catch (IOExceptionInterface $exception) {
 
         $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+
+	return false;
       }
 
       // Put the file into special uploads directory
@@ -780,9 +764,6 @@ s.mean = $mean, s.median = $median, s.stddev = $stddev';
         $params = $Totals[$side]; 
 	$params['gid'] = intval( $gid);
         $result = $this->neo4j_client->run( $query, $params);
-
-        // Fetch actual evaluation data
-//        foreach( $result->records() as $record);
       }
     }
 

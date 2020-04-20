@@ -1323,25 +1323,27 @@ DELETE r';
     }
 */
 
-
+    // Sync analysis status for first available node
     public function syncAnalysisStatus( $status = 'Pending')
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Syncing analysis status '.$status);
 
 	// Check if the status is valid
-	if( !in_array( $status, self::STATUS)) return false;
+	if( !in_array( $status, self::STATUS)) return -1;
 
 	// Query params
         $params = ['status' => $status];
 
+	// By default, select Status queue
 	$query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
-WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 10';
+WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 1';
 
+	// Special handling of Processing status queue nodes
 	if( $status == 'Processing')
 	  $query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
 WHERE exists(a.status) AND a.status IN ["Skipped","Invalid","Complete"] 
-RETURN id(a) AS aid, a.status LIMIT 10';
+RETURN id(a) AS aid, a.status LIMIT 1';
 	
 	// Iterate through all the fetched records
         $result = $this->neo4j_client->run($query, $params);
@@ -1350,24 +1352,35 @@ RETURN id(a) AS aid, a.status LIMIT 10';
           if( ($aid = $record->value('aid')) != null) {
 
 	    $property = $record->value('a.status');
-	    $status = 'Skipped';
 
 	    // Skipped and invalid trigger Skipped status
-	    if( $property == 'Skipped' || $property == 'Invalid')
+	    if( $property == 'Skipped')
 	      $status = 'Skipped';
 
-	    else if( $property == 'Processing' || $property == 'Partially' 
-		|| $property == 'Evaluated')
+	    // Switch from Pending to Processing
+	    else if( $status == 'Pending' && 
+		($property == 'Processing' 
+		|| $property == 'Partially' 
+		|| $property == 'Evaluated'))
 	      $status = 'Processing';
 
-	    else if( $property == 'Valid')
+	    // Switch from Processing to Complete
+	    else if( $status == 'Processing' &&
+	    	($property == 'Evaluated'
+		|| $property == 'Partially'))
 	      $status = 'Complete';
 
+	    // Unexpected situation, skip
+	    else
+
+	      $status = 'Skipped';
+
 	    // Promote analysis with selected status
-	    $this->promoteAnalysis( $aid, $status);
+	    if( $this->promoteAnalysis( $aid, $status))
+	      return $aid;
 	}
 
-	return true;
+	return -1;
     }
 
 

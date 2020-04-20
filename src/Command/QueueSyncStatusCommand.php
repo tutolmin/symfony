@@ -9,6 +9,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\QueueManager;
+use App\Service\GameManager;
 use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
 use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
@@ -17,13 +18,16 @@ use App\Entity\User;
 
 class QueueSyncStatusCommand extends Command
 {
+    // Maximum number of items to process
+    const NUMBER = 100;
     const FIREWALL_MAIN = "main";
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:sync:status';
 
-    // Queue manager reference
+    // Queue/Game manager reference
     private $queueManager;
+    private $gameManager;
 
     // Doctrine EntityManager
     private $em;
@@ -35,12 +39,13 @@ class QueueSyncStatusCommand extends Command
     private $guardAuthenticatorHandler;
 
     // Dependency injection of the Queue manager service
-    public function __construct( QueueManager $qm,
+    public function __construct( QueueManager $qm, GameManager $gm,
 	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
         $this->queueManager = $qm;
+        $this->gameManager = $gm;
 
         $this->em = $em;
 
@@ -59,7 +64,14 @@ class QueueSyncStatusCommand extends Command
         // the full command description shown when running the command with
         // the "--help" option
         ->setHelp('This command allows you to take analysis node status property and set status.')
-
+        // option to confirm the graph deletion
+        ->addOption(
+        'number',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Please specify the number of nodess to process',
+        self::NUMBER // this is the new default value, instead of null
+        )
 	// option to select status
 	->addOption(
         'status',
@@ -73,6 +85,14 @@ class QueueSyncStatusCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        // Parse the user specified number of games
+        $number = intval( $input->getOption('number'));
+
+        // Cap the user input with reasonable max value
+        if( $number > self::NUMBER) $number=self::NUMBER;
+
+        $output->writeln( 'We are going to process '. $number. ' items...');
+
 	// get status from command line
 	$optionValue = $input->getOption('status');
 
@@ -87,10 +107,26 @@ class QueueSyncStatusCommand extends Command
             self::FIREWALL_MAIN
         );
 
-	// Execute queue manager member function	
-	if( $this->queueManager->syncAnalysisStatus( $optionValue))
+	// Iterate
+        while( $number-- > 0)
 
-	  $output->writeln( 'Analysis nodes status sync complete!');
+	// Execute queue manager member function	
+	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1) {
+
+          $status = $this->getAnalysisStatus( $aid);
+
+	  $output->writeln( 'Analysis node '.$aid.' status '.$status.' sync complete!');
+
+          // Complete analysis needs JSON export
+          if( $status == 'Complete') {
+
+            // Get game ID for analyis
+            $gid = $this->queueManager->getAnalysisGameId( $aid);
+
+            // Request JSON files update for the game
+            $this->gameManager->exportJSONFile( $gid, $depths);
+	  }  
+	}
 
         return 0;
     }

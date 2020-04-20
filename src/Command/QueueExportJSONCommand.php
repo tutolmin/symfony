@@ -80,7 +80,8 @@ class QueueExportJSONCommand extends Command
           // Request JSON files update for the game
           $this->gameManager->exportJSONFile( $gid, $depths);
 
-	} else {
+	// How to select processed but not processing games?
+	} else if ( false) {
 	
 	// Parse the user specified number of games
 	$number = intval( $input->getOption('number'));
@@ -124,7 +125,7 @@ class QueueExportJSONCommand extends Command
           if( $this->gameManager->exportJSONFile( $gid, $depths))
 
 	    // Mark the Analysis so we do not fetch it again
-	    $this->queueManager->promoteAnalysis( $aid, "Exported");
+	    $this->queueManager->promoteAnalysis( $aid, "Complete");
  	  else
 	    $this->queueManager->promoteAnalysis( $aid, "Skipped");
 	}
