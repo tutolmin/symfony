@@ -725,11 +725,15 @@ RETURN ply.san, id(node) AS node_id';
         $Totals[$side]['median'] = $this->findMedian( $Deltas[$side]);
         $Totals[$side]['stddev'] = $this->findStdDev( $Deltas[$side]);
 
+	$Totals[$side]['forced_rate'] = 0;
 	if( $Totals[$side]['plies'] > 0)
 	  $Totals[$side]['forced_rate'] = round( $Totals[$side]['forced'] * 100 / $Totals[$side]['plies'], 1);
 
 	$nonECOplies = ($Totals[$side]['plies']-$Totals[$side]['ecos']-$Totals[$side]['forced']);
 
+	$Totals[$side]['t1_rate'] = 0;
+	$Totals[$side]['t2_rate'] = 0;
+	$Totals[$side]['t3_rate'] = 0;
 	if( $nonECOplies > 0) {
 	  $Totals[$side]['t1_rate'] = round( $Totals[$side]['t1'] * 100 / $nonECOplies, 1);
 	  $Totals[$side]['t2_rate'] = round( ($Totals[$side]['t1'] + $Totals[$side]['t2']) * 100 / $nonECOplies, 1);
@@ -738,12 +742,17 @@ RETURN ply.san, id(node) AS node_id';
 
 	$nonForcedplies = ($Totals[$side]['plies']-$Totals[$side]['forced']);
 
+	$Totals[$side]['eco_rate'] = 0;
+	$Totals[$side]['et3'] = 0;
+	$Totals[$side]['et3_rate'] = 0;
 	if( $nonForcedplies > 0) {
 	  $Totals[$side]['eco_rate'] = round( $Totals[$side]['ecos'] * 100 / $nonForcedplies, 1);
 	  $Totals[$side]['et3'] = $Totals[$side]['ecos'] + $Totals[$side]['t1'] + $Totals[$side]['t2'] + $Totals[$side]['t3'];
 	  $Totals[$side]['et3_rate'] = round( $Totals[$side]['et3'] * 100 / $nonForcedplies, 1);
 	}
 
+	$Totals[$side]['sound_rate'] = 0;
+	$Totals[$side]['best_rate'] = 0;
 	if( $Totals[$side]['analyzed'] > 0) {
 	  $Totals[$side]['sound_rate'] = round( $Totals[$side]['sound'] * 100 / $Totals[$side]['analyzed'], 1);
 	  $Totals[$side]['best_rate'] = round( $Totals[$side]['best'] * 100 / $Totals[$side]['analyzed'], 1);

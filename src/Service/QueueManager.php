@@ -11,6 +11,7 @@ use App\Entity\Analysis;
 
 class QueueManager
 {
+/*
     // Array of Analysis node statuses
     const STATUS = ['Pending','Processing','Partially',
 	'Skipped','Evaluated','Exported','Complete'];
@@ -24,7 +25,7 @@ class QueueManager
 
     // Default number of games to export
     const NUMBER = 20;
-
+*/
     // Analysis types
     private $depth = ['fast' => 0, 'deep' => 0];
 
@@ -589,8 +590,8 @@ RETURN node, d.level AS depth, p.counter AS plies';
 
           // Analysis sides, do not divide if both labels present
 	  $divider = 2;
-          if( in_array( self::SIDE['White'], $labelsArray) 
-	   && in_array( self::SIDE['Black'], $labelsArray))
+          if( in_array( Analysis::SIDE['White'], $labelsArray) 
+	   && in_array( Analysis::SIDE['Black'], $labelsArray))
 	    $divider = 1;
 
 	  // Select analysis type
@@ -914,7 +915,7 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
 	$this->setAnalysisNodeExistsFlag( false);
 
         // If Analysis status is more than necessary value
-        $aid = $this->matchGameAnalysis( $gid, $deep, ':'.self::SIDE[$side]);
+        $aid = $this->matchGameAnalysis( $gid, $deep, ':'.Analysis::SIDE[$side]);
 
 	// Analysis id exists and status is ok
 	$status = $this->getAnalysisStatus( $aid);
@@ -929,7 +930,7 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
 	  // Need to reset whenever new anaysis is examined
 	  $this->setAnalysisNodeExistsFlag( false);
 
-	  $aid = $this->matchGameAnalysis( $gid, $fast, ':'.self::SIDE[$side]);
+	  $aid = $this->matchGameAnalysis( $gid, $fast, ':'.Analysis::SIDE[$side]);
 
 	  $status = $this->getAnalysisStatus( $aid);
 	  $property = $this->getAnalysisStatusProperty( $aid);
@@ -1084,7 +1085,7 @@ RETURN id(t) AS tid';
 	if( !$this->analysisNodeExists( $aid)) return -1;
 
 	// Indicate error if action is not a valid one
-	if( !in_array( $action, self::ACTION)) return -1;
+	if( !in_array( $action, Analysis::ACTION)) return -1;
 
         // Date/Time items
         $day    = date( "j");
@@ -1179,9 +1180,9 @@ RETURN id(t) AS tid LIMIT 1';
         if( $qid == -1) return -1; 
 
 	// Check analysis side labels (all valid combinations)
-	if( $sideLabel != ':'.self::SIDE['White'] 
-		&& $sideLabel != ':'.self::SIDE['Black'])
-          $sideLabel = ':'.self::SIDE['White'].':'.self::SIDE['Black'];
+	if( $sideLabel != ':'.Analysis::SIDE['White'] 
+		&& $sideLabel != ':'.Analysis::SIDE['Black'])
+          $sideLabel = ':'.Analysis::SIDE['White'].':'.Analysis::SIDE['Black'];
 
         $query = 'MATCH (q:Queue) WHERE id(q)={qid}
 MATCH (g:Game) WHERE id(g)={gid}
@@ -1584,8 +1585,8 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
     public function setAnalysisSide( $aid, $value)
     {
 	// Sides to analyze
-	$sides = self::SIDE;
-        if( in_array( $value, self::SIDE))
+	$sides = Analysis::SIDE;
+        if( in_array( $value, Analysis::SIDE))
 	  $sides = [$value];
 
 	if( $_ENV['APP_DEBUG'])
@@ -1630,7 +1631,7 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 
 	// Deleting existing labels and adding new
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
-REMOVE a:'.self::SIDE['White'].':'.self::SIDE['Black'].' 
+REMOVE a:'.Analysis::SIDE['White'].':'.Analysis::SIDE['Black'].' 
 SET a:' . implode( ':', $sides);
 
 	// Send the query, we do NOT expect any return
@@ -1678,7 +1679,7 @@ SET a:' . implode( ':', $sides);
 		implode( ':', $suggested_sides));
 
 	// Iterate through all possible side lables
-	$sides = self::SIDE;
+	$sides = Analysis::SIDE;
 	foreach( $sides as $key => $side) 
 	  if( $this->matchGameAnalysis( $gid, $depth, ':'.$side) == -1)
 	    unset( $sides[$key]);
@@ -1967,7 +1968,7 @@ RETURN id(g) AS gid';
         foreach ($result->records() as $record)
           if( ($labelsObj = $record->get('a')) != null)
 	    return array_intersect( 
-		self::SIDE, $labelsObj->labels());
+		Analysis::SIDE, $labelsObj->labels());
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Error fetching analysis sides');

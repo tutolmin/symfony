@@ -681,6 +681,7 @@ countersTable += "<td>" +
 "</table>" +
 "</td>";
 
+if( false)
 for( const baseline of ((prefix=="W_")?W_baselines:B_baselines)) { 
 
 countersTable += "<td>" +

@@ -93,7 +93,7 @@ class GameDetailsController extends AbstractController
 	  $this->getSummary();
 
 	  // Get baselines
-	  $this->getBaselines();
+//	  $this->getBaselines();
 
 	  // Lap, baselines fetched
 	  $this->stopwatch->stop('getBaselines');
