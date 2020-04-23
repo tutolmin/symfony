@@ -62,6 +62,33 @@ class GameDetailsController extends AbstractController
         $this->logger = $logger;
         $this->fetcher = $fetcher;
         $this->gameManager = $gm;
+
+	foreach( $this->sides as $prefix) {
+	$this->game[$prefix.'Plies']="";
+	$this->game[$prefix.'Analyzed']="";
+	$this->game[$prefix.'ECOs']="";
+	$this->game[$prefix.'ECO_rate']="";
+	$this->game[$prefix.'T1']="";
+	$this->game[$prefix.'T1_rate']="";
+	$this->game[$prefix.'T2']="";
+	$this->game[$prefix.'T2_rate']="";
+	$this->game[$prefix.'T3']="";
+	$this->game[$prefix.'T3_rate']="";
+	$this->game[$prefix.'ET3']="";
+	$this->game[$prefix.'ET3_rate']="";
+	$this->game[$prefix.'Best']="";
+	$this->game[$prefix.'Best_rate']="";
+	$this->game[$prefix.'Sound']="";
+	$this->game[$prefix.'Sound_rate']="";
+	$this->game[$prefix.'Forced']="";
+	$this->game[$prefix.'Forced_rate']="";
+	$this->game[$prefix.'Deltas']="";
+	$this->game[$prefix.'avg_diff']="";
+	$this->game[$prefix.'median']="";
+	$this->game[$prefix.'std_dev']="";
+	$this->game[$prefix.'cheat_score']="";
+	$this->game[$prefix.'perp_len']="";
+	}
     }
 
     /**
@@ -304,79 +331,54 @@ RETURN summary LIMIT 2';
           if( in_array( 'White', $labelsArray)) $side = 'White';
 	  $prefix = $this->sides[$side];
 
-$this->game[$prefix.'Plies']="";
-$this->game[$prefix.'Analyzed']="";
-$this->game[$prefix.'ECOs']="";
-$this->game[$prefix.'ECO_rate']="";
-$this->game[$prefix.'T1']="";
-$this->game[$prefix.'T1_rate']="";
-$this->game[$prefix.'T2']="";
-$this->game[$prefix.'T2_rate']="";
-$this->game[$prefix.'T3']="";
-$this->game[$prefix.'T3_rate']="";
-$this->game[$prefix.'ET3']="";
-$this->game[$prefix.'ET3_rate']="";
-$this->game[$prefix.'Best']="";
-$this->game[$prefix.'Best_rate']="";
-$this->game[$prefix.'Sound']="";
-$this->game[$prefix.'Sound_rate']="";
-$this->game[$prefix.'Forced']="";
-$this->game[$prefix.'Forced_rate']="";
-$this->game[$prefix.'Deltas']="";
-$this->game[$prefix.'avg_diff']="";
-$this->game[$prefix.'median']="";
-$this->game[$prefix.'std_dev']="";
-$this->game[$prefix.'cheat_score']="";
-$this->game[$prefix.'perp_len']="";
-
-if($summaryObj->hasValue('analyzed'))
-        $this->game[$prefix.'Analyzed'] = $summaryObj->value('analyzed');
-if($summaryObj->hasValue('plies'))
-        $this->game[$prefix.'Plies'] = $summaryObj->value('plies');
-if($summaryObj->hasValue('ecos'))
-        $this->game[$prefix.'ECOs'] = $summaryObj->value('ecos');
-if($summaryObj->hasValue('eco_rate'))
-        $this->game[$prefix.'ECO_rate'] = $summaryObj->value('eco_rate');
-if($summaryObj->hasValue('t1'))
-        $this->game[$prefix.'T1'] = $summaryObj->value('t1');
-if($summaryObj->hasValue('t1_rate'))
-        $this->game[$prefix.'T1_rate'] = $summaryObj->value('t1_rate');
-if($summaryObj->hasValue('t2'))
-        $this->game[$prefix.'T2'] = $summaryObj->value('t2');
-if($summaryObj->hasValue('t2_rate'))
-        $this->game[$prefix.'T2_rate'] = $summaryObj->value('t2_rate');
-if($summaryObj->hasValue('t3'))
-        $this->game[$prefix.'T3'] = $summaryObj->value('t3');
-if($summaryObj->hasValue('t3_rate'))
-        $this->game[$prefix.'T3_rate'] = $summaryObj->value('t3_rate');
-if($summaryObj->hasValue('t3'))
-        $this->game[$prefix.'ET3'] = $summaryObj->value('et3');
-if($summaryObj->hasValue('et3_rate'))
-        $this->game[$prefix.'ET3_rate'] = $summaryObj->value('et3_rate');
-if($summaryObj->hasValue('best'))
-        $this->game[$prefix.'Best'] = $summaryObj->value('best');
-if($summaryObj->hasValue('best_rate'))
-        $this->game[$prefix.'Best_rate'] = $summaryObj->value('best_rate');
-if($summaryObj->hasValue('sound'))
-        $this->game[$prefix.'Sound'] = $summaryObj->value('sound');
-if($summaryObj->hasValue('sound_rate'))
-        $this->game[$prefix.'Sound_rate'] = $summaryObj->value('sound_rate');
-if($summaryObj->hasValue('forced'))
-        $this->game[$prefix.'Forced'] = $summaryObj->value('forced');
-if($summaryObj->hasValue('forced_rate'))
-        $this->game[$prefix.'Forced_rate'] = $summaryObj->value('forced_rate');
-if($summaryObj->hasValue('deltas'))
-        $this->game[$prefix.'Deltas'] = $summaryObj->value('deltas');
-if($summaryObj->hasValue('mean'))
-        $this->game[$prefix.'avg_diff'] = $summaryObj->value('mean');
-if($summaryObj->hasValue('median'))
-        $this->game[$prefix.'median'] = $summaryObj->value('median');
-if($summaryObj->hasValue('stddev'))
-        $this->game[$prefix.'std_dev'] = $summaryObj->value('stddev');
-if($summaryObj->hasValue('cheatscore'))
-        $this->game[$prefix.'cheat_score'] = $summaryObj->value('cheatscore');
-if($summaryObj->hasValue('perplen'))
-        $this->game[$prefix.'perp_len'] = $summaryObj->value('perplen');
+	if($summaryObj->hasValue('analyzed'))
+		$this->game[$prefix.'Analyzed'] = $summaryObj->value('analyzed');
+	if($summaryObj->hasValue('plies'))
+		$this->game[$prefix.'Plies'] = $summaryObj->value('plies');
+	if($summaryObj->hasValue('ecos'))
+		$this->game[$prefix.'ECOs'] = $summaryObj->value('ecos');
+	if($summaryObj->hasValue('eco_rate'))
+		$this->game[$prefix.'ECO_rate'] = $summaryObj->value('eco_rate');
+	if($summaryObj->hasValue('t1'))
+		$this->game[$prefix.'T1'] = $summaryObj->value('t1');
+	if($summaryObj->hasValue('t1_rate'))
+		$this->game[$prefix.'T1_rate'] = $summaryObj->value('t1_rate');
+	if($summaryObj->hasValue('t2'))
+		$this->game[$prefix.'T2'] = $summaryObj->value('t2');
+	if($summaryObj->hasValue('t2_rate'))
+		$this->game[$prefix.'T2_rate'] = $summaryObj->value('t2_rate');
+	if($summaryObj->hasValue('t3'))
+		$this->game[$prefix.'T3'] = $summaryObj->value('t3');
+	if($summaryObj->hasValue('t3_rate'))
+		$this->game[$prefix.'T3_rate'] = $summaryObj->value('t3_rate');
+	if($summaryObj->hasValue('t3'))
+		$this->game[$prefix.'ET3'] = $summaryObj->value('et3');
+	if($summaryObj->hasValue('et3_rate'))
+		$this->game[$prefix.'ET3_rate'] = $summaryObj->value('et3_rate');
+	if($summaryObj->hasValue('best'))
+		$this->game[$prefix.'Best'] = $summaryObj->value('best');
+	if($summaryObj->hasValue('best_rate'))
+		$this->game[$prefix.'Best_rate'] = $summaryObj->value('best_rate');
+	if($summaryObj->hasValue('sound'))
+		$this->game[$prefix.'Sound'] = $summaryObj->value('sound');
+	if($summaryObj->hasValue('sound_rate'))
+		$this->game[$prefix.'Sound_rate'] = $summaryObj->value('sound_rate');
+	if($summaryObj->hasValue('forced'))
+		$this->game[$prefix.'Forced'] = $summaryObj->value('forced');
+	if($summaryObj->hasValue('forced_rate'))
+		$this->game[$prefix.'Forced_rate'] = $summaryObj->value('forced_rate');
+	if($summaryObj->hasValue('deltas'))
+		$this->game[$prefix.'Deltas'] = $summaryObj->value('deltas');
+	if($summaryObj->hasValue('mean'))
+		$this->game[$prefix.'avg_diff'] = $summaryObj->value('mean');
+	if($summaryObj->hasValue('median'))
+		$this->game[$prefix.'median'] = $summaryObj->value('median');
+	if($summaryObj->hasValue('stddev'))
+		$this->game[$prefix.'std_dev'] = $summaryObj->value('stddev');
+	if($summaryObj->hasValue('cheatscore'))
+		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheatscore');
+	if($summaryObj->hasValue('perplen'))
+		$this->game[$prefix.'perp_len'] = $summaryObj->value('perplen');
 	}
     }
 

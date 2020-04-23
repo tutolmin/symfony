@@ -14,13 +14,11 @@ use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
+use App\Entity\Analysis;
 
 class QueueGraphCheckCommand extends Command
 {
     const FIREWALL_MAIN = "main";
-
-    const STATUS = ['Pending','Processing','Partially',
-        'Skipped','Evaluated','Exported','Complete'];
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:graph:check';
@@ -65,12 +63,21 @@ class QueueGraphCheckCommand extends Command
 
 	// option to confirm the graph deletion
 	->addOption(
+        'qid',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Queue id to start check from',
+        -1
+        )
+
+	// option to confirm the graph deletion
+	->addOption(
         'confirm',
         null,
         InputOption::VALUE_OPTIONAL,
         'Please confirm the graph check execution',
         false // this is the new default value, instead of null
-    )
+        )
     ;
     }
 
@@ -86,6 +93,9 @@ class QueueGraphCheckCommand extends Command
 
           return 1;
 	}
+
+	// Queue node id to start check from
+	$qid = $input->getOption('qid');
 
         // Initialize security context
         $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
@@ -119,25 +129,29 @@ class QueueGraphCheckCommand extends Command
 	}
 	$output->writeln( ':Queue:Head id: '.$head_id);
 
-	// Proceed until end of queue or error
+	// If queue id has been specified, start from it.
 	$node_id = $head_id;
+	if( $this->queueManager->getQueueNode( $qid) != -1)	
+	  $node_id = $qid;
+
 	$counter = 0;
-	while( false && $node_id != -1) {
+if( true)
+	while( $node_id != -1) {
 
 	  $output->writeln( 'Checking validity of the: '. $node_id);
 
 	  // It should have single FIRST rel
 	  $number = $this->queueManager->getQueueNodeItems( 'FIRST');
 	  if( $number != 1) {
-	    $output->writeln( 'Queue node has '.$number.' of FIRST items.');
-	    break;
+	    $output->writeln( 'Queue node has '.$number.' FIRST items.');
+//	    break;
 	  }
 
 	  // It should have single LAST rel
 	  $number = $this->queueManager->getQueueNodeItems( 'LAST');
 	  if( $number != 1) {
-	    $output->writeln( 'Queue node has '.$number.' of LAST items.');
-	    break;
+	    $output->writeln( 'Queue node has '.$number.' LAST items.');
+//	    break;
 	  }
 
 	  // It should have at least one QUEUED rels
@@ -159,12 +173,12 @@ class QueueGraphCheckCommand extends Command
 	$total = $this->queueManager->countQueueNodes();
 	if( $counter != $total) {
 
-	  $output->writeln( 'Total number of validated nodes do NOT match'.
+	  $output->writeln( 'Total number of validated nodes do NOT match '.
 		'the number of :Queue nodes in the db: '. $total);
 	}
 
 	// Check status queues consistency
-	foreach( self::STATUS as $status) {
+	foreach( Analysis::STATUS as $status) {
 
 	  $first_id = $this->queueManager->getStatusQueueNode( $status, 'first');
 	  $last_id = $this->queueManager->getStatusQueueNode( $status, 'last');

@@ -75,6 +75,7 @@ class LoadGamesController extends AbstractController
 			"status",
 			"eco",
 			"piece",
+			"switch",
 			"white", "black", 
 			"wins", "loses", "draws", 
 		"start_year", "start_month", "start_day", "end_year", "end_month", "end_day" ];
@@ -86,6 +87,7 @@ class LoadGamesController extends AbstractController
 	// Neo4j entiries
 	$side_colors	 = [ "white" => "White", "black" => "Black" ];
 	$side_results	 = [ "wins" => "Win", "draws" => "Draw", "loses" => "Loss" ];
+	$side_effective_results	 = [ "wins" => "EffectiveWin", "draws" => "EffectiveDraw", "loses" => "EffectiveLoss" ];
 
 	// Valid tag values
 	$valid_ending	= [ "checkmate" => "CheckMate", "stalemate" => "StaleMate" ];
@@ -106,6 +108,7 @@ class LoadGamesController extends AbstractController
 
 	// Results array
 	$results = [];
+	$effectiveResultSwitch = false;
 
 	// Game Ending type lable
 	$plycount_ending_label = "";
@@ -235,6 +238,11 @@ echo "<br/>\n";
 		    if( $params["end_day"] > 31 || $params["end_day"] < 1) $params["end_day"] = 0;
 		    break;
 		
+		  case "switch":
+		    if( $tag_value == 'effectiveResult')
+		      $effectiveResultSwitch = true;
+		    break;
+
 		  case "status":
 		    if( array_key_exists( $tag_value, $game_statuses)) $status_label = $game_statuses[$tag_value];
 		    break;
@@ -357,11 +365,30 @@ $second_results = array();
 
 // Push all values if empty results array
 if( !count( $results)) {
-  array_push( $first_results, "Win", "Draw", "Loss","Unknown");
+
+  // Effective result has different labels
+  if( $effectiveResultSwitch)
+
+    array_push( $first_results, "EffectiveWin", "EffectiveDraw", "EffectiveLoss", "Unknown");
+  else
+    array_push( $first_results, "Win", "Draw", "Loss", "Unknown");
+
   $second_results=$first_results;
+
 } else {
-  array_push( $first_results, $side_results[$results["first"]]);
-  array_push( $second_results, $side_results[$results["second"]]);
+
+  // Effective result has different labels
+  if( $effectiveResultSwitch) {
+
+    array_push( $first_results, $side_effective_results[$results["first"]]);
+    array_push( $second_results, $side_effective_results[$results["second"]]);
+
+  } else {
+
+    array_push( $first_results, $side_results[$results["first"]]);
+    array_push( $second_results, $side_results[$results["second"]]);
+
+  }
 }
 
 if( self::_DEBUG) {

@@ -302,6 +302,14 @@ function parseTags( element) {
       return;
     }
 
+    // Special switches
+    re = /^(effectiveResult|resultMismatch)$/;
+    if( found_switch = item.match( re)) {
+      tags_str += "switch:" + found_switch[0] + ";";
+      console.log( found_switch);
+      return;
+    }
+
     // Just a player
     tags_str += "player:" + item + ";";
   }
@@ -581,9 +589,9 @@ for (index = 1; index < Positions.length; index++) {
   // Chess game for variation replay
   var moveVar = new Chess( currentGame.fen());
 
+//  console.log( index + ' ' + Positions[index][_MOVE]);
   var cmove = currentGame.move( Positions[index][_MOVE], {sloppy: true});
   Positions[index][_MOVE] = cmove.san;
-//  console.log( Positions[index][_MOVE]);
 
   // Go through the variation array
   for (vindex = 0; vindex < Positions[index][_T1_MOVE].length; vindex++) {

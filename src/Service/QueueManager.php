@@ -128,6 +128,34 @@ RETURN id(h) AS head, id(t) AS tail, id(c) AS current, id(p) AS pending LIMIT 1'
 
 
 
+    // check :Queue node existance in the database
+    private function queueNodeExists( $qid)
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Checking for queue node ".$qid." existance.");
+
+	// Check if queue node present
+	if( !$this->queueGraphExists()) return false;
+
+        $query = 'MATCH (q:Queue) WHERE id(q) = {qid}
+RETURN id(q) AS qid LIMIT 1';
+
+        $params = ["qid" => intval( $qid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('qid') != null)
+            return true;
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Queue node does NOT exist');
+
+        // Return 
+        return false;
+    }
+
+
+
     // check :Analysis node existance in the database
     private function analysisNodeExists( $aid)
     {
@@ -1780,7 +1808,7 @@ RETURN t.status AS status';
     }
 
 
-    // Get various Queue nodes (Head|Current|Tail|Next)
+    // Get various Queue nodes (Head|Current|Tail|Next or qid)
     public function getQueueNode( $type = 'Next') {
 
 	if( $_ENV['APP_DEBUG'])
@@ -1791,6 +1819,14 @@ RETURN t.status AS status';
             $this->logger->debug('Access denied');
 	  return false;
 	}
+
+	// Check by queue node id
+	if( is_numeric( $type))
+	  if( $this->queueNodeExists( $type)) {
+	    $this->queue_id = $type;
+	    return $type;
+	  } else
+	    return -1;
 
 	// Valid Queue node labels
 	$labels = ['Head', 'Current', 'Tail'];

@@ -437,6 +437,7 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
       // Arrays
       $lids		= $record->value('lids');
       $moves		= $record->value('movelist');
+      $plycount		= count( $moves);
       $keys		= array_keys( $lids);
       $ecos		= array_combine( $keys, $record->value('ecos')); 
       $openings		= array_combine( $keys, $record->value('openings')); 
@@ -471,16 +472,19 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 		'analyzed' => 0,
 		)
 		);
+      $effectiveResult = ['White' => 'EffectiveDraw', 'Black' => 'EffectiveDraw'];
+      $prev_ply_eval_idx = -1;
 
       // Go through all the game moves
       foreach( $lids as $key => $lid) {
 
         $this->logger->debug( "Line id: ". $lid);
 
-	// Switch side/depth based on ply nnumber
+	// Switch side/depth based on ply number
 	$side = 'White';
 	if( $key % 2) $side = 'Black'; 
 	$depth = $sides_depth[$side];
+//	if( $depth == 0) continue;
 	
 	// We will need it to decide later if it was best move
 	$move_score_idx	= -1;
@@ -518,10 +522,32 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 	  $item['score'] = $best_eval['score'];
 	  $move_score_idx = $best_eval['idx'];
 	}
+	
+	// Final move, store effective result
+	if( $key == $plycount-1) {
+
+	  // Valid eval data present
+	  if( $move_score_idx != -1) {
+
+	    $effectiveResult['White'] = $this->getEffectiveResult( $move_score_idx, $key);
+
+	  // Consider previous move
+	  } else {
+
+	    $effectiveResult['White'] = $this->getEffectiveResult( $prev_ply_eval_idx, $key - 1);
+	  }
+
+	  // Set opposite result for Black
+	  if( $effectiveResult['White'] == 'EffectiveWin') 
+	    $effectiveResult['Black'] = 'EffectiveLoss';
+	  else if( $effectiveResult['White'] == 'EffectiveLoss') 
+	    $effectiveResult['Black'] = 'EffectiveWin';
+        }
+	$prev_ply_eval_idx = $move_score_idx;
 
         // No need to check for alternative moves if we have forced line or book move
         if( (!array_key_exists( 'mark', $item) || $item['mark'] != "Forced") && 
-		!array_key_exists( 'eco', $item)) {
+		!array_key_exists( 'eco', $item) && $depth != 0) {
 
           $this->logger->debug( "Fetching alternatives for ". $lid);
 
@@ -554,8 +580,9 @@ UNWIND slice AS node RETURN id(node) AS node_id';
 MATCH (l)-[:HAS_GOT]->(e:Evaluation)-[:RECEIVED]->(s:Score{idx:{idx}})
 MATCH (e)-[:REACHED]->(d:Depth) WHERE d.level >= {depth} WITH l,e LIMIT 1
 OPTIONAL MATCH (e)-[:PROPOSED]->(pl:Line)
-OPTIONAL MATCH path=shortestPath((l)<-[:ROOT*0..]-(pl)) WITH nodes(path) AS nodes
-UNWIND nodes AS node
+OPTIONAL MATCH path=shortestPath((l)<-[:ROOT*0..]-(pl)) WITH l,nodes(path) AS nodes
+WITH CASE WHEN nodes IS NULL THEN l ELSE nodes END AS list
+UNWIND list AS node
 MATCH (node)-[:LEAF]->(ply:Ply)
 RETURN ply.san, id(node) AS node_id';
 
@@ -670,7 +697,7 @@ RETURN ply.san, id(node) AS node_id';
       }
 
       // Store counters and calculate rates
-      $this->updateLineSummary( $gid, $Totals, $deltas);
+      $this->updateLineSummary( $gid, $Totals, $deltas, $effectiveResult);
 
       $filesystem = new Filesystem();
       try {
@@ -697,8 +724,35 @@ RETURN ply.san, id(node) AS node_id';
 
 
 
+    // get white effective result based on score and plycount
+    private function getEffectiveResult( $move_score, $ply_count) {
+
+      $result = 'EffectiveDraw';
+
+      // White made final move
+      if( $ply_count%2 == 0) {
+        if( $_ENV['EQUAL_POSITION_IDX'] - $move_score > $_ENV['DRAWISH_POSITION_THRESHOLD'])
+          $result = "EffectiveWin";
+        else if( $move_score - $_ENV['EQUAL_POSITION_IDX'] > $_ENV['DRAWISH_POSITION_THRESHOLD'])
+          $result = "EffectiveLoss";
+
+      // Black move finished the game
+      } else {
+        if( $_ENV['EQUAL_POSITION_IDX'] - $move_score > $_ENV['DRAWISH_POSITION_THRESHOLD'])
+          $result = "EffectiveLoss";
+        else if( $move_score - $_ENV['EQUAL_POSITION_IDX'] > $_ENV['DRAWISH_POSITION_THRESHOLD'])
+          $result = "EffectiveWin";
+      }
+
+      $this->logger->debug( "Effective game result for white: ".$result);
+
+      return $result;
+    }
+
+
+
     // Store counters and calculate rates
-    private function updateLineSummary( $gid, $Totals, $deltas) {
+    private function updateLineSummary( $gid, $Totals, $deltas, $effectiveResult) {
 
       // Deltas arrays for both sides
       $Deltas = array( 'White' => array(), 'Black' => array());
@@ -734,10 +788,12 @@ RETURN ply.san, id(node) AS node_id';
 	$Totals[$side]['t1_rate'] = 0;
 	$Totals[$side]['t2_rate'] = 0;
 	$Totals[$side]['t3_rate'] = 0;
+	$Totals[$side]['sound_rate'] = 0;
 	if( $nonECOplies > 0) {
 	  $Totals[$side]['t1_rate'] = round( $Totals[$side]['t1'] * 100 / $nonECOplies, 1);
 	  $Totals[$side]['t2_rate'] = round( ($Totals[$side]['t1'] + $Totals[$side]['t2']) * 100 / $nonECOplies, 1);
 	  $Totals[$side]['t3_rate'] = round( ($Totals[$side]['t1'] + $Totals[$side]['t2'] + $Totals[$side]['t3']) * 100 / $nonECOplies, 1);
+	  $Totals[$side]['sound_rate'] = round( $Totals[$side]['sound'] * 100 / $nonECOplies, 1);
         }
 
 	$nonForcedplies = ($Totals[$side]['plies']-$Totals[$side]['forced']);
@@ -751,18 +807,20 @@ RETURN ply.san, id(node) AS node_id';
 	  $Totals[$side]['et3_rate'] = round( $Totals[$side]['et3'] * 100 / $nonForcedplies, 1);
 	}
 
-	$Totals[$side]['sound_rate'] = 0;
 	$Totals[$side]['best_rate'] = 0;
 	if( $Totals[$side]['analyzed'] > 0) {
-	  $Totals[$side]['sound_rate'] = round( $Totals[$side]['sound'] * 100 / $Totals[$side]['analyzed'], 1);
 	  $Totals[$side]['best_rate'] = round( $Totals[$side]['best'] * 100 / $Totals[$side]['analyzed'], 1);
 	}
 
         $this->logger->debug( $side.": ".implode(',', $Totals[$side]));
 
         $query = 'MATCH (game:Game)-[:FINISHED_ON]->(line:Line) WHERE id(game) = $gid
+MATCH (game)-[:ENDED_WITH]->(wr)<-[:ACHIEVED]-(:White) 
+MATCH (game)-[:ENDED_WITH]->(br)<-[:ACHIEVED]-(:Black) 
 MERGE (s:Summary:'.$side.')<-[:HAS_GOT]-(line)
-SET 
+REMOVE wr:EffectiveWin:EffectiveLoss:EffectiveDraw 
+REMOVE br:EffectiveWin:EffectiveLoss:EffectiveDraw 
+SET wr:'.$effectiveResult['White'].', br:'.$effectiveResult['Black'].',
 s.deltas = $deltas, s.plies = $plies, s.analyzed = $analyzed, 
 s.t1 = $t1, s.t2 = $t2, s.t3 = $t3, 
 s.et3 = $et3, s.ecos = $ecos, s.sound = $sound, s.best = $best, s.forced = $forced,

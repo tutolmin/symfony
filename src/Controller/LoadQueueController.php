@@ -858,7 +858,7 @@ $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
 	// Start analysis Id -1 means we need to fetch first Pending once	
 	$said = -1;
-
+//if( false)
         // Fetch the item data from the DB
         foreach ( $result->records() as $record) {
 	  $this->item_side = "";
