@@ -166,3 +166,8 @@ td.deepAnalysisCell:hover { background-color:#6a6a6a;font-color:#AAA;}
 .tooltip:hover .tooltiptext {
   visibility: visible;
 }
+.gameHeader textarea {
+    width: 400px;
+    height: 100px;
+    resize: vertical;
+}
