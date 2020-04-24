@@ -7,19 +7,30 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Security\Core\Security;
+use App\Entity\Analysis;
 
 class QueueManager
 {
+/*
     // Array of Analysis node statuses
-    const STATUS = ['Pending','Processing','Partially','Skipped',
-	'Evaluated','Exported','Complete'];
+    const STATUS = ['Pending','Processing','Partially',
+	'Skipped','Evaluated','Exported','Complete'];
+
+    // Array of valit analysis node actions
+    const ACTION = ['Creation','Promotion','StatusChange',
+	'DepthChange','SideChange'];
+
+    // Array of valid analysis node actions
+    const SIDE = ['White' => 'WhiteSide', 'Black' => 'BlackSide'];
 
     // Default number of games to export
     const NUMBER = 20;
-
+*/
     // Analysis types
-    private $FAST = 0;
-    private $DEEP = 0;
+    private $depth = ['fast' => 0, 'deep' => 0];
+
+    private $queue_id = -1;
+    private $analysis_id = -1;
 
     // Logger reference
     private $logger;
@@ -32,6 +43,7 @@ class QueueManager
 
     // Special flags to avoid redundant DB calls
     private $queueGraphExistsFlag;
+    private $analysisNodeExistsFlag;
     private $updateCurrentFlag;
 
     public function __construct( ClientInterface $client, 
@@ -42,10 +54,11 @@ class QueueManager
 	$this->security = $security;
 
 	$this->queueGraphExistsFlag=false;
+	$this->analysisNodeExistsFlag=false;
 	$this->updateCurrentFlag=false;
 
-	$this->FAST = $_ENV['FAST_ANALYSIS_DEPTH'];
-	$this->DEEP = $_ENV['DEEP_ANALYSIS_DEPTH'];
+	$this->depth['fast'] = $_ENV['FAST_ANALYSIS_DEPTH'];
+	$this->depth['deep'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
     }
 
     // Getter/setter for the flags
@@ -59,6 +72,16 @@ class QueueManager
 	$this->updateCurrentFlag = $value;
     }
 
+    private function getAnalysisNodeExistsFlag() {
+
+	return $this->analysisNodeExistsFlag;
+    }
+
+    private function setAnalysisNodeExistsFlag( $value) {
+
+	$this->analysisNodeExistsFlag = $value;
+    }
+
     private function getQueueGraphExistsFlag() {
 
 	return $this->queueGraphExistsFlag;
@@ -69,67 +92,191 @@ class QueueManager
 	$this->queueGraphExistsFlag = $value;
     }
 
+
+
     // Checks if there is an analysis queue present
-    public function queueGraphExists( $force_flag = false)
+    private function queueGraphExists()
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Checking for queue graph existance: '. 
-	    (($this->getQueueGraphExistsFlag() && !$force_flag)?"skip":"proceed"));
+	    ($this->getQueueGraphExistsFlag()?"skip":"proceed"));
 
 	// Queue graph existance has been checked already
-	if( $this->getQueueGraphExistsFlag() && !$force_flag) return true;
+	if( $this->getQueueGraphExistsFlag()) return true;
 
         // If there is at least one :Queue node in the db       
-        $query = 'MATCH (h:Head) MATCH (t:Tail) 
-RETURN id(h) AS head, id(t) AS tail LIMIT 1';
+        $query = 'MATCH (h:Head) MATCH (t:Tail) MATCH (c:Current)
+MATCH (p:Status{status:"Pending"})
+RETURN id(h) AS head, id(t) AS tail, id(c) AS current, id(p) AS pending LIMIT 1';
         $result = $this->neo4j_client->run($query, null);
 
         // We expect a single record or null
         foreach ( $result->getRecords() as $record)
           if( $record->value('head') != null &&
-	      $record->value('tail') != null) {
+	      $record->value('tail') != null &&
+	      $record->value('current') != null &&
+	      $record->value('pending') != null) {
 	    $this->setQueueGraphExistsFlag( true);
 	    return true;
 	  }
 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Queue graph does NOT exist!');
+
         return false;
     }
 
-    // Init empty analysis queue
-    public function initQueue()
+
+
+    // check :Queue node existance in the database
+    private function queueNodeExists( $qid)
     {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Checking for queue node ".$qid." existance.");
+
+	// Check if queue node present
+	if( !$this->queueGraphExists()) return false;
+
+        $query = 'MATCH (q:Queue) WHERE id(q) = {qid}
+RETURN id(q) AS qid LIMIT 1';
+
+        $params = ["qid" => intval( $qid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('qid') != null)
+            return true;
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Queue node does NOT exist');
+
+        // Return 
+        return false;
+    }
+
+
+
+    // check :Analysis node existance in the database
+    private function analysisNodeExists( $aid)
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Checking for analysis node ".$aid." existance: ".
+		($this->getAnalysisNodeExistsFlag()?"skip":"proceed"));
+
+	// Analysis node existance has been checked already
+	if( $this->getAnalysisNodeExistsFlag()) return true;
+
+	// Check if analysis graph present
+	if( !$this->queueGraphExists()) return false;
+
+        $query = 'MATCH (a:Analysis) WHERE id(a) = {aid}
+RETURN id(a) AS aid LIMIT 1';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('aid') != null) {
+	    $this->setAnalysisNodeExistsFlag( true);
+            return true;
+	  }
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Analysis node does NOT exist');
+
+        // Return 
+        return false;
+    }
+
+
+
+    // Init empty analysis queue graph
+    public function initQueueGraph()
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Initializing analysis queue graph');
+
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-          $this->logger->debug('Access denied');
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
 	  return false;
 	}
 
-        $this->logger->debug('Initializing analysis queue graph');
-
 	// Check if there is already analysis graph present
-	if( !$this->queueGraphExists( true))
+	if( $this->queueGraphExists()){ 
 
-          // Create default empty analysis queue
-          $this->neo4j_client->run( "CREATE (:Queue:Head:Current:Tail)", null);
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Queue graph already exists');
+
+	  return false;
+	}
+
+        // Create default empty analysis queue
+        $this->neo4j_client->run( "CREATE (:Queue:Head:Current:Tail)", null);
+
+	return true;
     }
+
+
+
+    // Erase existing Analysis node
+    public function eraseAnalysisNode( $aid) 
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Erasing analysis node id: '. $aid);
+
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return false;
+	}
+
+	// Disconnect analysis node from it's current place
+	$this->detachAnalysisNode( $aid);
+
+	// Disconnect analysis node from status queue
+	$this->detachStatusRels( $aid);
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Erasing analysis action nodes');
+
+        // Erase Analysis node and all relationships
+        $params = ["aid" => intval( $aid)];
+        $this->neo4j_client->run( "MATCH (a:Analysis) WHERE id(a)={aid} 
+OPTIONAL MATCH (a)<-[:WAS_TAKEN_ON]-(c:Action)
+DETACH DELETE a,c", $params);
+
+	return true;
+    }
+
+
 
     // Erase existing queue graph
-    public function eraseQueue() 
+    public function eraseQueueGraph() 
     {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Erasing analysis queue graph');
+
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-          $this->logger->debug('Access denied');
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
 	  return false;
 	}
 
-        $this->logger->debug('Erasing analysis queue graph');
+	// Get random Analysis nodes one by one
+	while( ($aid = $this->getRandomAnalysisNode()) != -1)
+	{
+	  // Error occured while deleting analysis node
+	  if( !$this->eraseAnalysisNode( $aid)) return false;
 
-	// Check if there is already analysis graph present
-	if( $this->queueGraphExists())
-
-          // Erase all nodes
-          $this->neo4j_client->run( "MATCH (q:Queue) 
-OPTIONAL MATCH (a:Analysis) DETACH DELETE q,a", null);
+	  // Reset analysis existance flag for each new node 
+	  $this->setAnalysisNodeExistsFlag( false);
+	}
+	return true;
     }
 
+
+/*
     // return current queue node id, if found
     public function getCurrentQueueNode()
     {
@@ -147,9 +294,14 @@ MATCH (q:Queue:Current) RETURN id(q) AS qid LIMIT 1', null);
               return $record->value('qid');
 	}
 	
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Current queue node has NOT been found.");
+
         // Return non-existant id 
         return -1;
     }
+*/
+
 
     // Update (:Current) pointer for a queue
     public function updateCurrentQueueNode( $force_flag = false)
@@ -162,8 +314,8 @@ MATCH (q:Queue:Current) RETURN id(q) AS qid LIMIT 1', null);
         if( $this->getUpdateCurrentQueueNodeFlag() && !$force_flag) return true;
 
 	// Check if there is already analysis graph present
-	if( $this->queueGraphExists()) {
-
+	if( !$this->queueGraphExists()) return false; 
+/*
 	  // Move :Current label forward
           $query = 'MATCH (t:Queue:Tail) 
 OPTIONAL MATCH (c:Current)-[:FIRST]->(s:Analysis)
@@ -186,48 +338,211 @@ OPTIONAL MATCH (c:Current)
 REMOVE c:Current SET q:Current';
 
 	  }
+*/
 
-	  // Send request to the DB
-          $result = $this->neo4j_client->run( $query, null);
+	// Attach Current label to tail by default
+	$query = 'MATCH (t:Tail)
+OPTIONAL MATCH (c:Current)
+REMOVE c:Current SET t:Current';
 
-	  // We do not want to update Current node for subsequent calls
-	  $this->setUpdateCurrentQueueNodeFlag( true);
+	// Get first pending analysis id
+	$first = $this->getStatusQueueNode();
 
-	  return true;
-	}
-	
-	return false;
+	// There are Pending nodes present
+	if( $first != -1)
+	  $query = 'MATCH (p:Status{status:"Pending"})
+MATCH (p)-[:FIRST]->(:Analysis)<-[:QUEUED]-(q:Queue)
+OPTIONAL MATCH (c:Current)
+REMOVE c:Current SET q:Current';
+
+	// Send request to the DB
+        $result = $this->neo4j_client->run( $query, null);
+
+	// We do not want to update Current node for subsequent calls
+	$this->setUpdateCurrentQueueNodeFlag( true);
+
+	return true;
     }
 
-    // get first analysis node of certain type
-    public function getFirstAnalysis( $label = "Pending")
+
+
+    // Get Random Analysis node, status is optional
+    public function getRandomAnalysisNode( $status = '')
     {
-        $this->logger->debug('Getting first '.$label.' analysis node');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting random '.$status.' analysis node');
 
 	// Check if there is already analysis graph present
-	if( !$this->updateCurrentQueueNode())
-	  return -1; // Negative to indicat ethe error
+	if( !$this->queueGraphExists()) return -1;
 
-	// Look backward, by default
-        $query = '
-MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(f:'.$label.') 
-RETURN id(f) AS aid LIMIT 1';
+	// Indicate error if status is not in the list
+	if( strlen( $status) && !in_array( $status, Analysis::STATUS)) 
+	  return -1;
 
-	// Look forward
-	if( $label == "Pending")
-          $query = '
-MATCH (:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:'.$label.') 
-RETURN id(f) AS aid LIMIT 1';
+	$total = $this->countAnalysisNodes( $status);
+	if( $total < 1) return -1;
+//	else if( $total > 100) $total = 100; // Cap random
+	$skip = rand(0, $total-1);
+	$params = ['status' => $status, 'SKIP' => $skip];
 
-        $result = $this->neo4j_client->run( $query, null);
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('There are '.$total.' Analysis nodes, skipping '. $skip);
+
+	// What is the point to folow the NEXT rels!?
+/*
+        $query = 'MATCH (:Head)-[:FIRST]->(s:Analysis) 
+MATCH (s)-[:NEXT*0..]->(a:Analysis)
+RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
+*/
+        $query = 'MATCH (a:Analysis) RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
+
+	// Query for specific status
+	if( strlen( $status))
+/*
+          $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(s:Analysis) 
+MATCH (s)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
+RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
+*/
+          $query = 'MATCH (:Status{status:{status}})<-[:HAS_GOT]-(a:Analysis) 
+RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
+
+
+	$result = $this->neo4j_client->run( $query, $params);
 
         foreach ($result->records() as $record)
           if( $record->value('aid') != null)
             return $record->value('aid');
 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Random analysis node was NOT found!');
+
         // Return non-existing id if not found
         return -1;
     }
+
+
+
+    // Count Queue nodes
+    public function countQueueNodes()
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting total number of :Queue nodes');
+
+	// Check if there is already analysis graph present
+	if( !$this->queueGraphExists()) return -1;
+
+        $result = $this->neo4j_client->run( 'MATCH (q:Queue)
+RETURN count(q) AS total LIMIT 1', null);
+
+        foreach ($result->records() as $record)
+          if( $record->value('total') !== null)
+            return $record->value('total');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching total number of Queue nodes!');
+
+        // Return negative to indicate error
+        return -1;
+    }
+
+
+
+    // Count Analysis node, status is optional
+    public function countAnalysisNodes( $status = '', $forced = false)
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting total number of '.
+		$status.' analysis nodes');
+
+	// Fetch value from the cache
+	$counter=0;
+        $cacheVarName = $status.'AnalysisNodeCounter';
+        if( apcu_exists( $cacheVarName))
+          $counter = apcu_fetch( $cacheVarName);
+
+        // Return counter, stored in the cache
+        if( $counter > 0 && !$forced) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Total number of '.
+              $status.' analysis nodes (cached): '.$counter);
+          return $counter;
+        }
+
+	// Check if there is already analysis graph present
+	if( !$this->queueGraphExists()) return -1;
+
+	// Indicate error if status is not in the list
+	if( strlen( $status) && !in_array( $status, Analysis::STATUS)) 
+	  return -1;
+
+	$query = 'MATCH (a:Analysis) 
+RETURN count(a) AS total LIMIT 1';
+
+	// Query for specific status
+	if( strlen( $status))
+	  $query = 'MATCH (s:Status{status:$status}) 
+OPTIONAL MATCH (s)-[:FIRST]->(f:Analysis) 
+OPTIONAL MATCH (s)-[:LAST]->(l:Analysis) 
+OPTIONAL MATCH path=shortestPath((f)-[:NEXT_BY_STATUS*0..]->(l)) 
+ WITH size(nodes(path)) AS length 
+RETURN 
+ CASE length WHEN null THEN 0 
+ ELSE length END AS total LIMIT 1';
+
+	$params = ['status' => $status];
+        $result = $this->neo4j_client->run( $query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('total') !== null) {
+
+            // Storing the value in cache
+            apcu_add( $cacheVarName, $record->value('total'), 3600);
+
+            return $record->value('total');
+	}
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching total number of Analysis nodes!');
+
+        // Return negative to indicate error
+        return -1;
+    }
+
+
+/*
+    // get analysis node of certain type
+    public function getAnalysisStatusNode( $status = "Pending" First)
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting first '.$status.' analysis node');
+
+	// Indicate error if status is not in the list
+	if( !in_array( $status, self::STATUS)) return -1;
+
+	// Check if there is already analysis graph present
+	if( !$this->updateCurrentQueueNode()) return -1;
+
+	// Look backward, by default
+        $query = 'MATCH (s:Status{status:{status}})
+OPTIONAL MATCH (s)-[:FIRST]->(a:Analysis)
+RETURN id(a) AS aid LIMIT 1';
+
+	$params = ['status' => $status];
+        $result = $this->neo4j_client->run( $query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('aid') != null)
+            return $record->value('aid');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Analysis node was NOT found!');
+
+        // Return non-existing id if not found
+        return -1;
+    }
+*/
+
+
 /*
     // get last analysis node of certain type
     public function getLastAnalysis( $label = "Processing")
@@ -252,28 +567,34 @@ RETURN id(l) AS aid LIMIT 1';
         return -1;
     }
 */
-    // return interval in seconds between two Analysis nodes
+
+
+    // Returns interval in seconds between two Analysis nodes
     // taking into account current evaluation speed
+    // Makes sence for Pending status only
+    // Takes a lot DB hits for descending order
     public function getAnalysisInterval( $said, $faid)
     {
         if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Calculating interval between '. $said.' and '.$faid);
 
         // Check if there is already analysis graph present
-        if( !$this->updateCurrentQueueNode())
-          return -1; // negative to indicate error
+        if( !$this->updateCurrentQueueNode()) return -1;
 
 	// Get current evaluation speed
 	$games_number = $_ENV['SPEED_EVAL_GAMES_LIMIT'];
-	$fast = $this->getEvaluationSpeed( $this->FAST, $games_number);
-	$deep = $this->getEvaluationSpeed( $this->DEEP, $games_number);
+	$fast = $this->getEvaluationSpeed( $this->depth['fast'], $games_number);
+	$deep = $this->getEvaluationSpeed( $this->depth['deep'], $games_number);
 
-        $this->logger->debug('Current speeds are: '. $fast.' and '.$deep. ' ms per ply');
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Current speeds are: '. $fast.
+		' and '.$deep. ' ms per ply');
 
         $query = '
 MATCH (s:Analysis) WHERE id(s)={said}
 MATCH (f:Analysis) WHERE id(f)={faid}
-MATCH path=(s)-[:NEXT*0..]->(f) WITH nodes(path) AS nodes LIMIT 1
+MATCH path=shortestPath((s)-[:NEXT_BY_STATUS*0..]->(f)) 
+ WITH nodes(path) AS nodes LIMIT 1
 UNWIND nodes AS node 
 MATCH (node)-[:REQUIRED_DEPTH]->(d:Depth) 
 MATCH (node)-[:PERFORMED_ON]->(l:Line)-[:GAME_HAS_LENGTH]->(p:GamePlyCount)
@@ -286,50 +607,56 @@ RETURN node, d.level AS depth, p.counter AS plies';
 	$records = $result->records();
 
 	// Process all but last element
-        foreach ( array_slice( $records, 0, count( $records) - 1) as $record){ 
+        foreach ( array_slice( $records, 0, count( $records) - 1) as $record) { 
 
           $labelsObj = $record->get('node');
           $labelsArray = $labelsObj->labels();
 
-          $this->logger->debug( 'Node: '.implode (',', $labelsArray). ', depth: '.
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( 'Node: '.implode (',', $labelsArray). ', depth: '.
 		$record->value('depth'). ', plies: '.$record->value('plies'));
 
           // Analysis sides, do not divide if both labels present
 	  $divider = 2;
-          if( in_array( "WhiteSide", $labelsArray) 
-	   && in_array( "BlackSide", $labelsArray))
+          if( in_array( Analysis::SIDE['White'], $labelsArray) 
+	   && in_array( Analysis::SIDE['Black'], $labelsArray))
 	    $divider = 1;
 
 	  // Select analysis type
-          if( $record->value('depth') == $this->FAST)
+          if( $record->value('depth') == $this->depth['fast'])
 	    $interval += $fast * $record->value('plies') / $divider; 
 	  else
 	    $interval += $deep * $record->value('plies') / $divider; 
 	}
 
-        $this->logger->debug( 'Interval: '. round($interval/1000));
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( 'Interval: '. round($interval/1000));
 
-        // Return negative to indicate error
-        return round($interval/1000);
+        // Return seconds
+        return round(  $interval/1000);
     }
 
 
 
-    // return number of Pending queue items
-    private function getUserQueueItems()
+    // return number of queue items for a user
+    public function getUserQueueItems( $status = 'Pending')
     {
         // returns User object or null if not authenticated
         $user = $this->security->getUser();
 
         if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Checking number of Pending queue items for '.
-		$user->getEmail());
+          $this->logger->debug('Checking number of '.$status.
+		' queue items for '. $user->getEmail());
+
+	// Indicate error if status is not in the list
+	if( !in_array( $status, Analysis::STATUS)) return -1;
 
         $query = 'MATCH (w:WebUser{id:{uid}}) 
-OPTIONAL MATCH(w)<-[:REQUESTED_BY]->(a:Pending) 
+MATCH (s:Status{status:{status}})
+OPTIONAL MATCH (w)<-[:REQUESTED_BY]-(a:Analysis)-[:HAS_GOT]->(s)
 RETURN count(a) AS items LIMIT 1';
 
-        $params = ["uid" => intval( $user->getId())];
+        $params = ['uid' => intval( $user->getId()), 'status' => $status];
         $result = $this->neo4j_client->run( $query, $params);
 
 	$items = 0;
@@ -338,7 +665,7 @@ RETURN count(a) AS items LIMIT 1';
             $items = $record->value('items');
 
 	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Pending queue items '.$items);
+          $this->logger->debug( $status.' queue items: '.$items);
 
 	return $items;
     }
@@ -348,13 +675,20 @@ RETURN count(a) AS items LIMIT 1';
     // check user limit, true if ok
     public function checkUserLimit()
     {
+        // returns User object or null if not authenticated
+        $user = $this->security->getUser();
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Checking submission limit for '.  $user->getEmail());
+
 	if( !$this->security->isGranted('ROLE_USER')) {
 
-          $this->logger->debug('Access denied');
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
 
 	  return false;
 	}
-	
+
 	// Queue manager is allowed to override the limit
         if ($this->security->isGranted('ROLE_QUEUE_MANAGER')) {
 
@@ -364,13 +698,6 @@ RETURN count(a) AS items LIMIT 1';
 	  return true;
 	}
 
-        // returns User object or null if not authenticated
-        $user = $this->security->getUser();
-
-        if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Checking submission limit for '.
-		$user->getEmail());
-
         // get user limit from the DB
         $limit = $user->getQueueLimit();
 	if( $limit == null)
@@ -379,7 +706,7 @@ RETURN count(a) AS items LIMIT 1';
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('User queue submission limit '.$limit);
 
-	// Fetch user items currently in the queue
+	// Fetch user items currently in the queue, Pending (by default)
 	$items = $this->getUserQueueItems();
 
 	return $items < $limit;
@@ -387,13 +714,54 @@ RETURN count(a) AS items LIMIT 1';
 
 
 
-    // get analysis queue width
-    public function getQueueWidth( $type)
+    // get queue node items (QUEUED|FIRST|LAST)
+    public function getQueueNodeItems( $type = 'QUEUED')
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting '.$type.' queue node item(s)');
+
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return false;
+	}
+
+	// Valid Queue node rel types
+	$rels = ['QUEUED', 'FIRST', 'LAST'];
+	if( !in_array( $type, $rels)) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Invalid queue node rel type '. $type);
+
+	  return -1;
+	}
+
+        $query = 'MATCH (q:Queue) WHERE id(q)={qid}
+MATCH (q)-[:'.$type.']->(a:Analysis) 
+RETURN count(a) AS total';
+
+        $params = ["qid" => intval( $this->queue_id)];
+        $result = $this->neo4j_client->run( $query, $params);
+
+        $total = 0;
+        foreach ($result->records() as $record)
+          $total = $record->value('total');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Queue items: ' .$total);
+
+	return $total;
+    }
+
+
+
+    // get analysis queue width (fast|deep)
+    public function getQueueWidth( $type = 'fast')
     {
         // Depth paramaeter
-        $depth = $this->FAST;
-        if( intval( $type) == $this->DEEP)
-          $depth = $this->DEEP;
+        $depth = $this->depth['fast'];
+        if( array_key_exists( $type, $this->depth))
+          $depth = $this->depth[$type];
 
         if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching queue size for depth '.$depth);
@@ -420,6 +788,15 @@ RETURN count(a) AS width';
     }
 
     // Median/Average wait time for queue items
+/*
+*
+*	Should take timestamp from ChangeStatus Processing :Action
+*	but there can be many: one for WhiteSide, another for BlackSide
+*	There can also be Skipped or Partially events
+*	So latest interval between Pending - Processing should be taken into account
+*	Why latest, take all intervals!
+*
+*/
     public function getQueueWaitTime( $type = "median", $number)
     {
 	$function = 'apoc.agg.median';
@@ -430,8 +807,7 @@ RETURN count(a) AS width';
           $this->logger->debug('Calculating '.$type.' wait time for '.$number. ' games');
 
         // Check if there is already analysis graph present
-        if( !$this->updateCurrentQueueNode())
-          return -1; // negative wait time to indicate error
+        if( !$this->updateCurrentQueueNode()) return -1;
 
         $query = 'MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1 
 MATCH (s)<-[:NEXT*0..]-(a:Analysis)-[:EVALUATED]->(p:PlyCount) WITH a,p LIMIT {number}
@@ -460,45 +836,50 @@ RETURN round('.$function.'( duration.seconds)) AS wait';
 	return $wait;
     }
 
-    // get analysis queue length
-// Type deep/fast queue length
-    public function getQueueLength()
+
+/*
+    // Get analysis queue length for certain status
+    public function getQueueLength( $status = 'Pending')
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Calculating queue length');
 
 	// Check if there is already analysis graph present
-	if( !$this->updateCurrentQueueNode())
-	  return -1; // Negative to indicat ethe error
+	if( !$this->updateCurrentQueueNode()) return -1;
 
-/*
-        $query = '
-MATCH (:Queue:Current)-[:FIRST]->(:Analysis)-[:NEXT*0..]->(f:Pending) WITH f LIMIT 1 
-MATCH (:Queue:Tail)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:Pending) WITH f,l LIMIT 1 
-MATCH path=(f)-[:NEXT*0..]-(l) RETURN size(nodes(path)) AS length LIMIT 1';
-*/
-	$query = 'MATCH (p:Pending) RETURN count(p) AS length LIMIT 1';
+        // Indicate error if status is not in the list
+        if( !in_array( $status, self::STATUS)) return -1;
 
-        $result = $this->neo4j_client->run( $query, null);
+	$query = 'MATCH (s:Status{status:{status}})
+OPTIONAL MATCH (s)-[:FIRST]->(f:Analysis) 
+OPTIONAL MATCH (s)-[:LAST]->(l:Analysis) 
+OPTIONAL MATCH path=(f)-[:NEXT_BY_STATUS*0..]->(l)
+RETURN size(nodes(path)) AS length LIMIT 1';
 
-        $length = 0;
+	$params = ['status' => $status];
+        $result = $this->neo4j_client->run( $query, $params);
+
+        $length = -1;
         foreach ($result->records() as $record)
-          $length = $record->value('length');
+          if( $record->value('length') != null)
+            $length = $record->value('length');
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Queue length ' .$length);
 
 	return $length;
     }
+*/
+
 
     // Create a new (:Queue) node and attach it to the (:Tail)
     private function createQueueNode()
     {
-        $this->logger->debug('Creating new queue node');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Creating new queue node');
 
 	// Check if analysis graph present
-	if( !$this->queueGraphExists())
-	  return -1;
+	if( !$this->queueGraphExists()) return -1;
 
         $query = 'MATCH (t:Tail) 
 CREATE (q:Queue)
@@ -512,101 +893,123 @@ RETURN id(q) AS qid LIMIT 1';
           if( $record->value('qid') != null)
             return $record->value('qid');
 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Queue node has NOT been created!');
+
         // Return non-existing id if not found
         return -1;
     }
 
-    // Find :Analysis node in the database
-    // With optional label such as Pending
-    public function analysisExists( $aid, $label = '')
+
+/*
+    // check if analysis is linked to a queue tail
+    private function analysisOnQueueTail( $aid)
     {
 	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug( "Checking for analysis node existance");
+          $this->logger->debug( "Checking if analysis is on queue tail");
 
-        $query = 'MATCH (a:Analysis'.$label.') WHERE id(a) = {aid}
-RETURN id(a) AS aid LIMIT 1';
+	// Check if analysis graph present
+	if( !$this->analysisNodeExists( $aid)) return false;
+
+        $query = 'MATCH (a:Analysis) WHERE id(a) = {aid}
+MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
 
         $params = ["aid" => intval( $aid)];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('aid') != null)
+          if( $record->value('qid') != null)
             return true;
 
         // Return 
         return false;
     }
-
+*/
 
 
     // Returns an array of evaluated analysis depths for both sides
     public function getGameAnalysisDepths( $gid) 
     {
-	$depth = ['white' => 0, 'black' => 0];
-	$status = array_search( "Evaluated", self::STATUS);
+	$depths = ['White' => 0, 'Black' => 0];
+	$processing = array_search( "Processing", Analysis::STATUS);
+	$complete   = array_search( "Complete", Analysis::STATUS);
+	$fast = $this->depth['fast'];
+	$deep = $this->depth['deep'];
+
+        // Repeat for both sides
+	foreach( $depths as $side => $value) {
+
+	// Need to reset whenever new anaysis is examined
+	$this->setAnalysisNodeExistsFlag( false);
 
         // If Analysis status is more than necessary value
-        if( $this->matchAnalysis( $gid, 
-	$_ENV['DEEP_ANALYSIS_DEPTH'], ":WhiteSide") >= $status)
+        $aid = $this->matchGameAnalysis( $gid, $deep, ':'.Analysis::SIDE[$side]);
 
-          $depth['white'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
+	// Analysis id exists and status is ok
+	$status = $this->getAnalysisStatus( $aid);
+	$property = $this->getAnalysisStatusProperty( $aid);
+	if( $aid != -1 && (($property != $processing) &&
+		($status == $processing || $status == $complete)))
+          $depths[$side] = $deep;
 
-        else if( $this->matchAnalysis( $gid, 
-	$_ENV['FAST_ANALYSIS_DEPTH'], ":WhiteSide") >= $status)
+	// Continue with fast depth check
+        if( $depths[$side] == 0) {
 
-          $depth['white'] = $_ENV['FAST_ANALYSIS_DEPTH'];
+	  // Need to reset whenever new anaysis is examined
+	  $this->setAnalysisNodeExistsFlag( false);
 
-        if( $this->matchAnalysis( $gid, 
-	$_ENV['DEEP_ANALYSIS_DEPTH'], ":BlackSide") >= $status)
+	  $aid = $this->matchGameAnalysis( $gid, $fast, ':'.Analysis::SIDE[$side]);
 
-          $depth['black'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
+	  $status = $this->getAnalysisStatus( $aid);
+	  $property = $this->getAnalysisStatusProperty( $aid);
+	  if( $aid != -1 && (($property != $processing) &&
+                ($status == $processing || $status == $complete)))
+            $depths[$side] = $fast;
+	}
+	}
 
-        else if( $this->matchAnalysis( $gid, 
-	$_ENV['FAST_ANALYSIS_DEPTH'], ":BlackSide") >= $status)
-
-          $depth['black'] = $_ENV['FAST_ANALYSIS_DEPTH'];
-
-        $this->logger->debug( 'Analysis depth for White: ' .
-                $depth['white'] . ' Black: '. $depth['black']);
-
-	return $depth;
+	return $depths;
     }
 
 
 
-    // Match existing Analysis request
-    public function matchAnalysis( $gid, $depth, $sideLabel)
+    // Match existing Analysis request, returns aid
+    public function matchGameAnalysis( $gid, $depth, $sideLabel)
     {
-        $this->logger->debug('Matching analysis node for depth: '. 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Matching analysis node for depth: '. 
 		$depth. ' side: '.$sideLabel);
+
+	// Check if analysis graph present
+	if( !$this->queueGraphExists()) return -1;
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line)
 MATCH (d:Depth{level:{depth}})
 MATCH (l)<-[:PERFORMED_ON]-(a:Analysis'.$sideLabel.')-[:REQUIRED_DEPTH]->(d)
-RETURN a LIMIT 1';
+RETURN id(a) AS aid LIMIT 1';
 
         $params = ["gid" => intval( $gid), "depth" => intval( $depth)];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->get('a')->identity() != null) {
+          if( $record->value('aid') != null)
+            return $record->value('aid');
 
-	    // Get Analysis node labels
-	    $labels = $record->get('a')->labels();
-	    foreach( self::STATUS as $key => $status)
-	      if( in_array( $status, $labels))
-		return $key;
-	  }
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Analysis node has NOT been found!');
 
         // Return -1 by default
         return -1;
     }
 
-    // Find appropriate (:Queue) node for a given (:WebUser)
-    private function findWebUserNextQueueNode()
+
+
+    // Get appropriate (:Queue) node for a given (:WebUser)
+    private function getUserQueueNode()
     {
-        $this->logger->debug('Finding suitable queue node for a user');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Finding suitable queue node for a user');
 
         // returns User object or null if not authenticatedna
 
@@ -615,10 +1018,13 @@ RETURN a LIMIT 1';
         // Maintenane operation
         $this->updateCurrentQueueNode();
 
+	// Potentially slow
+	// As it has to examine all :Queue nodes past Current
         $query = 'MATCH (w:WebUser{id:{wuid}})
-MATCH (:Current)-[:NEXT*0..]->(q:Queue) 
+MATCH path=(:Current)-[:NEXT*0..]->(q:Queue) 
 WHERE NOT (q)-[:QUEUED]->(:Analysis)-[:REQUESTED_BY]->(w) 
-RETURN id(q) AS qid LIMIT 1';
+WITH q, size(nodes(path)) AS length ORDER BY length LIMIT 1
+RETURN id(q) AS qid';
 
         $params = ["wuid" => intval( $user->getId())];
         $result = $this->neo4j_client->run($query, $params);
@@ -627,24 +1033,173 @@ RETURN id(q) AS qid LIMIT 1';
           if( $record->value('qid') != null)
             return $record->value('qid');
 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Suitable queue node has NOT been found!');
+
         // Return 
         return -1;
     }
 
-    // Attach new (Analysis) to a (:Queue) node
+
+
+    // Get last action for the Analysis node
+    private function getLastAnalysisActionNode( $tid)
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching last analysis action node');
+
+	$query = 'MATCH (t:Action) WHERE id(t)={tid} 
+MATCH (t)-[:WAS_TAKEN_ON]->(a:Analysis)
+OPTIONAL MATCH (a)<-[:WAS_TAKEN_ON]->(f:Action{action:"Creation"})
+OPTIONAL MATCH path=(f)-[:NEXT*0..]->(l:Action)
+WITH l, size(nodes(path)) AS total ORDER BY total DESC LIMIT 1
+RETURN id(l) AS tid';
+
+        $params = ["tid" => intval( $tid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('tid') != null)
+            return $record->value('tid');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Last analysis action node has NOT been found!');
+
+	return -1; // Indicate error
+    }
+
+
+
+    // Attach analysis action node
+    private function attachAnalysisActionNode( $tid)
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Attaching analysis action node');
+
+	// Get last analysis action node
+	$lid = $this->getLastAnalysisActionNode( $tid);
+
+	// Error fetching last action id
+	if( $lid == -1) return false;
+
+	// Attach to the end of the list
+	$query = 'MATCH (l:Action) WHERE id(l)={lid} 
+MATCH (t:Action) WHERE id(t)={tid}
+MERGE (l)-[:NEXT]->(t)
+RETURN id(t) AS tid';
+
+        $params = ["tid" => intval( $tid), "lid" => intval( $lid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('tid') != null)
+            return true;
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error attaching action node!');
+
+	return false;
+    }
+
+
+    // Create new (:Action) node and attach to a (:Analysis) node
+    private function createAnalysisActionNode( $aid, $action = 'Creation', $parameter = '')
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Creating new analysis action('.
+		$action.', param:'.$parameter.') node');
+
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid)) return -1;
+
+	// Indicate error if action is not a valid one
+	if( !in_array( $action, Analysis::ACTION)) return -1;
+
+        // Date/Time items
+        $day    = date( "j");
+        $month  = date( "n");
+        $year   = date( "Y");
+        $second = date( "s");
+        $minute = date( "i");
+        $hour   = date( "G");
+
+        $params = ["aid" => intval( $aid),
+          "action"      => $action,
+          "day"         => intval( $day),
+          "month"       => intval( $month),
+          "year"        => intval( $year),
+          "second"      => intval( $second),
+          "minute"      => intval( $minute),
+          "hour"        => intval( $hour)
+        ];
+
+	// Special relation to the status node
+	$match_param = '';
+	$merge_param = '';
+	$parameter_str = ''; 
+
+	if( $action == 'SideChange') {
+	  $parameter_str = ',parameter:{parameter}';
+	  $params["parameter"] = $parameter;
+	}
+	if( $action == 'DepthChange') {
+	  $match_param = 'MATCH (d:Depth{level:{parameter}})';
+	  $merge_param = 'MERGE (t)-[:CHANGED_TO]->(d)';
+	  $params["parameter"] = intval( $parameter);
+	}
+	if( $action == 'StatusChange') {
+	  $match_param = 'MATCH (s:Status{status:{parameter}})';
+	  $merge_param = 'MERGE (t)-[:CHANGED_TO]->(s)';
+	  $params["parameter"] = $parameter;
+	}
+
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+MATCH (date:Day {day: {day}})-[:OF]->(:Month {month: {month}})-[:OF]->(:Year {year: {year}})
+MATCH (time:Second {second: {second}})-[:OF]->(:Minute {minute: {minute}})-[:OF]->(:Hour {hour: {hour}})
+'.$match_param.'
+CREATE (t:Action{action:{action}'.$parameter_str.'})
+MERGE (t)-[:WAS_TAKEN_ON]->(a)
+MERGE (t)-[:WAS_PERFORMED_DATE]->(date)
+MERGE (t)-[:WAS_PERFORMED_TIME]->(time)
+'.$merge_param.'
+RETURN id(t) AS tid LIMIT 1';
+
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( ($tid = $record->value('tid')) != null) {
+
+	    // Attach newly created action node, if NOT Creation
+	    if( $action != 'Creation')
+
+	      if( !$this->attachAnalysisActionNode( $tid))
+		return -1;
+
+            return $record->value('tid');
+	  }
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error creating analysis action node!');
+
+	return -1; // Indicate error
+    }
+
+
+
+    // Create new (Analysis) and attach to a (:Queue) node
     private function createAnalysisNode( $gid, $depth, $sideLabel)
     {
-        $this->logger->debug('Creating new analysis node');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Creating new analysis node');
 
         // returns User object or null if not authenticated
         $user = $this->security->getUser();
 
 	// Check if analysis graph present
-	if( !$this->queueGraphExists())
-	  return -1;
+	if( !$this->queueGraphExists()) return -1;
 
 	// Queue node id to attach Analysis node for a user
-	$qid = $this->findWebUserNextQueueNode();
+	$qid = $this->getUserQueueNode();
 
         // Get appropriate (:Queue) node to attach the new (:Analysis)
         if( $qid == -1) $qid = $this->createQueueNode();
@@ -653,49 +1208,39 @@ RETURN id(q) AS qid LIMIT 1';
         if( $qid == -1) return -1; 
 
 	// Check analysis side labels (all valid combinations)
-	if( $sideLabel != ":WhiteSide" && $sideLabel != ":BlackSide" &&
-	  $sideLabel != ":WhiteSide:BlackSide" && $sideLabel != ":BlackSide:WhiteSide")
-          $sideLabel = ":WhiteSide:BlackSide";
-
-	// Date/Time items
-	$day	= date( "j");
-	$month	= date( "n");
-	$year	= date( "Y");
-	$second	= date( "s");
-	$minute	= date( "i");
-	$hour	= date( "G");
+	if( $sideLabel != ':'.Analysis::SIDE['White'] 
+		&& $sideLabel != ':'.Analysis::SIDE['Black'])
+          $sideLabel = ':'.Analysis::SIDE['White'].':'.Analysis::SIDE['Black'];
 
         $query = 'MATCH (q:Queue) WHERE id(q)={qid}
 MATCH (g:Game) WHERE id(g)={gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line)
 MATCH (w:WebUser{id:{wuid}})
 MATCH (d:Depth{level:{depth}})
-MATCH (date:Day {day: {day}})-[:OF]->(:Month {month: {month}})-[:OF]->(:Year {year: {year}})
-MATCH (time:Second {second: {second}})-[:OF]->(:Minute {minute: {minute}})-[:OF]->(:Hour {hour: {hour}})
-CREATE (a:Analysis'.$sideLabel.':Pending)
+CREATE (a:Analysis'.$sideLabel.')
 MERGE (q)-[:QUEUED]->(a)-[:REQUIRED_DEPTH]->(d)
 MERGE (g)<-[:REQUESTED_FOR]-(a)-[:PERFORMED_ON]->(l)
 MERGE (a)-[:REQUESTED_BY]->(w)
-MERGE (a)-[:WAS_CREATED_DATE]->(date)
-MERGE (a)-[:WAS_CREATED_TIME]->(time)
 RETURN id(a) AS aid LIMIT 1';
 
         $params = ["qid" => intval( $qid), 
           "gid"		=> intval( $gid),
           "wuid"	=> intval( $user->getId()), 
-          "depth"	=> intval( $depth),
-          "day"		=> intval( $day),
-          "month"	=> intval( $month),
-          "year"	=> intval( $year),
-          "second"	=> intval( $second),
-          "minute"	=> intval( $minute),
-          "hour"	=> intval( $hour),
+          "depth"	=> intval( $depth)
 	];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('aid') != null)
-            return $record->value('aid');
+          if( ($aid = $record->value('aid')) != null) {
+
+	    // Record creation
+	    if( !$this->createAnalysisActionNode( $aid)) return -1;
+
+            return $aid;
+	  }
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Analysis node has NOT been created!');
 
         // Return non-existing id if not found
         return -1;
@@ -703,28 +1248,346 @@ RETURN id(a) AS aid LIMIT 1';
 
 
 
-    // Set Analysis status label
-    public function setAnalysisStatus( $aid, $label)
-    {
+    // Detach status relationships
+    private function detachStatusRels( $aid) {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Detaching status relationships');
+
+	// Return false if node does not exist
+	if( !$this->analysisNodeExists( $aid)) return false;
+
+	// Get current analysis status
+	$current_status = $this->getAnalysisStatus( $aid);
+
+	// Node does not have status rels
+	if( $current_status == -1) return true;
+
+	// get first and last nodes for a given status
+	$first = $this->getStatusQueueNode( Analysis::STATUS[$current_status]);
+	$last = $this->getStatusQueueNode( Analysis::STATUS[$current_status], 'last');
+
+	// Inconsistent status queue
+	if( ($first == -1 && $last != -1) ||
+		($first != -1 && $last == -1)) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('!!! Critical Error !!! Inconsistent status queue');
+	  return false;
+        }
+
+	// Detach regular node from status queue, link siblings
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (a)-[r:HAS_GOT]->(:Status)
+MATCH (p:Analysis)-[pr:NEXT_BY_STATUS]->(a)-[nr:NEXT_BY_STATUS]->(n:Analysis)
+MERGE (p)-[:NEXT_BY_STATUS]->(n)
+DELETE r, pr, nr';
+
+	// Detaching head of the status queue
+	if( $first == $aid)
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (a)-[r]-(s:Status)
+MATCH (a)-[nr:NEXT_BY_STATUS]->(n:Analysis)
+MERGE (s)-[:FIRST]->(n)
+DELETE r, nr';
+
+	// Detaching tail of the status queue
+	if( $last == $aid)
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (a)-[r]-(s:Status)
+MATCH (p:Analysis)-[pr:NEXT_BY_STATUS]->(a)
+MERGE (s)-[:LAST]->(p)
+DELETE r, pr';
+
+	// Detaching last node from the status queue
+	if( $last == $aid && $first == $last)
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (a)-[r]-(:Status)
+DELETE r';
+
+        $params = ["aid" => intval( $aid)];
+        $this->neo4j_client->run($query, $params);
+
+	return true;
+    }
+
+
+/*
+    // Link Analysis node with status siblings, type: tail|promotion
+    private function linkStatusRelationships( $aid, $type = 'tail') {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Linking status relationships');
+
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-          $this->logger->debug('Access denied');
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
 	  return false;
 	}
 
-	if( !$this->analysisExists( $aid)) {
+	// Return false if node does not exist
+	if( !$this->analysisNodeExists( $aid)) return false;
 
-          $this->logger->debug('Analysis node does NOT exist');
+	// rearrange rels with siblings
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (p)-[:NEXT]->(a)-[:NEXT]->(n)
+MATCH (p)-[r:NEXT_BY_STATUS]->(n)
+MERGE (p)-[:NEXT_BY_STATUS]->(a)-[:NEXT_BY_STATUS]->(n)
+DELETE r';
+
+	// Attach to the tail
+	if( $type != 'promotion') {
+
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (a)-[:HAS_GOT]->(s:Status)
+OPTIONAL MATCH (s)-[r:TAIL]->(t)
+MERGE (a)-[:TAIL]->(s)
+MERGE (t)-[:NEXT_BY_STATUS]->(a)
+DELETE r';
+
+	  // Get current analysis status
+	  $current_status = $this->getAnalysisStatus( $aid);
+
+	}
+
+    }
+*/
+
+    // Sync analysis status for first available node
+    public function syncAnalysisStatus( $status = 'Pending')
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Syncing analysis status '.$status);
+
+	// Check if the status is valid
+	if( !in_array( $status, Analysis::STATUS)) return -1;
+
+	// Query params
+        $params = ['status' => $status];
+
+	// By default, select Status queue
+	$query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
+WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 1';
+
+	// Special handling of Processing status queue nodes
+	if( $status == 'Processing') {
+/*
+	  $query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
+WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"] 
+RETURN id(a) AS aid, a.status LIMIT 1';
+*/
+	  $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(f:Analysis)
+MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis) 
+ WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"] 
+ WITH a LIMIT 1
+RETURN id(a) AS aid, a.status';
+	}	
+
+	// Iterate through all the fetched records
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( ($aid = $record->value('aid')) != null) {
+
+	    $property = $record->value('a.status');
+
+	    // Skipped and invalid trigger Skipped status
+	    if( $property == 'Skipped')
+	      $status = 'Skipped';
+
+	    // Switch from Pending to Processing
+	    else if( $status == 'Pending' && 
+		($property == 'Processing' 
+		|| $property == 'Partially' 
+		|| $property == 'Evaluated'))
+	      $status = 'Processing';
+
+	    // Switch from Processing to Complete
+	    else if( $status == 'Processing' &&
+	    	($property == 'Evaluated'
+		|| $property == 'Partially'))
+	      $status = 'Complete';
+
+	    // Unexpected situation, skip
+	    else
+
+	      $status = 'Skipped';
+
+	    // Promote analysis with selected status
+	    if( $this->promoteAnalysis( $aid, $status))
+	      return $aid;
+	}
+
+	return -1;
+    }
+
+
+
+    // Set Analysis status 
+    // Should NEVER be called directly
+    // Call promoteAnalysis instead to rearrange all rels properly
+    private function setAnalysisStatus( $aid, $status = 'Pending')
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Setting analysis status '.$status);
+
+	// Return false if node does not exist
+	if( !$this->analysisNodeExists( $aid)) return false;
+
+	// Check if the status is valid
+	if( !in_array( $status, Analysis::STATUS)) return false;
+
+	// Query params
+        $params = ['aid' => intval( $aid), 'status' => $status];
+
+	// Get current analysis status
+	$current_status = $this->getAnalysisStatus( $aid);
+
+	// Disconnect analysis node from status queue
+	if( !$this->detachStatusRels( $aid)) return false;
+//	$this->detachStatusRels( $aid);
+
+	// get first and last nodes for a given status
+	$first = $this->getStatusQueueNode( $status);
+	$last = $this->getStatusQueueNode( $status, 'last');
+
+	// Inconsistent status queue
+	if( ($first == -1 && $last != -1) ||
+		($first != -1 && $last == -1)) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Inconsistent status queue');
 	  return false;
 	}
 
-	// Check if the status label is valid
-	if( !in_array( $label, self::STATUS))
-	  return false;
+	// Status queue empty, add very first item
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:{status}})
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (s)-[:FIRST]->(a)
+MERGE (s)-[:LAST]->(a)';
 
-        $this->logger->debug('Setting analysis node status label '.$label);
-	
-	$statusLabels = implode( ':', self::STATUS);
+	// Status queue NOT empty, attach to tail
+	// Any status except for Pending
+	// Pending when only one node present, no (a)-[:NEXT]->
+	if( $last != -1)
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:{status}})
+MATCH (s)-[rl:LAST]-(l:Analysis)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (s)-[:LAST]->(a)
+MERGE (l)-[:NEXT_BY_STATUS]->(a)
+DELETE rl';
 
+	// Multiple pending nodes
+//		&& !$this->analysisOnQueueTail( $aid))
+	// It is possible that Current node has muntiple Skipped
+	// Partially, etc. so previous Pending is NOT just (p)-[:NEXT]->(a)
+	// One has to *find* it.
+	// But the variable length path will expand to all prev nodes
+	// It cna be either a promotion (attached to Current)
+	// or regular addition to Tail
+	if( $status == 'Pending' && $first != $last) {
+
+	  // Object-oriented way
+	  $this->analysis_id = $aid;
+
+	  // Fetch previous Pending node
+	  $prev = $this->getStatusQueueNode( $status, 'prev');
+
+	  // Add one more parameter to the query
+	  $params['pid'] = intval( $prev);
+
+	  // We are not working with tail
+	  if( $prev != $last)
+	    $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (p:Analysis) WHERE id(p)={pid}
+MATCH (s:Status{status:{status}})
+MATCH (p)-[r:NEXT_BY_STATUS]->(n)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (p)-[:NEXT_BY_STATUS]->(a)
+MERGE (a)-[:NEXT_BY_STATUS]->(n)
+DELETE r';
+
+	}
+
+	// Delete any status properties for Pending nodes
+	if( $status == 'Pending')
+	  $query .= ' REMOVE a.status';
+
+/*
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:{status}})
+MATCH (:Status{status:{status}})<-[:HAS_GOT]-(p:Analysis)-[:NEXT*0..]->(a) 
+  WITH p LIMIT 1
+MATCH (p)-[r:NEXT_BY_STATUS]->(n)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (p)-[:NEXT_BY_STATUS]->(a)
+MERGE (a)-[:NEXT_BY_STATUS]->(n)
+DELETE r';
+	// Change status
+	if( $current_status != -1) {
+
+	  // Change status, status queue empty
+	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:"'.$status.'"})
+MATCH (a)-[r:HAS_GOT]->(:Status)
+MATCH (p:Analysis)-[pr:NEXT_BY_STATUS]->(a)-[nr:NEXT_BY_STATUS]->(n:Analysis)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (s)-[:FIRST]->(a)
+MERGE (s)-[:LAST]->(a)
+MERGE (p)-[:NEXT_BY_STATUS]->(n)
+DELETE r, pr, nr';
+
+	  // Change status, status queue NOT empty
+	  if( $first != -1)
+	    $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:"'.$status.'"})
+MATCH (a)-[r:HAS_GOT]->(:Status)
+MATCH (s)-[rl:LAST]-(l:Analysis)
+MATCH (p:Analysis)-[pr:NEXT_BY_STATUS]->(a)-[nr:NEXT_BY_STATUS]->(n:Analysis)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (s)-[:LAST]->(a)
+MERGE (l)-[:NEXT_BY_STATUS]->(a)
+MERGE (p)-[:NEXT_BY_STATUS]->(n)
+DELETE r, pr, nr';
+
+	  // last item in the status queue
+	  if( $first != -1 && $first == $last) {
+
+	    // last item, change status, new status queue empty
+	    $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:"'.$status.'"})
+MATCH (a)-[r]->(:Status)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (s)-[:FIRST]->(a)
+MERGE (s)-[:LAST]->(a)
+DELETE r';
+
+	  // last item, Change status, status queue NOT empty
+	  if( $first != -1)
+	    $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (s:Status{status:"'.$status.'"})
+MATCH (a)-[r]->(:Status)
+MATCH (s)-[rl:LAST]-(l:Analysis)
+MERGE (a)-[:HAS_GOT]->(s)
+MERGE (s)-[:LAST]->(a)
+MERGE (l)-[:NEXT_BY_STATUS]->(a)
+DELETE r';
+
+	  }
+	}
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( $query . ' ' . implode( ',', $params));
+*/
+        $this->neo4j_client->run($query, $params);
+
+/*	
+
+        $params = ["aid" => intval( $aid)];
+        $this->neo4j_client->run($query, $params);
+
+/*	
 	// Deleting existing status labels and adding new
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
 REMOVE a:'.$statusLabels.' SET a:'.$label;
@@ -735,67 +1598,142 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 
         // Forcefully promote the analysis node
 	if( $label == "Pending") $this->promoteAnalysis( $aid);
+*/
+
+	// Record status change if NOT promotion
+	if( $current_status != array_search( $status, Analysis::STATUS))
+	  $this->createAnalysisActionNode( $aid, 'StatusChange', $status);
 
 	return true;
     }
 
 
 
-    // Set Analysis side (WhiteSide/BlackSide)
-    public function setAnalysisSide( $aid, $side)
+    // Set Analysis side (WhiteSide/BlackSide/Both)
+    public function setAnalysisSide( $aid, $value)
     {
-	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-          $this->logger->debug('Access denied');
-	  return false;
-	}
+	// Sides to analyze
+	$sides = Analysis::SIDE;
+        if( in_array( $value, Analysis::SIDE))
+	  $sides = [$value];
 
-	if( !$this->analysisExists( $aid)) {
-
-          $this->logger->debug('Analysis node does NOT exist');
-	  return false;
-	}
-
-	// Side to analyze
-	$sideLabel = ':WhiteSide:BlackSide';
-          if( $side == 'WhiteSide' || $side == 'BlackSide')
-            $sideLabel = ':'.$side;
-
-        $this->logger->debug('Setting analysis node lables '.$sideLabel);
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Suggested analysis node labels :'.
+		implode( ':', $sides));
 	
-	// Deleting existing relation and adding new
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return false;
+	}
+
+	if( !$this->analysisNodeExists( $aid)) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Analysis node does NOT exist');
+	  return false;
+	}
+
+	// Check if the node with new side labels exists
+	$gid = $this->getAnalysisGameId( $aid);
+	$depth = $this->getAnalysisDepth( $aid);
+
+	// Iterate through all supplied side lables
+	foreach( $sides as $key => $side) {
+
+	  // Existing analysis id
+	  $eaid = $this->matchGameAnalysis( $gid, $depth, ':'.$side);
+	  if( $eaid != -1 && $eaid != $aid)
+	    unset( $sides[$key]);
+	}
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Adding analysis node labels :'.
+		implode( ':', $sides));
+	
+	// Sides array does not have any records
+	if( count( $sides) == 0) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('No labels left to assign');
+	  return false;
+	}
+
+	// Deleting existing labels and adding new
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
-REMOVE a:WhiteSide:BlackSide SET a'.$sideLabel;
+REMOVE a:'.Analysis::SIDE['White'].':'.Analysis::SIDE['Black'].' 
+SET a:' . implode( ':', $sides);
 
 	// Send the query, we do NOT expect any return
         $params = ["aid" => intval( $aid)];
         $this->neo4j_client->run($query, $params);
 
+	// Record action
+	$this->createAnalysisActionNode( $aid, 
+		'SideChange', implode( ' ',$sides));
+
 	return true;
     }
 
 
 
-    // Set Analysis depth
-    public function setAnalysisDepth( $aid, $value)
+    // Set Analysis depth (fast|deep)
+    public function setAnalysisDepth( $aid, $value = 'fast')
     {
-	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-          $this->logger->debug('Access denied');
-	  return false;
-	}
-
-	if( !$this->analysisExists( $aid)) {
-
-          $this->logger->debug('Analysis node does NOT exist');
-	  return false;
-	}
-
 	// Depth paramaeter
-	$depth = $this->FAST;
-	if( intval( $value) == $this->DEEP) 
-	  $depth = $this->DEEP;
+	$depth = $this->depth['fast'];
+	if( array_key_exists( $value, $this->depth))
+	  $depth = $this->depth[$value];
 
-        $this->logger->debug('Setting analysis node depth '.$depth);
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Setting analysis node depth '.$depth);
 	
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return false;
+	}
+
+	if( !$this->analysisNodeExists( $aid)) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Analysis node does NOT exist');
+	  return false;
+	}
+
+	// Check if the node with new depth exists
+	$gid = $this->getAnalysisGameId( $aid);
+	$suggested_sides = $this->getAnalysisSides( $aid);
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Suggested analysis node labels :'.
+		implode( ':', $suggested_sides));
+
+	// Iterate through all possible side lables
+	$sides = Analysis::SIDE;
+	foreach( $sides as $key => $side) 
+	  if( $this->matchGameAnalysis( $gid, $depth, ':'.$side) == -1)
+	    unset( $sides[$key]);
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Remaning analysis node labels :'.
+		implode( ':', $sides));
+
+	// Find sides to set depth for
+	$diff_sides = array_diff( $suggested_sides, $sides);
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Diff analysis node labels :'.
+		implode( ':', $diff_sides));
+
+	if( count( $diff_sides) == 0) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('No more sides to change depth for');
+	  return true;
+	}
+
+	// Change side for analysis node
+	if( count( $sides) != 0)
+	  $this->setAnalysisSide( $aid, array_pop( $diff_sides));
+
 	// Deleting existing relation and adding new
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
 MATCH (a)-[r:REQUIRED_DEPTH]->(old:Depth) 
@@ -806,23 +1744,205 @@ CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
         $params = ["aid" => intval( $aid), "depth" => intval( $depth)];
         $this->neo4j_client->run($query, $params);
 
+	// Record action
+	$this->createAnalysisActionNode( $aid, 'DepthChange', $depth);
+
 	return true;
     }
 
 
 
+    // Return Analysis status property for a particular node
+    public function getAnalysisStatusProperty( $aid) {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching Analysis status property');
+	
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid))
+	  return -1;
+
+	$query = '
+MATCH (a:Analysis) WHERE id(a)={aid}
+RETURN a.status AS status';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+        foreach ($result->records() as $record)
+          if( $record->value('status') != null)
+            return array_search( $record->value('status'), Analysis::STATUS);
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching analysis status property');
+
+	return -1; // Negative to indicate error
+    }
+
+
+
+    // Get various Queue nodes (Head|Current|Tail|Next)
+    // Return Analysis status code for a particular node
+    public function getAnalysisStatus( $aid) {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching Analysis status');
+	
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid))
+	  return -1;
+
+	$query = '
+MATCH (a:Analysis)-[:HAS_GOT]->(t:Status) WHERE id(a)={aid}
+RETURN t.status AS status';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+        foreach ($result->records() as $record)
+          if( $record->value('status') != null)
+            return array_search( $record->value('status'), Analysis::STATUS);
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching analysis status');
+
+	return -1; // Negative to indicate error
+    }
+
+
+    // Get various Queue nodes (Head|Current|Tail|Next or qid)
+    public function getQueueNode( $type = 'Next') {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Getting '.$type.' queue node');
+
+	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return false;
+	}
+
+	// Check by queue node id
+	if( is_numeric( $type))
+	  if( $this->queueNodeExists( $type)) {
+	    $this->queue_id = $type;
+	    return $type;
+	  } else
+	    return -1;
+
+	// Valid Queue node labels
+	$labels = ['Head', 'Current', 'Tail'];
+	if( !in_array( $type, $labels) && $type != 'Next') {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Invalid queue node label '. $type);
+
+	  return -1;
+	}
+
+	// Basic label check
+	if( !$this->queueGraphExists()) return -1;
+	
+        // Match queue node by label by default
+        $query = 'MATCH (q:'.$type.') RETURN id(q) AS qid LIMIT 2';
+
+	if( $type == 'Next')
+          $query = 'MATCH (q:Queue) WHERE id(q)={qid} 
+OPTIONAL MATCH (q)-[:NEXT]->(n:Queue) RETURN id(n) AS qid LIMIT 2';
+
+	$params = ['qid' => intval( $this->queue_id)];
+        $result = $this->neo4j_client->run($query, $params);
+	$records = $result->getRecords();
+
+        // We expect a single record
+	if( count( $records) > 1) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Expected single record but got '. count( $records));
+
+	  return -1;
+	}
+
+        // We expect a single record or null
+        foreach ( $records as $record)
+          if( $record->value('qid') != null) {
+
+	    $this->queue_id = $record->value('qid');
+	    return $this->queue_id;
+	  }
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching queue node');
+
+        return -1;
+    }
+
+	
+    // Return node id for given status (first/last/previous)
+    public function getStatusQueueNode( $status = 'Pending', $type = 'first') {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching '.$type.' '.$status.' node');
+
+	// Check if the status is valid
+	if( !in_array( $status, Analysis::STATUS)) return -1;
+	
+	// Check if analysis node exists
+	if( !$this->queueGraphExists()) return -1;
+	
+	// By default we want first node
+	$rel = 'FIRST';
+	if( $type == 'last') $rel = 'LAST';
+
+	$query = 'MATCH (s:Status{status:{status}}) 
+OPTIONAL MATCH (s)-[:'.$rel.']->(a:Analysis)
+RETURN id(a) AS aid';
+
+	// Previous node requires var-length path
+	// But we limit it to a :Queue node 
+	// so it does NOT expand till :Head
+	if( $type == 'prev')
+	  $query = '
+MATCH (f:Analysis)<-[:FIRST]-(:Queue)-[:QUEUED]->(l:Analysis)-[:NEXT]->(a:Analysis) 
+WHERE id(a) = {aid} 
+MATCH path=shortestPath((f)-[:NEXT*0..]->(l)) WITH a,nodes(path) as nodes 
+UNWIND nodes AS node 
+MATCH (node)-[:HAS_GOT]->(:Status{status:{status}}) 
+MATCH path=shortestPath((node)-[:NEXT*0..]->(a)) WITH id(node) AS aid, size(nodes(path)) AS dist 
+RETURN aid ORDER BY dist LIMIT 1';
+/*
+	  $query = '
+MATCH (a:Analysis) WHERE id(a) = {aid}
+MATCH (s:Status{status:{status}}) 
+MATCH path=(a)<-[:NEXT*1..]-(p:Analysis)-[:HAS_GOT]->(s) 
+ WITH size(nodes(path)) as distance, p
+RETURN id(p) AS aid ORDER BY distance LIMIT 1';
+*/
+	$params = ['status' => $status, 'aid' => intval( $this->analysis_id)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('aid') != null)
+            return $record->value('aid');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching status node');
+
+	return -1; // Negative to indicate error
+    }
+
+
+	
     // Return Analysis depth for a particular node
     public function getAnalysisDepth( $aid) {
 
-	// Check if analysis graph present
-	if( !$this->queueGraphExists())
-	  return [];
-
-        $this->logger->debug('Fetching Analysis depth');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching Analysis depth for: '.$aid);
 	
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid)) return -1;
+
 	$query = '
-MATCH (a:Analysis)-[:REQUIRED]->(d:Depth) WHERE id(a)={aid}
-RETURN d.depth AS depth';
+MATCH (a:Analysis)-[:REQUIRED_DEPTH]->(d:Depth) WHERE id(a)={aid}
+RETURN d.level AS depth';
 
         $params = ["aid" => intval( $aid)];
         $result = $this->neo4j_client->run($query, $params);
@@ -830,6 +1950,9 @@ RETURN d.depth AS depth';
         foreach ($result->records() as $record)
           if( $record->value('depth') != null)
             return $record->value('depth');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching analysis depth');
 
 	return -1; // Negative to indicate error
     }
@@ -839,12 +1962,12 @@ RETURN d.depth AS depth';
     // Return a Game Id for an Analysis
     public function getAnalysisGameId( $aid) {
 
-	// Check if analysis graph present
-	if( !$this->queueGraphExists())
-	  return [];
-
-        $this->logger->debug('Fetching Game Id');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching Game Id for '. $aid);
 	
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid)) return -1;
+
 	$query = '
 MATCH (a:Analysis)-[:REQUESTED_FOR]->(g:Game) WHERE id(a)={aid}
 RETURN id(g) AS gid';
@@ -856,75 +1979,114 @@ RETURN id(g) AS gid';
           if( $record->value('gid') != null)
             return $record->value('gid');
 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching analysis game id');
+
 	return -1; // Negative to indicate error
     }
 
 
+	
+    // Return Analysis sides array
+    private function getAnalysisSides( $aid) {
 
-    // Promote (:Analysis) node 
-    public function promoteAnalysis( $aid)
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching analysis sides for '. $aid);
+	
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid)) return -1;
+
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} RETURN a';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( ($labelsObj = $record->get('a')) != null)
+	    return array_intersect( 
+		Analysis::SIDE, $labelsObj->labels());
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching analysis sides');
+
+	return []; // Empty array
+    }
+
+
+
+    // Promote (:Analysis) to a Current node
+    public function promoteAnalysis( $aid, $status = 'Pending')
     {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Promoting analysis node');
+	
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
           $this->logger->debug('Access denied');
 	  return false;
 	}
 
-        $this->logger->debug('Promoting analysis node');
-	
-	// Make sure the analysis is Pending
-	if( !$this->analysisExists( $aid, ':Pending')) {
+	// Check if the status is valid
+	if( !in_array( $status, Analysis::STATUS)) {
 
-          $this->logger->debug('Analysis node does NOT exist or NOT Pending');
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Invalid status '.$status);
+	  return false;
+	}	
+
+	// Make sure the analysis exists
+	if( !$this->analysisNodeExists( $aid)) {
+
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Analysis node does NOT exist');
 	  return false;
 	}
 
-	// Disconnect analysis node from it's current place
-	$this->deleteAnalysis( $aid, false);
+	// Check if there is already analysis graph present
+	if( !$this->updateCurrentQueueNode()) return false;
 
-	// Date/Time items
-	$day	= date( "j");
-	$month	= date( "n");
-	$year	= date( "Y");
-	$second	= date( "s");
-	$minute	= date( "i");
-	$hour	= date( "G");
+	// Disconnect analysis node from it's current place
+	if( !$this->detachAnalysisNode( $aid)) return false;
 
 	// Attach floating Analysis node to the :Current node
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} MATCH (c:Current) 
-MATCH (date:Day {day: {day}})-[:OF]->(:Month {month: {month}})-[:OF]->(:Year {year: {year}})
-MATCH (time:Second {second: {second}})-[:OF]->(:Minute {minute: {minute}})-[:OF]->(:Hour {hour: {hour}})
-MERGE (a)-[:WAS_PROMOTED_DATE]->(date)
-MERGE (a)-[:WAS_PROMOTED_TIME]->(time)
 MERGE (c)-[:QUEUED]->(a)';
 
 	// Send the query, we do NOT expect any return
-        $params = ["aid" => intval( $aid),
-          "day"		=> intval( $day),
-          "month"	=> intval( $month),
-          "year"	=> intval( $year),
-          "second"	=> intval( $second),
-          "minute"	=> intval( $minute),
-          "hour"	=> intval( $hour),
-	];
+        $params = ["aid" => intval( $aid)];
         $this->neo4j_client->run($query, $params);
 
-	// Enqueue the newly attached node
-	$this->enqueueAnalysis( $aid);	
+	// Record promotion for Pending only
+	if( $status == 'Pending')
+	  if( !$this->createAnalysisActionNode( $aid, 'Promotion')) 
+	    return false;
 
+        // Finally create necessary relationships with siblings
+	if( !$this->enqueueAnalysisNode( $aid)) return false;
+
+	if( !$this->setAnalysisStatus( $aid, $status)) 
+	  return false;
+/*
+	// Set the same status as before
+	if( ($current_status = $this->getAnalysisStatus( $aid)) != -1)
+	  if( !$this->setAnalysisStatus( $aid, self::STATUS[$status])) 
+	    return false;
+	else
+	  return false;
+*/
         // Return 
         return true;
     }
 
-    // Delete (:Analysis) node and interconnect affected :Analysys an :Queue nodes
-    public function deleteAnalysis( $aid, $erase_flag = true)
+
+
+    // Detach (:Analysis) node and interconnect affected :Analysys and :Queue nodes
+    private function detachAnalysisNode( $aid)
     {
-	if( !$this->analysisExists( $aid)) {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Detaching analysis node id: '. $aid);
 
-          $this->logger->debug('Analysis node does NOT exist');
-	  return false;
-	}
-
-        $this->logger->debug('Deleting analysis node');
+	// Make sure analysis node exists
+	if( !$this->analysisNodeExists( $aid)) return false;
 
 	// Previous :Queue last :Analysis node 
 	// Current :Queue previous :Analysis node
@@ -937,7 +2099,8 @@ MERGE (c)-[:QUEUED]->(a)';
 	$nf_id=-1;
 	$current = false;
 
-	$query = 'MATCH (a:Analysis)<-[:QUEUED]-(q:Queue) WHERE id(a)={aid} 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+OPTIONAL MATCH (a)<-[:QUEUED]-(q:Queue)
 OPTIONAL MATCH (pl:Analysis)<-[:LAST]-(:Queue)-[:NEXT]->(q) 
 OPTIONAL MATCH (q)-[:NEXT]->(:Queue)-[:FIRST]->(nf:Analysis) 
 OPTIONAL MATCH (q)-[:QUEUED]->(cp:Analysis)-[:NEXT]->(a) 
@@ -956,10 +2119,12 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id,
           $current = $record->value('current');
         }
 
-        $this->logger->debug( "pl: $pl_id, cp: $cp_id, cn: $cn_id, nf: $nf_id");
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "pl: $pl_id, cp: $cp_id, cn: $cn_id, nf: $nf_id");
 
 	// Basic :analysis matching query
-	$query = 'MATCH (a:Analysis)<-[:QUEUED]-(q:Queue) WHERE id(a)={aid} ';
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+MATCH (a)<-[:QUEUED]-(q:Queue) ';
 
 	//
 	// See Ticket https://trac.tutolmin.com/chess/ticket/107
@@ -968,7 +2133,8 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id,
 	// 1) The only :Analysis node left in the graph 
         if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id == null) {
 	  $query .= 'RETURN id(a)';
-          $this->logger->debug( "Delete Analysis type1");
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type1");
 	}
 
 	// 2) The only :Analysis node for the :Head, next :Queue node(s) exist 
@@ -979,9 +2145,10 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id,
 	  if( $current) $query_current = ":Current";
 
 	  $query .= 'MATCH (q)-[:NEXT]->(n:Queue) 
-SET n:Head'.$quey_current.' DETACH DELETE q';
+SET n:Head'.$query_current.' DETACH DELETE q';
 
-          $this->logger->debug( "Delete Analysis type2 ". ($current?":Current":""));
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type2 ". ($current?":Current":""));
 	}
 
 	// 3) First :Analysis node for single :Head node (:Tail) 
@@ -989,7 +2156,8 @@ SET n:Head'.$quey_current.' DETACH DELETE q';
         if( ($pl_id == null && $cp_id == null && $cn_id != null && $nf_id == null) || 
             ($pl_id == null && $cp_id == null && $cn_id != null && $nf_id != null)) {
 	  $query .= 'MATCH (a)-[:NEXT]->(cn:Analysis) MERGE (cn)<-[:FIRST]-(q)';
-          $this->logger->debug( "Delete Analysis type34");
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type34");
 	}
 	
 	// 5) Last (but not the only) :Analysis node for single :Head (:Tail) 
@@ -997,7 +2165,8 @@ SET n:Head'.$quey_current.' DETACH DELETE q';
         if( ($pl_id == null && $cp_id != null && $cn_id == null && $nf_id == null) ||
             ($pl_id != null && $cp_id != null && $cn_id == null && $nf_id == null)) {
 	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a) MERGE (cp)<-[:LAST]-(q)';
-          $this->logger->debug( "Delete Analysis type513");
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type513");
 	}
 
 	// 6) Last :Analysis node for :Head, next :Queue node(s) exist 
@@ -1006,7 +2175,8 @@ SET n:Head'.$quey_current.' DETACH DELETE q';
             ($pl_id != null && $cp_id != null && $cn_id == null && $nf_id != null)) {
 	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis) 
 MERGE (cp)<-[:LAST]-(q) MERGE (cp)-[:NEXT]->(nf)';
-          $this->logger->debug( "Delete Analysis type614");
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type614");
 	}
 
 	// 7) Regular :Analysis node for single :Head node (:Tail)
@@ -1019,7 +2189,8 @@ MERGE (cp)<-[:LAST]-(q) MERGE (cp)-[:NEXT]->(nf)';
             ($pl_id != null && $cp_id != null && $cn_id != null && $nf_id != null)) {
 	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis) 
 MERGE (cp)-[:NEXT]->(cn)';
-          $this->logger->debug( "Delete Analysis type781516");
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type781516");
 	}
 
 	// 9) The only :Analysis node for the :Tail 
@@ -1032,7 +2203,8 @@ MERGE (cp)-[:NEXT]->(cn)';
 	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q) 
 SET p:Tail'.$query_current.' DETACH DELETE q'; 
 
-          $this->logger->debug( "Delete Analysis type9 ".($current?":Current":""));
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type9 ".($current?":Current":""));
 	}
 
 	// 10) The only :Analysis node for the regular :Queue 
@@ -1046,7 +2218,8 @@ SET p:Tail'.$query_current.' DETACH DELETE q';
 MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis) 
 MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) '.$query_current.' DETACH DELETE q';
 
-          $this->logger->debug( "Delete Analysis type10 ".($current?":Current":""));
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type10 ".($current?":Current":""));
 	}
 
 	// 11) First :Analysis node for the :Tail
@@ -1055,36 +2228,32 @@ MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) '.$query_current.' DETACH DELETE
             ($pl_id != null && $cp_id == null && $cn_id != null && $nf_id != null)) {
 	  $query .= 'MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis) 
 MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
-          $this->logger->debug( "Delete Analysis type1112");
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Detach Analysis type1112");
 	}
 
 	// Send the query, we do NOT expect any return
-        $this->neo4j_client->run($query, $params);
+        $this->neo4j_client->run( $query, $params);
 
-	// Erase :Analysis or delete relationships only
-	if( $erase_flag)
-	
-	  // We are actually erasing :Analysis node
-	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid} DETACH DELETE a';
-
-	else
-
-	  // Delete relationships to siblings and :Queue
-	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+	// Delete relationships to siblings and :Queue
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
 OPTIONAL MATCH (:Analysis)-[s:NEXT]-(a) 
 OPTIONAL MATCH (:Queue)-[r]->(a) DELETE s,r';
 
 	// Send the query, we do NOT expect any return
-        $this->neo4j_client->run($query, $params);
+        $this->neo4j_client->run( $query, $params);
 
         // Return 
         return true;
     }
 
+
+
     // Interconnect (:Analysis) node with siblings
-    private function enqueueAnalysis( $aid)
+    private function enqueueAnalysisNode( $aid)
     {
-        $this->logger->debug('Enqueuing analysis node');
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Enqueuing analysis node');
 
 	// Previous, last, first node ids
 	$p_id=-1;
@@ -1107,8 +2276,9 @@ RETURN id(p) AS pid, id(l) AS lid, id(f) AS fid LIMIT 1';
           $l_id = $record->value('lid');
           $f_id = $record->value('fid');
         }
-
-        $this->logger->debug( "pid: $p_id, lid: $l_id, fid: $f_id");
+ 
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "pid: $p_id, lid: $l_id, fid: $f_id");
 
         $query = 'MATCH (q:Queue)-[:QUEUED]->(a:Analysis) WHERE id(a)={aid}';
 
@@ -1163,21 +2333,32 @@ RETURN id(a) AS aid LIMIT 1';
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)
-          if( $record->value('aid') != null)
+          if( $record->value('aid') != null) {
+
+	    // Add necessary status relationships
+//	    $this->linkStatusRelationships( $aid);
 	    return true;
+	}
 	
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error while enqueuing analysis node!');
+
 	return false;
     }
 
-    // Queue Game Analysis function
-    public function queueGameAnalysis( $gid, $depth, $sideLabel) 
-    {
-	if( !$this->security->isGranted('ROLE_USER')) {
-          $this->logger->debug('Access denied');
-	  return false;
-	}
 
-        $this->logger->debug('Staring game anaysis enqueueing process.');
+
+    // Queue Game Analysis function
+    public function enqueueGameAnalysis( $gid, $depth, $sideLabel) 
+    {
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Staring game anaysis enqueueing process.');
+
+	if( !$this->security->isGranted('ROLE_USER')) {
+	  if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Access denied');
+	  return -1;
+	}
 
 	// Match analysis for both sides
 	$sides = array_unique( array_slice( explode( ':', $sideLabel), 1));
@@ -1186,12 +2367,13 @@ RETURN id(a) AS aid LIMIT 1';
 	foreach( $sides as $key => $side) {
 
           // Check if the :Game has already been queued
-	  $status = $this->matchAnalysis( $gid, $depth, ':'.$side);
-          if( $status != -1) {
+	  $aid = $this->matchGameAnalysis( $gid, $depth, ':'.$side);
+          if( $aid != -1) {
 
-            $this->logger->debug(
+	    if( $_ENV['APP_DEBUG'])
+              $this->logger->debug(
 		'The game has already been queued for analysys for '. 
-		$side. ' status '.self::STATUS[$status]);
+		$side. ' depth '.$depth);
 
 	    // Delete array element
 	    unset( $sides[$key]);
@@ -1202,42 +2384,64 @@ RETURN id(a) AS aid LIMIT 1';
 	if( count( $sides) > 0)
 	  $sideLabel = ':'.implode( ':', $sides);
 	else
-	  return false;
+	  return -1;
 
-	// Make sure user is allowd to add more items
+	// Make sure user is allowed to add more items
 	if( !$this->checkUserLimit()) {
 
-            $this->logger->debug(
+	    if( $_ENV['APP_DEBUG'])
+              $this->logger->debug(
 		'User has exceeded their submission limit.');
 
-              return false;
+              return -1;
+	}
+
+	// Check system wide limit
+	if( $this->countAnalysisNodes( 'Pending', true) >= 
+		$_ENV['PENDING_QUEUE_LIMIT']) {
+
+	    if( $_ENV['APP_DEBUG'])
+              $this->logger->debug(
+		'System wide submission limit reached.');
+
+              return -1;
 	}
 
         // Create a new (:Analysis) node
         $aid = $this->createAnalysisNode( $gid, $depth, $sideLabel);
+	
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Created game analysis id: '.$aid);
 
-        // Finally create necessary relationships
-	if( $aid != -1)
-          return $this->enqueueAnalysis( $aid);
+	// Error creating analysis node
+	if( $aid == -1) return -1;
+          
+        // Finally create necessary relationships with siblings
+	if( !$this->enqueueAnalysisNode( $aid)) return -1;
 
-	return false;
+	// Set Pending status by default
+	if( !$this->setAnalysisStatus( $aid)) return -1;
+
+	return $aid;
     }
+
+
 
     // get the Analysis evaluation speed
     public function getEvaluationSpeed( $type, $number)
     {
 	// Depth paramaeter
-	$depth = $this->FAST;
-	if( intval( $type) == $this->DEEP) 
-	  $depth = $this->DEEP;
+	$depth = $this->depth['fast'];
+	if( $type == $this->depth['deep']) 
+	  $depth = $this->depth['deep'];
 
 	// Limit number of games to get
-	if( !is_numeric( $number) || $number < 0 || $number > 100)
+	if( !is_numeric( $number) || $number < 1 || $number > 100)
 	  return -1; // Negative to indicate error
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Getting analysis '.$depth.
-		' evaluation speed for '.$number.' games');
+		' evaluation speed for '.$number.' game(s)');
 
         // Check if the value is in the cache already
 	$speed=0;
@@ -1253,9 +2457,8 @@ RETURN id(a) AS aid LIMIT 1';
           return $speed;
         }
 
-	// Check if there is already analysis graph present
-	if( !$this->updateCurrentQueueNode())
-	  return -1; // negative indicate error
+	// Maintenance
+	if( !$this->updateCurrentQueueNode()) return -1;
 
         $query = '
 MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1 
@@ -1281,8 +2484,13 @@ RETURN average.milliseconds AS speed';
           if( $record->value('speed') != null)
             $speed = $record->value('speed');
 
+	// Nothing has been fetched from the DB, set dummy
+	if( $speed == 0)
+	  if( $depth == $this->depth['fast']) $speed = 2000;
+	    else $speed = 8000;
+
 	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug( $speed);
+          $this->logger->debug( 'Fetched speed: '.$speed. ' ms');
 
         // Storing the value in cache
         apcu_add( $cacheVarName, $speed, 3600);

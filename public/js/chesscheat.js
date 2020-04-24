@@ -103,6 +103,18 @@ function processGame() {
     function(result) { document.getElementById('processGameStatus').innerHTML = result });
 }
 
+// Display analysis queue with certain tag
+function showQueueTag( tag) {
+
+  console.log( "Game ID: " + tag);
+
+  $('.tagsinput#queue-form-tags').importTags( tag + ';');
+
+  loadQueue();
+
+  // Issue a click event on a Queue tab
+  document.getElementById("queueTab").click();
+}
 
 // Display game data on the Analyze tab
 function showGameDetails( gid) {
@@ -258,6 +270,14 @@ function parseTags( element) {
       return;
     }
 
+    // Analysis type
+    re = /^(fast|deep)$/i;
+    if( found_type = item.match( re)) {
+      tags_str += "type:" + found_type[0] + ";";
+      console.log( found_type);
+      return;
+    }
+
     // Game status label
     re = /^(complete|processing|pending|skipped|partially|evaluated|exported)$/i;
     if( found_status = item.match( re)) {
@@ -279,6 +299,14 @@ function parseTags( element) {
     if( found_email = item.match(re)) {
       tags_str += "email:" + found_email[0] + ";";
       console.log( found_email);
+      return;
+    }
+
+    // Special switches
+    re = /^(effectiveResult|resultMismatch)$/;
+    if( found_switch = item.match( re)) {
+      tags_str += "switch:" + found_switch[0] + ";";
+      console.log( found_switch);
       return;
     }
 
@@ -308,13 +336,15 @@ function loadGames() {
     // Build a table, start with header
     var items = [];
     items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll"/></td>' +
-        '<td>White</td><td>ELO W</td><td>Black</td><td>ELO B</td><td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +
+        '<td><abbr title="Avaliable analysis for White">A</abbr></td><td>White</td><td>ELO</td>' +
+	'<td><abbr title="Avaliable analysis for Black">A</abbr></td><td>Black</td><td>ELO</td>' +
+	'<td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +
         '<td><a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'gl_sort\',\'Date\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Date&nbsp;' +
         '<a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'gl_sort\',\'DateDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<td><a href="' + window.location.pathname + 
-        '#" onclick="setCookie(\'gl_sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;Moves&nbsp;'+
+        '#" onclick="setCookie(\'gl_sort\',\'Moves\',1);loadGames();" style="text-decoration: none;">&#x2191;</a>&nbsp;<abbr title="Number of game moves">M</abbr>&nbsp;'+
         '<a href="' + window.location.pathname + 
         '#" onclick="setCookie(\'gl_sort\',\'MovesDesc\',1);loadGames();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<td></td></tr>');
@@ -322,17 +352,29 @@ function loadGames() {
     // Iterate through all the loaded games
     $.each(data, function(key, val) {
 
-    items.push('<tr class="tableRow"><td><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
-	'<td' + (val["Analysis_W"]?' class="analysisCell"':'') + '>' + val["White"] + '</td><td>' + val["ELO_W"] + 
-	'</td><td' + (val["Analysis_B"]?' class="analysisCell"':'') + '>' + 
-	val["Black"] + '</td><td>' + val["ELO_B"] + '</td><td class="centered">' + 
-        val["Result"] + "</td><td>" + val["ECO"] + "</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
+      var W_analysis_icon = '';
+      var B_analysis_icon = '';
+      if( typeof val["Analysis_W"] == 'string' && val["Analysis_W"].length > 0) 
+	W_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["ID"] + ')"><img src="img/' + 
+	val["Analysis_W"] + '.png" title="' + val["Analysis_W"] + ' analysis present"/></a>';
+      if( typeof val["Analysis_B"] == 'string' && val["Analysis_B"].length > 0) 
+	B_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["ID"] + ')"><img src="img/' + 
+	val["Analysis_B"] + '.png" title="' + val["Analysis_B"] + ' analysis present"/></a>';
+
+      items.push('<tr class="tableRow"><td class="centered"><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
+	'<td class="centered">' + W_analysis_icon + '</td>' +
+	'<td>' + val["White"] + '</td><td class="centered">' + val["ELO_W"] + '</td>' +
+	'<td class="centered">' + B_analysis_icon + '</td>' +
+	'<td>' + val["Black"] + '</td><td class="centered">' + val["ELO_B"] + '</td>' +
+	'<td class="centered">' + val["Result"] + '</td><td class="centered">' + val["ECO"] +
+	"</td><td>" + val["Event"] + "</td><td>" + val["Date"] + 
         '<td class="centered">' + val["Moves"] + 
         '</td><!--<td class="centered">' + val["W_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["W_cheat_score"]-val["White_ELO"]) + 
         '</td><td class="centered">' + val["B_cheat_score"] + 
         '</td><td class="centered">' + colorScore( val["B_cheat_score"]-val["Black_ELO"]) + 
-        '</td>--><td><button onclick="showGameDetails(' + val["ID"] + ');">Analysis</button></td></tr>');
+        '</td>--><td><a href="#" onclick="showGameDetails( ' + val["ID"] + 
+	')"><img src="img/analysis.png" width="16px" title="Show game analysis"/></a></td></tr>');
     });
 
     // Clear existing table, display new data
@@ -547,9 +589,9 @@ for (index = 1; index < Positions.length; index++) {
   // Chess game for variation replay
   var moveVar = new Chess( currentGame.fen());
 
+//  console.log( index + ' ' + Positions[index][_MOVE]);
   var cmove = currentGame.move( Positions[index][_MOVE], {sloppy: true});
   Positions[index][_MOVE] = cmove.san;
-//  console.log( Positions[index][_MOVE]);
 
   // Go through the variation array
   for (vindex = 0; vindex < Positions[index][_T1_MOVE].length; vindex++) {
@@ -647,6 +689,7 @@ countersTable += "<td>" +
 "</table>" +
 "</td>";
 
+if( false)
 for( const baseline of ((prefix=="W_")?W_baselines:B_baselines)) { 
 
 countersTable += "<td>" +

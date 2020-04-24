@@ -66,8 +66,9 @@ class QueueGameAnalysisController extends AbstractController
       $request = Request::createFromGlobals();
 	
       // Get analysis depth
-      $requestDepth = $request->request->getInt('depth', 0);
-      if( $requestDepth > 0) $depth = $requestDepth;
+      $requestDepth = $request->request->get( 'depth');
+      if( $requestDepth == "deep" ) 
+	$depth = $_ENV['DEEP_ANALYSIS_DEPTH'];
 
       // Get side from a query parameter
       $sideToAnalyze = $request->request->get('side', "");
@@ -100,8 +101,8 @@ class QueueGameAnalysisController extends AbstractController
 	}
 
 	// enqueue particular game 
-	if( $this->queueManager->queueGameAnalysis( 
-		$gid, $depth, $sideLabel, $userId)) {
+	if( $this->queueManager->enqueueGameAnalysis( 
+		$gid, $depth, $sideLabel, $userId) != -1) {
 
 	  // Build the list of :Game ids to request :Line merge
 	  $this->gids[] = $gid;

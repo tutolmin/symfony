@@ -23,7 +23,6 @@ class QueueFillCommand extends Command
 
     // Default desired queue length
     const THRESHOLD = 20;
-    const MAXLENGTH = 2000;
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:fill';
@@ -108,12 +107,13 @@ class QueueFillCommand extends Command
 	$threshold = intval( $input->getOption('threshold'));
 
 	// Cap the user input with reasonable max value
-	if( $threshold > self::MAXLENGTH) $threshold=self::MAXLENGTH;
+	if( $threshold > $_ENV['PENDING_QUEUE_LIMIT']) 
+		$threshold = $_ENV['PENDING_QUEUE_LIMIT'];
 
 	$output->writeln( 'We are going to fill the queue to '. $threshold. ' items...');
 
 	// Check if queue is already full
-	$length = $this->queueManager->getQueueLength();
+	$length = $this->queueManager->countAnalysisNodes( 'Pending', true);
 
 	$output->writeln( 'Current analysis queue length = '. $length);
 
@@ -143,6 +143,14 @@ class QueueFillCommand extends Command
 
         // Get the user by email
         $user = $this->userRepository->findOneBy(['id' => $userId]);
+/*
+        // Get all active users
+        $users = $this->userRepository->findAll();
+
+        // Get random user
+        $userId = rand( 0, count( $users)-1);
+        $user = $users[$userId];
+*/
         $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
             $user,
             new Request(),
@@ -159,7 +167,8 @@ class QueueFillCommand extends Command
         if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
           $sideLabel = ":".$sideToAnalyze;
 
-        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth.' type: '.$type);
+        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth.
+		' type: '.$type.' user: '.$user->getEmail());
 
 	// Array of queued game ids
 	$gids = array();
@@ -169,16 +178,20 @@ class QueueFillCommand extends Command
           // Get the game id
           $gid = $this->gameManager->getRandomGameId( $type);
 
-          $output->writeln( 'Selected game id ' . $gid);
+          $output->writeln( 'Selected game id ' . $gid . ' depth: ' . 
+		$depth . ' label ' . $sideLabel);
 
 	  // Enqueue game analysis node
-	  if( $this->queueManager->queueGameAnalysis(
-                $gid, $depth, $sideLabel))
-	    $gids[] = $gid;	
-	  else
-            $output->writeln( 'Game has already beed analysed');
+	  if(( $aid = $this->queueManager->enqueueGameAnalysis(
+                $gid, $depth, $sideLabel)) != -1) {
 
-	} while( $this->queueManager->getQueueLength() < $threshold);
+            $output->writeln( 'New analysis id: '.$aid);
+
+	    $gids[] = $gid;	
+	  } else
+            $output->writeln( 'Error queueing the game!');
+
+	} while( $this->queueManager->countAnalysisNodes( 'Pending', true) < $threshold);
 
         $output->writeln( 'Loading :Game lines');
 

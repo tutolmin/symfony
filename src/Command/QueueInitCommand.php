@@ -16,6 +16,8 @@ use App\Entity\User;
 
 class QueueInitCommand extends Command
 {
+    const FIREWALL_MAIN = "main";
+    
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:init';
 
@@ -62,14 +64,6 @@ class QueueInitCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-	// If analysys queue graph exists, return error
-	if( $this->queueManager->queueGraphExists()) {
-
-	  $output->writeln( 'Error! Analysis queue graph already exists!');
-
-	  return 1;
-	}
-
         // Initialize security context
         $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
             $this->userRepository->findOneBy(['id' => $_ENV['SYSTEM_WEB_USER_ID']]),
@@ -78,10 +72,14 @@ class QueueInitCommand extends Command
             self::FIREWALL_MAIN
         );
 	
-	// Init empty queue graph
-	$this->queueManager->initQueue();
+        // Init empty queue graph
+        if( $this->queueManager->initQueueGraph())
+    
+          $output->writeln( 'Empty analysis queue has been initialized successfully');
 
-	$output->writeln( 'Analysis queue has been initialized successfully');
+	else
+
+          $output->writeln( 'Analysis queue already exists');
 
         return 0;
     }

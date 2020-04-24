@@ -62,6 +62,33 @@ class GameDetailsController extends AbstractController
         $this->logger = $logger;
         $this->fetcher = $fetcher;
         $this->gameManager = $gm;
+
+	foreach( $this->sides as $prefix) {
+	$this->game[$prefix.'Plies']="";
+	$this->game[$prefix.'Analyzed']="";
+	$this->game[$prefix.'ECOs']="";
+	$this->game[$prefix.'ECO_rate']="";
+	$this->game[$prefix.'T1']="";
+	$this->game[$prefix.'T1_rate']="";
+	$this->game[$prefix.'T2']="";
+	$this->game[$prefix.'T2_rate']="";
+	$this->game[$prefix.'T3']="";
+	$this->game[$prefix.'T3_rate']="";
+	$this->game[$prefix.'ET3']="";
+	$this->game[$prefix.'ET3_rate']="";
+	$this->game[$prefix.'Best']="";
+	$this->game[$prefix.'Best_rate']="";
+	$this->game[$prefix.'Sound']="";
+	$this->game[$prefix.'Sound_rate']="";
+	$this->game[$prefix.'Forced']="";
+	$this->game[$prefix.'Forced_rate']="";
+	$this->game[$prefix.'Deltas']="";
+	$this->game[$prefix.'avg_diff']="";
+	$this->game[$prefix.'median']="";
+	$this->game[$prefix.'std_dev']="";
+	$this->game[$prefix.'cheat_score']="";
+	$this->game[$prefix.'perp_len']="";
+	}
     }
 
     /**
@@ -79,15 +106,21 @@ class GameDetailsController extends AbstractController
 	// HTTP request
 	$request = Request::createFromGlobals();
 
+	// Get game id from request
+	$this->game['ID'] = $request->query->getInt('gid', -1);
+
 	// Get game info
-	if( $this->getGameInfo( $request->query->getInt('gid', 0))) {
+	if( $this->getGameInfo() != -1) {
 
 	  // Lap, Game node details fetched
 	  $this->stopwatch->lap('getGameDetails');
 	  $this->stopwatch->start('getBaselines');
 
+	  // Get summary
+	  $this->getSummary();
+
 	  // Get baselines
-	  $this->getBaselines();
+//	  $this->getBaselines();
 
 	  // Lap, baselines fetched
 	  $this->stopwatch->stop('getBaselines');
@@ -228,7 +261,6 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	  }
 	} else // Only SANs are present
 	  $this->moves = $response->toArray();
-
     }
 /*
     // Fetch move list
@@ -274,22 +306,91 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
 	}
     }
 */
-    // Get game info
-    private function getGameInfo( $gid)
+
+    // Get game summary for both players
+    private function getSummary()
     {
-	$this->game['ID'] = 0;
+	// Fetch game details 
+	$params = ["gid" => $this->game['ID']];
+	$query = 'MATCH (game:Game) WHERE id(game) = $gid
+MATCH (game)-[:FINISHED_ON]->(line:Line)
+OPTIONAL MATCH (line)-[:HAS_GOT]->(summary:Summary)
+RETURN summary LIMIT 2';
+	$result = $this->neo4j_client->run( $query, $params);
 
-	// Get random game
-//	if( $gid == 0) $gid = $this->getRandomGameId();
+	foreach ($result->records() as $record) {
+//	  $this->game['White']  = $record->value('player_w.name');
 
-        // Get the game id
-//        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "stalemate");
-        if( $gid == 0) $gid = $this->gameManager->getRandomGameId( "checkmate");
-//        if( $gid == 0) $gid = $this->gameManager->getRandomGameId();
+	  // If summary is null, get next
+          $summaryObj = $record->get('summary');
+          if( $record->value('summary') == null) continue;
 
+	  // Which side summary is this?
+          $labelsArray = $summaryObj->labels();
+	  $side ='Black';
+          if( in_array( 'White', $labelsArray)) $side = 'White';
+	  $prefix = $this->sides[$side];
+
+	if($summaryObj->hasValue('analyzed'))
+		$this->game[$prefix.'Analyzed'] = $summaryObj->value('analyzed');
+	if($summaryObj->hasValue('plies'))
+		$this->game[$prefix.'Plies'] = $summaryObj->value('plies');
+	if($summaryObj->hasValue('ecos'))
+		$this->game[$prefix.'ECOs'] = $summaryObj->value('ecos');
+	if($summaryObj->hasValue('eco_rate'))
+		$this->game[$prefix.'ECO_rate'] = $summaryObj->value('eco_rate');
+	if($summaryObj->hasValue('t1'))
+		$this->game[$prefix.'T1'] = $summaryObj->value('t1');
+	if($summaryObj->hasValue('t1_rate'))
+		$this->game[$prefix.'T1_rate'] = $summaryObj->value('t1_rate');
+	if($summaryObj->hasValue('t2'))
+		$this->game[$prefix.'T2'] = $summaryObj->value('t2');
+	if($summaryObj->hasValue('t2_rate'))
+		$this->game[$prefix.'T2_rate'] = $summaryObj->value('t2_rate');
+	if($summaryObj->hasValue('t3'))
+		$this->game[$prefix.'T3'] = $summaryObj->value('t3');
+	if($summaryObj->hasValue('t3_rate'))
+		$this->game[$prefix.'T3_rate'] = $summaryObj->value('t3_rate');
+	if($summaryObj->hasValue('t3'))
+		$this->game[$prefix.'ET3'] = $summaryObj->value('et3');
+	if($summaryObj->hasValue('et3_rate'))
+		$this->game[$prefix.'ET3_rate'] = $summaryObj->value('et3_rate');
+	if($summaryObj->hasValue('best'))
+		$this->game[$prefix.'Best'] = $summaryObj->value('best');
+	if($summaryObj->hasValue('best_rate'))
+		$this->game[$prefix.'Best_rate'] = $summaryObj->value('best_rate');
+	if($summaryObj->hasValue('sound'))
+		$this->game[$prefix.'Sound'] = $summaryObj->value('sound');
+	if($summaryObj->hasValue('sound_rate'))
+		$this->game[$prefix.'Sound_rate'] = $summaryObj->value('sound_rate');
+	if($summaryObj->hasValue('forced'))
+		$this->game[$prefix.'Forced'] = $summaryObj->value('forced');
+	if($summaryObj->hasValue('forced_rate'))
+		$this->game[$prefix.'Forced_rate'] = $summaryObj->value('forced_rate');
+	if($summaryObj->hasValue('deltas'))
+		$this->game[$prefix.'Deltas'] = $summaryObj->value('deltas');
+	if($summaryObj->hasValue('mean'))
+		$this->game[$prefix.'avg_diff'] = $summaryObj->value('mean');
+	if($summaryObj->hasValue('median'))
+		$this->game[$prefix.'median'] = $summaryObj->value('median');
+	if($summaryObj->hasValue('stddev'))
+		$this->game[$prefix.'std_dev'] = $summaryObj->value('stddev');
+	if($summaryObj->hasValue('cheatscore'))
+		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheatscore');
+	if($summaryObj->hasValue('perplen'))
+		$this->game[$prefix.'perp_len'] = $summaryObj->value('perplen');
+	}
+    }
+
+    // Get game info
+    private function getGameInfo()
+    {
+	// Check if specified game id does not exist, get random game
+	if( !$this->gameManager->gameExists( $this->game['ID'])) 
+	  $this->game['ID'] = $this->gameManager->getRandomGameId( "checkmate");
 
 	// Fetch game details 
-	$params = ["gid" => $gid];
+	$params = ["gid" => $this->game['ID']];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
 MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
 WITH game, 
@@ -311,7 +412,7 @@ LIMIT 1";
 
 	  // Fetch game object
 	  $gameObj = $record->get('game');
-	  $this->game['ID']	= $gameObj->identity();
+//	  $this->game['ID']	= $gameObj->identity();
 	  $this->game['White']  = $record->value('player_w.name');
 	  $this->game['W_ELO']  = $record->value('elo_w.rating');
 	  $this->game['Black']  = $record->value('player_b.name');
@@ -334,14 +435,15 @@ LIMIT 1";
 
 // Optional game properties
 $this->game['eResult']="";
-$this->game['analyze']="";
-$this->game['ECO']="";
-$this->game['ECO_opening']="";
-$this->game['ECO_variation']="";
-$this->game['eval_time']="";
-$this->game['eval_date']="";
+//$this->game['analyze']="";
+//$this->game['ECO']="";
+//$this->game['ECO_opening']="";
+//$this->game['ECO_variation']="";
+//$this->game['eval_time']="";
+//$this->game['eval_date']="";
 if($gameObj->hasValue('effective_result'))
         $this->game['eResult'] = $gameObj->value('effective_result');
+/*
 if($gameObj->hasValue('analyze'))
         $this->game['analyze'] = $gameObj->value('analyze');
 if($gameObj->hasValue('ECO'))
@@ -354,83 +456,11 @@ if($gameObj->hasValue('eval_time'))
         $this->game['eval_time'] = $gameObj->value('eval_time');
 if($gameObj->hasValue('eval_date'))
         $this->game['eval_date'] = date('Y-m-d H:i:s.u',$gameObj->value('eval_date')/1000);
-
 // Side specific properties
 foreach( $this->sides as $side => $prefix) {
 
-$this->game[$prefix.'Plies']="";
-$this->game[$prefix.'Analyzed']="";
-$this->game[$prefix.'ECOs']="";
-$this->game[$prefix.'ECO_rate']="";
-$this->game[$prefix.'T1']="";
-$this->game[$prefix.'T1_rate']="";
-$this->game[$prefix.'T2']="";
-$this->game[$prefix.'T2_rate']="";
-$this->game[$prefix.'T3']="";
-$this->game[$prefix.'T3_rate']="";
-$this->game[$prefix.'ET3']="";
-$this->game[$prefix.'ET3_rate']="";
-$this->game[$prefix.'Best']="";
-$this->game[$prefix.'Best_rate']="";
-$this->game[$prefix.'Sound']="";
-$this->game[$prefix.'Sound_rate']="";
-$this->game[$prefix.'Forced']="";
-$this->game[$prefix.'Forced_rate']="";
-$this->game[$prefix.'Deltas']="";
-$this->game[$prefix.'avg_diff']="";
-$this->game[$prefix.'median']="";
-$this->game[$prefix.'std_dev']="";
-$this->game[$prefix.'cheat_score']="";
-$this->game[$prefix.'perp_len']="";
-if($gameObj->hasValue($prefix.'Analyzed'))
-        $this->game[$prefix.'Analyzed'] = $gameObj->value($prefix.'Analyzed');
-if($gameObj->hasValue($prefix.'Plies'))
-        $this->game[$prefix.'Plies'] = $gameObj->value($prefix.'Plies');
-if($gameObj->hasValue($prefix.'ECOs'))
-        $this->game[$prefix.'ECOs'] = $gameObj->value($prefix.'ECOs');
-if($gameObj->hasValue($prefix.'ECO_rate'))
-        $this->game[$prefix.'ECO_rate'] = $gameObj->value($prefix.'ECO_rate');
-if($gameObj->hasValue($prefix.'T1'))
-        $this->game[$prefix.'T1'] = $gameObj->value($prefix.'T1');
-if($gameObj->hasValue($prefix.'T1_rate'))
-        $this->game[$prefix.'T1_rate'] = $gameObj->value($prefix.'T1_rate');
-if($gameObj->hasValue($prefix.'T2'))
-        $this->game[$prefix.'T2'] = $gameObj->value($prefix.'T2');
-if($gameObj->hasValue($prefix.'T2_rate'))
-        $this->game[$prefix.'T2_rate'] = $gameObj->value($prefix.'T2_rate');
-if($gameObj->hasValue($prefix.'T3'))
-        $this->game[$prefix.'T3'] = $gameObj->value($prefix.'T3');
-if($gameObj->hasValue($prefix.'T3_rate'))
-        $this->game[$prefix.'T3_rate'] = $gameObj->value($prefix.'T3_rate');
-if($gameObj->hasValue($prefix.'T3'))
-        $this->game[$prefix.'ET3'] = $gameObj->value($prefix.'ET3');
-if($gameObj->hasValue($prefix.'ET3_rate'))
-        $this->game[$prefix.'ET3_rate'] = $gameObj->value($prefix.'ET3_rate');
-if($gameObj->hasValue($prefix.'Best'))
-        $this->game[$prefix.'Best'] = $gameObj->value($prefix.'Best');
-if($gameObj->hasValue($prefix.'Best_rate'))
-        $this->game[$prefix.'Best_rate'] = $gameObj->value($prefix.'Best_rate');
-if($gameObj->hasValue($prefix.'Sound'))
-        $this->game[$prefix.'Sound'] = $gameObj->value($prefix.'Sound');
-if($gameObj->hasValue($prefix.'Sound_rate'))
-        $this->game[$prefix.'Sound_rate'] = $gameObj->value($prefix.'Sound_rate');
-if($gameObj->hasValue($prefix.'Forced'))
-        $this->game[$prefix.'Forced'] = $gameObj->value($prefix.'Forced');
-if($gameObj->hasValue($prefix.'Forced_rate'))
-        $this->game[$prefix.'Forced_rate'] = $gameObj->value($prefix.'Forced_rate');
-if($gameObj->hasValue($prefix.'Deltas'))
-        $this->game[$prefix.'Deltas'] = $gameObj->value($prefix.'Deltas');
-if($gameObj->hasValue($prefix.'avg_diff'))
-        $this->game[$prefix.'avg_diff'] = $gameObj->value($prefix.'avg_diff');
-if($gameObj->hasValue($prefix.'median'))
-        $this->game[$prefix.'median'] = $gameObj->value($prefix.'median');
-if($gameObj->hasValue($prefix.'std_dev'))
-        $this->game[$prefix.'std_dev'] = $gameObj->value($prefix.'std_dev');
-if($gameObj->hasValue($prefix.'cheat_score'))
-        $this->game[$prefix.'cheat_score'] = $gameObj->value($prefix.'cheat_score');
-if($gameObj->hasValue($prefix.'perp_len'))
-        $this->game[$prefix.'perp_len'] = $gameObj->value($prefix.'perp_len');
 }
+*/
 	}
 
 	return $this->game['ID'];

@@ -13,7 +13,7 @@ use App\Service\UserManager;
 class UserEraseCommand extends Command
 {
     // the name of the command (the part after "bin/console")
-    protected static $defaultName = 'user:erase';
+    protected static $defaultName = 'user:erase:all';
 
     // User nameger reference
     private $userManager;

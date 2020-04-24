@@ -1,6 +1,7 @@
 body {
  font-family: Arial, sans-serif; /* Рубленый шрифт */
  background-color: #fff;
+    width:1350px;
 }
 .FEN {
  font-size: 75%; /* Размер шрифта в процентах */
@@ -39,7 +40,7 @@ body {
     border: none;
     outline: none;
     cursor: pointer;
-    padding: 0px 50px;
+    padding: 0px 30px;
     transition: 0.3s;
 }
 
@@ -66,10 +67,10 @@ body {
 }
 table.my-new-table {
     padding: 10px 2px;
-    width:1300px;
+    width:1050px;
     border 1px solid #ddd;
 }
-tr.tableHeader td{padding:10px 15px;background-color:#CCC;font-weight:bold;}
+tr.tableHeader td{padding:5px 10px;background-color:#CCC;font-weight:bold;}
 tr.tableRow {background-color:#EEE;font-color:#333;}
 tr.tableRow:hover{background-color:#6c6c6c;font-color:#CCC;}
 table.mlTable {
@@ -94,10 +95,14 @@ td.odd {
   background-color:#ddd;
   text-align: center;
 }
-td.analysisCell {
+td.fastAnalysisCell {
   background-color:#CCC;
 }
-td.analysisCell:hover { background-color:#6c6c6c;font-color:#CCC;}
+td.fastAnalysisCell:hover { background-color:#6c6c6c;font-color:#CCC;}
+td.deepAnalysisCell {
+  background-color:#AAA;
+}
+td.deepAnalysisCell:hover { background-color:#6a6a6a;font-color:#AAA;}
 .centered {
 	text-align: center;
 }
@@ -137,4 +142,27 @@ td.analysisCell:hover { background-color:#6c6c6c;font-color:#CCC;}
   -webkit-box-shadow: inset 0 0 3px 3px red;
   -moz-box-shadow: inset 0 0 3px 3px red;
   box-shadow: inset 0 0 3px 3px red;  
+}
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 350px;
+  background-color: black;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 5px 0;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
 }

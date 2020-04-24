@@ -75,12 +75,13 @@ class QueueExportJSONCommand extends Command
           $output->writeln( 'Selected analysis game id: ' . $gid);
 
 	  // Get available depth for each side
-	  $depth = $this->queueManager->getGameAnalysisDepths( $gid);
+	  $depths = $this->queueManager->getGameAnalysisDepths( $gid);
 
           // Request JSON files update for the game
-          $this->gameManager->exportJSONFile( $gid, $depth);
+          $this->gameManager->exportJSONFile( $gid, $depths);
 
-	} else {
+	// How to select processed but not processing games?
+	} else if ( false) {
 	
 	// Parse the user specified number of games
 	$number = intval( $input->getOption('number'));
@@ -94,7 +95,7 @@ class QueueExportJSONCommand extends Command
 	while( $number-- > 0) {
 
 	  // Get first matching analysis node with Evaluated status
-	  $aid = $this->queueManager->getFirstAnalysis( "Evaluated");
+	  $aid = $this->queueManager->getStatusQueueNode( "Complete");
 
           $output->writeln( 'Selected analysis id: '. $aid);
 
@@ -110,7 +111,7 @@ class QueueExportJSONCommand extends Command
             $output->writeln( 'Can not fetch game id for analysis');
 
 	    // We need to mark it somehow, otherwise we will fetch it again
-	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
+	    $this->queueManager->promoteAnalysis( $aid, "Skipped");
 
 	    continue;
 	  }
@@ -118,15 +119,15 @@ class QueueExportJSONCommand extends Command
           $output->writeln( 'Selected analysis game id: ' . $gid);
 
 	  // Fetch analysis depth
-	  $depth = $this->queueManager->getGameAnalysisDepths( $gid);
+	  $depths = $this->queueManager->getGameAnalysisDepths( $gid);
 
           // Request JSON files update for the game
-          if( $this->gameManager->exportJSONFile( $gid, $depth))
+          if( $this->gameManager->exportJSONFile( $gid, $depths))
 
 	    // Mark the Analysis so we do not fetch it again
-	    $this->queueManager->setAnalysisStatus( $aid, "Exported");
+	    $this->queueManager->promoteAnalysis( $aid, "Complete");
  	  else
-	    $this->queueManager->setAnalysisStatus( $aid, "Skipped");
+	    $this->queueManager->promoteAnalysis( $aid, "Skipped");
 	}
 	}
         return 0;

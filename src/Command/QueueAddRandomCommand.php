@@ -1,6 +1,6 @@
 <?php
 
-// src/Command/QueueAddCommand.php
+// src/Command/QueueAddRandomCommand.php
 
 namespace App\Command;
 
@@ -17,7 +17,7 @@ use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
 
-class QueueAddCommand extends Command
+class QueueAddRandomCommand extends Command
 {
     const FIREWALL_MAIN = "main";
 
@@ -102,7 +102,7 @@ class QueueAddCommand extends Command
 	// Get the game id
 	$gid = $this->gameManager->getRandomGameId( $type);
 
-	$output->writeln( 'Selected game id ' . $gid);
+	$output->writeln( 'Adding analysis for game id ' . $gid);
 
         // Default analysis parameters
         $sideLabel = ":WhiteSide:BlackSide";
@@ -111,6 +111,14 @@ class QueueAddCommand extends Command
 
         // Get the user by email
         $user = $this->userRepository->findOneBy(['id' => $userId]);
+
+	// Get all active users
+        $users = $this->userRepository->findAll();
+
+	// Get random user
+	$userId = rand( 0, count( $users)-1);
+	$user = $users[$userId];
+
 	$this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
             $user,
             new Request(),
@@ -127,14 +135,18 @@ class QueueAddCommand extends Command
         if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
           $sideLabel = ":".$sideToAnalyze;
 
-	$output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth);
+	$output->writeln( 'Side labels(s): '.$sideLabel.
+		' depth: '.$depth.' user: '.$user->getEmail());
 
         // enqueue particular game 
-        if( $this->queueManager->queueGameAnalysis(
-                $gid, $depth, $sideLabel))
+        if( ($aid = $this->queueManager->enqueueGameAnalysis(
+                $gid, $depth, $sideLabel)) != -1) {
+
+	  $output->writeln( 'New analysis id: '.$aid);
 
 	  // Request :Line load for the list of games
 	  $this->gameManager->loadLines( [$gid], $userId);
+	}
 
         return 0;
     }

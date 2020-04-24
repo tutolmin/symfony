@@ -75,6 +75,7 @@ class LoadGamesController extends AbstractController
 			"status",
 			"eco",
 			"piece",
+			"switch",
 			"white", "black", 
 			"wins", "loses", "draws", 
 		"start_year", "start_month", "start_day", "end_year", "end_month", "end_day" ];
@@ -86,6 +87,7 @@ class LoadGamesController extends AbstractController
 	// Neo4j entiries
 	$side_colors	 = [ "white" => "White", "black" => "Black" ];
 	$side_results	 = [ "wins" => "Win", "draws" => "Draw", "loses" => "Loss" ];
+	$side_effective_results	 = [ "wins" => "EffectiveWin", "draws" => "EffectiveDraw", "loses" => "EffectiveLoss" ];
 
 	// Valid tag values
 	$valid_ending	= [ "checkmate" => "CheckMate", "stalemate" => "StaleMate" ];
@@ -106,6 +108,7 @@ class LoadGamesController extends AbstractController
 
 	// Results array
 	$results = [];
+	$effectiveResultSwitch = false;
 
 	// Game Ending type lable
 	$plycount_ending_label = "";
@@ -235,6 +238,11 @@ echo "<br/>\n";
 		    if( $params["end_day"] > 31 || $params["end_day"] < 1) $params["end_day"] = 0;
 		    break;
 		
+		  case "switch":
+		    if( $tag_value == 'effectiveResult')
+		      $effectiveResultSwitch = true;
+		    break;
+
 		  case "status":
 		    if( array_key_exists( $tag_value, $game_statuses)) $status_label = $game_statuses[$tag_value];
 		    break;
@@ -357,11 +365,30 @@ $second_results = array();
 
 // Push all values if empty results array
 if( !count( $results)) {
-  array_push( $first_results, "Win", "Draw", "Loss","Unknown");
+
+  // Effective result has different labels
+  if( $effectiveResultSwitch)
+
+    array_push( $first_results, "EffectiveWin", "EffectiveDraw", "EffectiveLoss", "Unknown");
+  else
+    array_push( $first_results, "Win", "Draw", "Loss", "Unknown");
+
   $second_results=$first_results;
+
 } else {
-  array_push( $first_results, $side_results[$results["first"]]);
-  array_push( $second_results, $side_results[$results["second"]]);
+
+  // Effective result has different labels
+  if( $effectiveResultSwitch) {
+
+    array_push( $first_results, $side_effective_results[$results["first"]]);
+    array_push( $second_results, $side_effective_results[$results["second"]]);
+
+  } else {
+
+    array_push( $first_results, $side_results[$results["first"]]);
+    array_push( $second_results, $side_results[$results["second"]]);
+
+  }
 }
 
 if( self::_DEBUG) {
@@ -584,8 +611,8 @@ MATCH (line)-[:CLASSIFIED_AS]->(eco_code:EcoCode)
 MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
 MATCH (game)-[:WAS_PART_OF]->(event:Event)
 MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
-OPTIONAL MATCH (line)<-[:PERFORMED_ON]-(analysis:Analysis:Complete)
-RETURN game, labels(analysis) AS alabels, white_player.name, black_player.name, date_str, eco_code.code,
+OPTIONAL MATCH (line)<-[:PERFORMED_ON]-(analysis:Analysis)-[:REQUIRED_DEPTH]->(d:Depth)
+RETURN game, collect( [labels(analysis), d.level]) AS analysises, white_player.name, black_player.name, date_str, eco_code.code,
 	event.name, round.name, site.name, white_elo.rating, black_elo.rating, plycount.counter, white_result
 LIMIT 1";
 //var_dump( $game_params);
@@ -593,6 +620,7 @@ LIMIT 1";
 
         $game_result = $neo4j_client->run($game_query, $game_params);
 	foreach ($game_result->records() as $game_record) {
+
         $gameObj = $game_record->get('game');
         $games[$index]['ID'] = $gameObj->identity();
         $games[$index]['White'] = $game_record->value('white_player.name');
@@ -605,6 +633,8 @@ LIMIT 1";
         $games[$index]['Round'] = $game_record->value('round.name');
         $games[$index]['Site']  = $game_record->value('site.name');
         $games[$index]['Moves'] = round( $game_record->value('plycount.counter')/2, 0, PHP_ROUND_HALF_UP);
+
+	// Preapare result string
 	$labelsObj = $game_record->get('white_result');
 	$labelsArray = $labelsObj->labels();
 	if( in_array( "Draw", $labelsArray))
@@ -615,11 +645,28 @@ LIMIT 1";
           $games[$index]['Result'] = "0-1";
 	else
           $games[$index]['Result'] = "Unknown";
-        $labelsAnalysis = $game_record->value('alabels');
-	if( $labelsAnalysis && in_array( "WhiteSide", $labelsAnalysis))
-          $games[$index]['Analysis_W'] = true;
-	if( $labelsAnalysis && in_array( "BlackSide", $labelsAnalysis))
-          $games[$index]['Analysis_B'] = true;
+
+	// Parse analysis depths array
+        $analysis_requests = $game_record->value('analysises');
+	$analysis_depths = ['WhiteSide' => 0, 'BlackSide' => 0];
+	foreach( $analysis_requests as $request)
+	  if( is_array( $request[0])) {
+	    if( in_array( 'WhiteSide', $request[0]) 
+		&& $request[1] > $analysis_depths['WhiteSide'])
+	      $analysis_depths['WhiteSide'] = $request[1];
+	    if( in_array( 'BlackSide', $request[0]) 
+		&& $request[1] > $analysis_depths['BlackSide'])
+	      $analysis_depths['BlackSide'] = $request[1];
+	  }
+	if( $analysis_depths["WhiteSide"] > 0)
+          $games[$index]['Analysis_W'] = 'fast';
+	if( $analysis_depths["WhiteSide"] > 20)
+          $games[$index]['Analysis_W'] = 'deep';
+	if( $analysis_depths["BlackSide"] > 0)
+          $games[$index]['Analysis_B'] = 'fast';
+	if( $analysis_depths["BlackSide"] > 20)
+          $games[$index]['Analysis_B'] = 'deep';
+
 /*
         if($gameObj->hasValue('W_cheat_score'))
         $games[$index]['W_cheat_score'] = $gameObj->value('W_cheat_score');

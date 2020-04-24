@@ -11,6 +11,8 @@
 
 {% block body %}
 
+<div>
+<div style="float:left;">
 <!-- Tab links -->
 <div class="tab">
   <button onclick="openTab(event, 'Analyze')">
@@ -31,7 +33,7 @@
   <button class="tablinks" onclick="openTab(event, 'Analyze')" id="analysisTab">
 <img src="img/analysis.png" style="float:left"/>&nbsp;&nbsp;Analyze</button>
 </div>
-
+</div>
 <div style="float:right;">
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {{ app.user.email }}&nbsp;<a href="/logout">Logout</a>
@@ -40,8 +42,12 @@
 {% endif %}
 </div>
 
+</div>
+
 <!-- Tab content -->
 <div id="Upload" class="tabcontent">
+
+<table style='width:100%'><tr><td style="vertical-align:top">
   <h3>Upload Game(s)</h3>
 
 {{ form_start(form) }}
@@ -73,11 +79,23 @@ Use the form below to upload your games.</p>
 {% endif %}
 
 {{ form_end(form) }}
+
+</td>
+
+<td valign="top" style='width:300px'>
+<h3>PGN format</h3>
+<p>PGN format is the de-facto standard for the chess game exchange.</p>
+</td>
+
+</tr>
+</table>
+
 </div>
 
 <!-- Tab content -->
 <div id="Search" class="tabcontent">
 <table><tr><td style="vertical-align:top">
+<!--
   <h3>Predefined Tags</h3>
 <div class="predefinedTags">
 <b>Game result</b><br/>
@@ -115,8 +133,6 @@ Use the form below to upload your games.</p>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Houdini 6.02');">Houdini 6.02<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Deep Fritz 10');">Deep Fritz 10<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Comp Deep Blue');">Comp Deep Blue<br/>
-<!--
--->
 <b>Players</b><br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Anand, Viswanathan');">Anand, Viswanathan<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Kramnik, Vladimir');">Kramnik, Vladimir<br/>
@@ -131,7 +147,6 @@ Use the form below to upload your games.</p>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'snukerok');">snukerok<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'DNISTER62');">DNISTER62<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Magic2240');">Magic2240<br/>
-<!--
 <b># of moves</b><br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 moves');">10 moves<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '20 moves');">20 moves<br/>
@@ -145,14 +160,28 @@ Use the form below to upload your games.</p>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1000+');">1000+<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '2000+');">2000+<br/>
 <input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1500-');">1500-<br/>
--->
 </div>
 </td>
 <td style="vertical-align:top">
+-->
   <p>Enter player name, result or start typing to select tag from the dropdown list. You can also use predefined tags on the left.</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#form-tags').importTags( '');">Delete all tags</button>
   </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text"></form>
+<br/>
+  <span style="font-size:18pt;float:left;">Predefined tags:&nbsp;</span>
+<span>
+<button onclick="$('.tagsinput#form-tags').addTag( '1-0');">1-0</button>
+<button onclick="$('.tagsinput#form-tags').addTag( '0-1');">0-1</button>
+<button onclick="$('.tagsinput#form-tags').addTag( '1/2-1/2');">1/2-1/2</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'checkmate');">checkmate</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'stalemate');">stalemate</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'C98');">C98</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'E45');">E45</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'A02');">A02</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'Kramnik, Vladimir');">Kramnik</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'Carlsen,M');">Carlsen</button>
+</span>
 
   <div class="gameList" id="gameList"></div>
 
@@ -163,9 +192,8 @@ Use the form below to upload your games.</p>
 <option value="BlackSide">Black Only</option>
 </select>
 <select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">
-<option value="">18+ plies</option>
-<option value="20">20+ plies</option>
-<option value="23">23+ plies</option>
+<option value="fast">Fast</option>
+<option value="deep">Deep</option>
 </select>
 <div id="analysis_submit_group">
      <button type="submit"
@@ -203,42 +231,42 @@ Use the form below to upload your games.</p>
 </td></tr></table>
 
 </td>
+<td valign="top">
+<h3>Available tags</h3>
+<p>There are a lot of tag you can use to select the particular game such as player name, result, ECO code.</p>
+</td>
+
 </tr>
 </table>
 </div>
 
 <div id="Queue" class="tabcontent">
 <table><tr><td style="vertical-align:top">
-  <h3>Predefined Tags</h3>
-<div class="predefinedTags">
-<b>My games</b><br/>
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( '{{ app.user.email }}');"
-{% else %}
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( '');" disabled="disabled"
-{% endif %}
->My games<br/>
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-{% else %}
-(<a href="/connect">login</a> required)<br/>
-{% endif %}
-<b>Side</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black<br/>
-<b>Status</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'pending');" checked="checked">Pending<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'processing');">Processing<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'skipped');">Skipped<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'evaluated');">Evaluated<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'exported');">Exported<br/>
-<input type="checkbox" onclick="$('.tagsinput#queue-form-tags').addTag( 'complete');">Complete<br/>
-</div>
-</td>
-<td style="vertical-align:top">
-  <p>Enter player name, event, result or start typing to select tag from the dropdown list. You can also select from a predefined list of tags below.</p>
+  <p>Tags for analysis requests selection are a little bit different. Please use predefined tags below</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#queue-form-tags').importTags( '');loadQueue();">Delete all tags</button>
   </span><form id="queue_form"><input id="queue-form-tags" name="tags" class="tagsinput" type="text"></form>
+<br/>
+  <span style="font-size:18pt;float:left;">Predefined tags:&nbsp;</span>
+<span>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black</button>
+<!--
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'fast');">Fast</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'deep');">Deep</button>
+-->
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'pending');">Pending</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'processing');">Processing</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'skipped');">Skipped</button>
+<button onclick="$('.tagsinput#queue-form-tags').addTag( 'complete');">Complete</button>
+
+{% if is_granted('IS_AUTHENTICATED_FULLY') %}
+<button onclick="$('.tagsinput#queue-form-tags').addTag( '{{ app.user.email }}');">My games</button>
+{% else %}
+<button onclick="$('.tagsinput#queue-form-tags').addTag( '');" disabled="disabled">My games</button>
+(<a href="/connect">login</a> required)
+{% endif %}
+</span>
 
   <div class="analysisQueue" id="analysisQueue"></div>
 
@@ -279,6 +307,12 @@ Use the form below to upload your games.</p>
 </td></tr></table>
 
 </td>
+
+<td valign="top">
+<h3>Available tags</h3>
+<p>There are a lot of tag you can use to select the particular analysis types such as depth, side, etc.</p>
+</td>
+
 </tr>
 </table>
 </div>
@@ -312,9 +346,8 @@ Use the form below to upload your games.</p>
 <option value="BlackSide">Black Only</option>
 </select>
 <select style="float:left;" name="AnalysisDepth" id="AnalysisDepth">
-<option value="">18+ plies</option>
-<option value="20">20+ plies</option>
-<option value="23">23+ plies</option>
+<option value="fast">fast</option>
+<option value="deep">deep</option>
 </select>
 <div id="analysis_submit">
      <button type="submit" 
