@@ -46,11 +46,16 @@ class GameDetailsController extends AbstractController
     private $scores = array();
     private $depths = array();
     private $times = array();
+    private $var_moves = array();
+    private $var_depths = array();
+    private $var_scores = array();
+    private $var_times = array();
+/*
     private $T1_moves = array();
     private $T1_depths = array();
     private $T1_scores = array();
     private $T1_times = array();
-
+*/
     private $sides = ["White" => "W_", "Black" => "B_"];
 
     // Dependency injection of the Neo4j ClientInterface
@@ -193,12 +198,12 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
     {
 	$response = $this->fetcher->getFile( $this->game["MoveListHash"].'.json');
 	$response_eval = $this->fetcher->getFile( 'evals-'.$this->game["MoveListHash"].'.json');
-
 	if( $response_eval != null) {
 
 //	  $data = $response_eval->toArray();
 	  $content = json_decode( $response_eval->getContent(), true);
 
+	  // Parse each ply info (it can be simple SAN or huge array with alternative lines)
 	  foreach( $content as $key => $item) {
 
 	    $this->moves[$key]		= "";
@@ -209,20 +214,32 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	    $this->scores[$key]		= "";
 	    $this->depths[$key]		= "";
 	    $this->times[$key]		= "";
+/*
 	    $this->T1_moves[$key]		= array();
 	    $this->T1_depths[$key]		= array();
 	    $this->T1_scores[$key]		= array();
 	    $this->T1_times[$key]		= array();
+*/
+	    // Up to three alternative lines
+	    for( $i=0;$i<3;$i++) {
+	      $this->var_moves[$key][$i]	= array();
+	      $this->var_depths[$key][$i]	= array();
+	      $this->var_scores[$key][$i]	= array();
+	      $this->var_times[$key][$i]	= array();
+	    }
 
 	    // Only SAN is present
 	    if( !is_array( $item)) {
 
 	      $this->moves[$key]	= $item;
 
+	    // An array, can be just SAN with eval info w/o alternatives
 	    } else {
 
 	      // SAN should always be there
 	      $this->moves[$key]	= $item['san'];
+
+	      // Other items are optional (eco, eval info)
 	      if( array_key_exists( 'eco', $item)) 
 		$this->ECOs[$key]	= $item['eco'];
 	      if( array_key_exists( 'opening', $item)) 
@@ -237,14 +254,38 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	        $this->depths[$key]	= $item['depth'];
 	      if( array_key_exists( 'time', $item)) 
 	        $this->times[$key]	= $item['time'];
-
-	      // Parse alternative lines for best moves only
+/*
+	      // Parse alternative lines for NOT best moves only
 	      if( $this->marks[$key] != "Best" 
 		&& array_key_exists( 'alt', $item))
+*/
+	      // Alternative lines are present
+	      // It can be a single san or array of SANs or
+	      // array of arrays with san and eval info
+	      if( array_key_exists( 'alt', $item))
 
-		// Take into account only fisrt(best) line
-		foreach( $item['alt'][0] as $variation)
+		// Up to 3 alternative lines
+		foreach( $item['alt'] as $altkey => $variation)
 
+		// Each alternative line is a SAN or array of eval info
+		foreach( $variation as $varkey => $varitem)
+
+		// Only SAN with no eval data
+		if( !is_array( $varitem)) {
+
+		  array_push( $this->var_moves[$key][$altkey], $varitem);
+		  array_push( $this->var_depths[$key][$altkey], 0);
+		  array_push( $this->var_scores[$key][$altkey], "");
+		  array_push( $this->var_times[$key][$altkey], "00:00.000");
+
+		} else {
+
+		  array_push( $this->var_moves[$key][$altkey],  $varitem['san']);
+		  array_push( $this->var_depths[$key][$altkey],  $varitem['depth']);
+		  array_push( $this->var_scores[$key][$altkey],  $varitem['score']);
+		  array_push( $this->var_times[$key][$altkey],  $varitem['time']);
+		}
+/*
 		// Only SAN with no eval data
 		if( !is_array( $variation)) {
 		  array_push( $this->T1_moves[$key],  $variation);
@@ -257,6 +298,7 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 		  array_push( $this->T1_depths[$key], $variation['depth']);
 		  array_push( $this->T1_times[$key],  $variation['time']);
 		}
+*/
 	    }
 	  }
 	} else // Only SANs are present
@@ -404,8 +446,9 @@ WITH game,
   MATCH (game)-[:WAS_PART_OF]->(event:Event)
   MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
   MATCH (game)-[:FINISHED_ON]->(line:Line)
- RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash 
-LIMIT 1";
+  MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
+ RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
+	eco.code, opening.opening, opening.variation LIMIT 1";
 	$result = $this->neo4j_client->run( $query, $params);
 
 	foreach ($result->records() as $record) {
@@ -419,7 +462,10 @@ LIMIT 1";
 	  $this->game['B_ELO']  = $record->value('elo_b.rating');
 	  $this->game['Event']  = $record->value('event.name');
 	  $this->game['Date']   = $record->value('date_str');
-	  $this->game['MoveListHash']   = $record->value('line.hash');
+	  $this->game['ECO']	= $record->value('eco.code');
+	  $this->game['ECO_opening']	= $record->value('opening.opening');
+	  $this->game['ECO_variation']	= $record->value('opening.variation');
+	  $this->game['MoveListHash']	= $record->value('line.hash');
 
 	  // Result in human readable format
           $labelsObj = $record->get('result_w');
@@ -433,25 +479,16 @@ LIMIT 1";
           else
             $this->game['Result'] = "Unknown";
 
-// Optional game properties
-$this->game['eResult']="";
+/*
+	// Effective result
+	$this->game['eResult']="";
+	if($gameObj->hasValue('effective_result'))
+        	$this->game['eResult'] = $gameObj->value('effective_result');
 //$this->game['analyze']="";
-//$this->game['ECO']="";
-//$this->game['ECO_opening']="";
-//$this->game['ECO_variation']="";
 //$this->game['eval_time']="";
 //$this->game['eval_date']="";
-if($gameObj->hasValue('effective_result'))
-        $this->game['eResult'] = $gameObj->value('effective_result');
-/*
 if($gameObj->hasValue('analyze'))
         $this->game['analyze'] = $gameObj->value('analyze');
-if($gameObj->hasValue('ECO'))
-        $this->game['ECO'] = $gameObj->value('ECO');
-if($gameObj->hasValue('opening'))
-        $this->game['ECO_opening'] = $gameObj->value('opening');
-if($gameObj->hasValue('variation'))
-        $this->game['ECO_variation'] = $gameObj->value('variation');
 if($gameObj->hasValue('eval_time'))
         $this->game['eval_time'] = $gameObj->value('eval_time');
 if($gameObj->hasValue('eval_date'))
@@ -589,6 +626,7 @@ $this->game[$prefix.'baselines'] = $baselines;
 	$T1_times  = array();
 
 	// Lets go through all the moves in the movelist
+if( false)
 	foreach( $this->moves as $key => $move) {
 
 	  $ECOs[$key]    = "";
@@ -613,7 +651,6 @@ $this->game[$prefix.'baselines'] = $baselines;
 	  $var_start_id = null;
 	  $var_end_id = null;
 
-continue;
 	  // Forced move flag
 	  $forced_move_flag = FALSE;
 
@@ -796,6 +833,7 @@ LIMIT 1';
 
 	// Initialize positions array wit hfirst element
 	$positions = array();
+//	array_push( $positions, array( "", self::ROOT_FEN, self::ROOT_ZOBRIST, "", "", "", "", "", "" ,"" ,"", "" ,""));
 	array_push( $positions, array( "", self::ROOT_FEN, self::ROOT_ZOBRIST, "", "", "", "", "", "" ,"" ,"", "" ,""));
 
 	// Add position info for each move
@@ -809,11 +847,17 @@ LIMIT 1';
           $position[] = array_key_exists( $key, $this->scores)		?$this->scores[$key]	:"";
           $position[] = array_key_exists( $key, $this->depths)		?$this->depths[$key]	:"";
           $position[] = array_key_exists( $key, $this->times)		?$this->times[$key]	:"";
+
+          $position[] = array_key_exists( $key, $this->var_moves)	?
+		[$this->var_moves[$key], $this->var_scores[$key], 
+		$this->var_depths[$key], $this->var_times[$key]] : ["","","","",""];
+
+/*
           $position[] = array_key_exists( $key, $this->T1_moves)	?$this->T1_moves[$key]	:[];
           $position[] = array_key_exists( $key, $this->T1_scores)	?$this->T1_scores[$key]	:[];
           $position[] = array_key_exists( $key, $this->T1_depths)	?$this->T1_depths[$key]	:[];
           $position[] = array_key_exists( $key, $this->T1_times)	?$this->T1_times[$key]	:[];
-
+*/
           $positions[] = $position;
 	}
 

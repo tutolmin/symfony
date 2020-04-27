@@ -166,8 +166,122 @@ td.deepAnalysisCell:hover { background-color:#6a6a6a;font-color:#AAA;}
 .tooltip:hover .tooltiptext {
   visibility: visible;
 }
-.gameHeader textarea {
-    width: 400px;
-    height: 100px;
-    resize: vertical;
+div.gameHeaderContainer {
+  width: 415px;
+  height: 100px;
+  padding:1px; 
+}
+div.gamePlayers
+{
+  height:68px;
+  overflow:auto;
+  font-size:175%;
+}
+div.gameEDRContainer
+{
+  float:left;
+  height:32px;
+  width:375px;
+  padding:1px; 
+}
+div.gameEDR
+{
+  width:370px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:125%;
+}
+div.boardFlip
+{
+  float:right;
+  height:35px;
+}
+div.gameEFPContainer {
+  width: 415px;
+  height: 300px;
+  padding:1px; 
+}
+div.gameECO
+{
+  float:right;
+  width:360px;
+  height:20px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:80%;
+  padding:3px 0 3px 0; 
+}
+div.gameFEN
+{
+  float:right;
+  width:360px;
+  height:20px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:80%;
+  padding:3px 0 3px 0; 
+}
+div.gamePGNContainer {
+  float:right;
+  width: 360px;
+  height: 125px;
+  padding:1px; 
+}
+div.gamePGN
+{
+  height:125px;
+  overflow:auto;
+  font-size:80%;
+  padding:3px 0 3px 0; 
+}
+div.blockName
+{
+  float:left;
+  height:20px;
+  padding:3px 0 3px 0; 
+}
+div.moveListContainer
+{
+  width: 550px;
+  height: 200px;
+  padding:1px; 
+}
+div.moveList
+{
+  height:175px;
+  overflow:auto;
+  text-align: justify;
+//  font-size:80%;
+}
+div.moveListButtons
+{
+  text-align:center;
+  padding:10px;
+}
+div.moveVariationsContainer
+{
+  width: 550px;
+  height: 100px;
+  padding:1px; 
+}
+div.variationLine
+{
+  float:right;
+  width:500px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:80%;
+  padding:3px 0 3px 0; 
+}
+div.evaluationInfo
+{
+  width: 550px;
+  height: 30px;
+  padding:5px 0 5px 0; 
+  font-size:175%;
+}
+div.varEval
+{
+  float:left;
+  padding:3px 0 3px 0; 
 }

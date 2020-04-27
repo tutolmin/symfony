@@ -321,25 +321,42 @@ Use the form below to upload your games.</p>
 <div id="Analyze" class="tabcontent">
 
 <table border=0><tr><td valign=top>
-<textarea class="gameHeader" id="gameHeader"/>
-<div id="header" style="width: 425px">Game header</div>
-<!-- start example HTML -->
+<div class="gameHeaderContainer">
+ <div id="gamePlayers"	class="gamePlayers"></div>
+ <div>
+  <div class="gameEDRContainer">
+   <div id="gameEDR"	class="gameEDR"></div>
+  </div>
+  <div id="boardFlip"	class="boardFlip">
+   <a href="#" title='Flip the board'>
+    <img src="img/flip.png"/>
+   </a>
+  </div>
+ </div>
+</div>
 <div id="board" style="width: 400px"></div>
-<div style="float: left;">
-<input type="button" id="setStartBtn" value="Start Position" />
-<input type="button" id="setPrevMove" value="Prev Move" />
-<input type="button" id="setNextMove" value="Next Move" />
-<input type="button" id="setPlayPause" value="Play/Pause" />
+<div class="gameEFPContainer">
+ <div>
+  <div class="blockName"><abbr title='Encyclopedia of Chess Openings'>ECO</abbr>:</div>
+  <div id="gameECO" class="gameECO"></div>
+ </div>
+ <br clear="all"/>
+ <div>
+  <div class="blockName"><abbr title='Forsyth–Edwards Notation'>FEN</abbr>:</div>
+  <div id="gameFEN" class="gameFEN"></div>
+ </div>
+ <br clear="all"/>
+ <div>
+  <div class="blockName"><abbr title='Portable Game Notation'>PGN</abbr>:</div>
+  <div class="gamePGNContainer">
+   <div id="gamePGN" class="gamePGN"></div>
+   <input type="hidden" id="game_being_analyzed" value=""/>
+  </div>
+ </div>
 </div>
-<div style="float: right;">
-<input type="button" id="flipBoard" value="Flip Board" />
-</div>
-<br style="clear:all" />
-<!-- end example HTML -->
-<div id="position" style="width: 525px;">Position details</div>
 
+<!--
 <div>
-<input type="hidden" id="game_being_analyzed" value=""/>
 
 <select style="float:left;" name="sideToAnalyze" id="sideToAnalyze">
 <option value="">Both sides</option>
@@ -377,10 +394,39 @@ Use the form below to upload your games.</p>
 </div>
 <br/>
 <div id="processGameStatus"></div>
+-->
+
 </td><td valign=top>
-<div id="movelist" style="width: 600px; overflow:auto; height:700px;">Move list</div>
+<div id="moveList" class="moveList"></div>
+<div class="moveListButtons">
+<input type="button" id="setStartBtn" value="Start Position" />
+<input type="button" id="setPrevMove" value="Prev Move" />
+<input type="button" id="setNextMove" value="Next Move" />
+<input type="button" id="setPlayPause" value="Play/Pause" />
+</div>
+<div id="evaluationInfo" class="evaluationInfo"></div>
+<div class="moveVariationsContainer">
+
+<!-- Do I actually need to show current move proposed line?
+ <div>
+  <div class="blockName">Move:</div>
+  <div id="var0" class="variationLine"></div>
+ </div>
+-->
+
+ <br/>
+  <div id="varEval1" class="blockName"></div>
+  <div id="var1" class="variationLine"></div>
+ <br clear="all"/>
+  <div id="varEval2" class="blockName"></div>
+  <div id="var2" class="variationLine"></div>
+ <br clear="all"/>
+  <div id="varEval3" class="blockName"></div>
+  <div id="var3" class="variationLine"></div>
+ <br clear="all"/>
+</div>
 <br/>
-<div id="legend" style="width: 400px"><b>Legend</b><br/>
+<div id="legend" style="width: 500px"><b>Legend</b><br/>
 <b><span class='mark_Best'>Best move</span></b>: equal evaluation to the best line<br/>
 <b><span class='mark_Sound'>Sound move</span></b>: forced move, obvious recapture, single reasonable move, one of equal lines in drawish position<br/>
 </div>
