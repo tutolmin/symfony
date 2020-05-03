@@ -115,7 +115,7 @@ class GameDetailsController extends AbstractController
 	$this->game['ID'] = $request->query->getInt('gid', -1);
 
 	// Get game info
-	if( $this->getGameInfo() != -1) {
+	if( $this->getGameInfo()) {
 
 	  // Lap, Game node details fetched
 	  $this->stopwatch->lap('getGameDetails');
@@ -157,7 +157,7 @@ class GameDetailsController extends AbstractController
 	// Encode in JSON and output
         return new JsonResponse( $this->game);
     }
-
+/*
     // Get random (:Game) id
     private function getRandomGameId()
     {
@@ -179,7 +179,7 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 
 	return $gid;
     }
-
+*/
     // Get root node id
     private function getRootId()
     {
@@ -431,6 +431,10 @@ RETURN summary LIMIT 2';
 	if( !$this->gameManager->gameExists( $this->game['ID'])) 
 	  $this->game['ID'] = $this->gameManager->getRandomGameId( "checkmate");
 
+	// Game has not been selected
+	if( $this->game['ID'] == -1)
+	  return false;
+
 	// Fetch game details 
 	$params = ["gid" => $this->game['ID']];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
@@ -500,7 +504,7 @@ foreach( $this->sides as $side => $prefix) {
 */
 	}
 
-	return $this->game['ID'];
+	return true;
     }
 
     // Get baselines

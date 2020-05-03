@@ -38,11 +38,9 @@ class GameManager
     // Find :Game node in the database
     public function gameExists( $gid)
     {
-        $this->logger->debug( "Memory usage (".memory_get_usage().")");
-
         $this->logger->debug( "Checking for game existance");
 
-        $query = 'MATCH (g:Game) WHERE id(g) = {gid}
+        $query = 'MATCH (g:Game) WHERE id(g) = {gid} 
 RETURN id(g) AS gid LIMIT 1';
 
         $params = ["gid" => intval( $gid)];
@@ -224,7 +222,7 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 	  return $counter;
 	}
 
-        $query = 'MATCH (:PlyCount{counter:0})-[:LONGER*0..]->';
+        $query = 'MATCH (:PlyCount{counter:0})-[:LONGER*0..999]->';
 
 	switch( $type) {
 	  case "checkmate":
@@ -272,13 +270,18 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
 	$skip = 0;
+	$params["counter"] = 0;
 	do {
 
-	// Select a game plycount
-        $params["counter"] = rand( $this->getMinPlyCount( $type), 
+	  // If there are ANY games of this type 
+	  if( $this->getGamesNumber( $type, 0) == 0)
+	    break;
+
+	  // Select a game plycount
+          $params["counter"] = rand( $this->getMinPlyCount( $type), 
 				$this->getMaxPlyCount( $type));
 
-        $this->logger->debug('Selected game plycount '.$params["counter"]);
+          $this->logger->debug('Selected game plycount '.$params["counter"]);
 
 	// Get total games for a certain plycount
 	} while( ($skip = $this->getGamesNumber( $type, $params["counter"])) == 0);
@@ -320,7 +323,7 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 
         $result = $this->neo4j_client->run( $query, $params);
 
-	$gid=0;
+	$gid=-1;
         foreach ($result->records() as $record) {
           $gid = $record->value('id');
         }
