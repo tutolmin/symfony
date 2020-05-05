@@ -1,0 +1,24 @@
+--- vendor/symfony/http-foundation/ResponseHeaderBag.php	2020-03-06 11:37:55.616797653 -0500
++++ vendor/symfony/http-foundation/ResponseHeaderBag.new.php	2020-03-06 11:37:46.322756017 -0500
+@@ -291,7 +291,8 @@
+         }
+ 
+         // public if s-maxage is defined, private otherwise
+-        if (!isset($this->cacheControl['s-maxage'])) {
++//        if (!isset($this->cacheControl['s-maxage'])) {
++        if (!isset($this->cacheControl['max-age'])) {
+             return $header.', private';
+         }
+
+--- ./vendor/symfony/http-client/CurlHttpClient.php	2020-03-06 11:39:26.552205024 -0500
++++ ./vendor/symfony/http-client/CurlHttpClient.new.php	2020-03-06 11:39:05.313109877 -0500
+@@ -218,7 +218,7 @@
+         }
+ 
+         if (\extension_loaded('zlib') && !isset($options['normalized_headers']['accept-encoding'])) {
+-            $options['headers'][] = 'Accept-Encoding: gzip'; // Expose only one encoding, some servers mess up when more are provided
++            $options['headers'][] = 'Accept-Encoding: deflate, gzip'; // Expose only one encoding, some servers mess up when more are provided
+         }
+ 
+         foreach ($options['headers'] as $header) {
+
