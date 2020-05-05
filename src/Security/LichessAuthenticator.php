@@ -15,20 +15,23 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
 use App\Provider\Lichess;
 //use App\Provider\LichessResourceOwner;
 use GraphAware\Neo4j\Client\ClientInterface;
+use App\Service\UserManager;
 
 class LichessAuthenticator extends SocialAuthenticator
 {
     private $clientRegistry;
     private $em;
+    private $userManager;
 
     /** @var Lichess */
     protected $provider;
 
     public function __construct(ClientRegistry $clientRegistry, 
-	EntityManagerInterface $em, Lichess $provider)
+	EntityManagerInterface $em, Lichess $provider, UserManager $um)
     {
         $this->clientRegistry = $clientRegistry;
         $this->em = $em;
+        $this->userManager = $um;
 	$this->provider = $provider;
     }
 
@@ -55,13 +58,19 @@ class LichessAuthenticator extends SocialAuthenticator
             ->fetchUserFromToken($credentials)->getId();
 
 	$this->provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
-        $email = $this->provider->getResourceOwner($credentials)->getEmail();
+        $lichessUserEmail = $this->provider->getResourceOwner($credentials)->getEmail();
 
-        // 1) have they logged in with Facebook before? Easy!
+        // 1) have they logged in with Lichess before? Easy!
         $existingUser = $this->em->getRepository(User::class)
             ->findOneBy(['lichessId' => $lichessUserId]);
 
-        if ($existingUser) return $existingUser;
+        if ($existingUser) {
+
+            // Merge a :WebUser entity in Neo4j
+            $this->userManager->mergeUser( $existingUser->getId());
+
+            return $existingUser;
+        }
 
         // 2) do we have a matching user by email?
         $user = $this->em->getRepository(User::class)
@@ -71,13 +80,13 @@ class LichessAuthenticator extends SocialAuthenticator
 
         // 3) Maybe you just want to "register" them by creating
         // a User object
-        $user->setFacebookId($lichessUserId);
+        $user->setLichessId($lichessUserId);
         $user->setEmail($lichessUserEmail);
         $this->em->persist($user);
         $this->em->flush();
 
         // Merge a :WebUser entity in Neo4j
-        $this->mergeNeo4jUserEntity( $user->getId());
+        $this->userManager->mergeUser( $user->getId());
 
         return $user;
     }

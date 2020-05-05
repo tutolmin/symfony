@@ -44,11 +44,14 @@ class UserManager
     // merge specific :WebUser
     public function mergeUser( $uid)
     {
+/*
+	Can be called from Social authenticator for regular user	
+
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
           $this->logger->debug('Access denied');
           return false;
         }
-
+*/
 	// Get the user by id
         $user = $this->userRepository->findOneBy(['id' => $uid]);
 
