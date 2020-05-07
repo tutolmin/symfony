@@ -62,6 +62,11 @@ class User implements UserInterface
      */
     private $createdDateTime;
 
+    /**
+     * @ORM\Column(type="boolean", options={"default":true})
+     */
+    private $canUpload;
+
     public function __construct()
     {
         $this->createdDateTime = new \DateTime(); 
@@ -218,6 +223,18 @@ class User implements UserInterface
     public function setCreatedDateTime(\DateTimeInterface $createdDateTime): self
     {
         $this->createdDateTime = $createdDateTime;
+
+        return $this;
+    }
+
+    public function getCanUpload(): ?bool
+    {
+        return $this->canUpload;
+    }
+
+    public function setCanUpload(bool $canUpload): self
+    {
+        $this->canUpload = $canUpload;
 
         return $this;
     }
