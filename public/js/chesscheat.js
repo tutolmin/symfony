@@ -491,17 +491,17 @@ function openTab(evt, tabName) {
 document.getElementById("analysisTab").click();
 
 var positionIndex=0;
+var alternativeIndex=-1;
 var variationIndex=-1;
 var neo4j_root_FEN="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-
 var onMoveEnd = function() {
-
+/*
 var boardEl = $('#board'),
   game = new Chess(),
   squareClass = 'square-55d63';
 
-//  console.log( positionIndex + ' ' + variationIndex);
+//  console.log( positionIndex + ' ' + alternativeIndex + ' ' + variationIndex);
 
   // Start button was clicked
   if( positionIndex == 0 ) {
@@ -525,7 +525,7 @@ var boardEl = $('#board'),
 //    current_FEN = Positions[positionIndex+1][_T1_FEN][variationIndex-1];
     current_move= Positions[positionIndex+1][_T1_MOVE][variationIndex-1];
   }
-/*
+
   // Get move Long Algebraic Notation
   game.load( current_FEN);
   var move = game.move( current_move, {sloppy: true});
@@ -554,8 +554,8 @@ var boardEl = $('#board'),
     boardEl.find('.square-' + bmove.from).addClass('highlight-best');
     boardEl.find('.square-' + bmove.to).addClass('highlight-best');
   }
-*/
   }
+*/
 };
 
 //--- start example JS ---
@@ -777,14 +777,13 @@ function makeNextMove() {
 }
 
 $('#boardFlip').on('click', function() {
-//  console.log( board.orientation());
   board.flip();
-  onMoveEnd();
 });
 
 $('#setStartBtn').on('click', function() {
   positionIndex=0;
-  variationIndex=0;
+  alternativeIndex=-1;
+  variationIndex=-1;
 
   timerIsOn = false;
   clearTimeout( TimeOut);
@@ -813,11 +812,12 @@ function pausePlayback() {
 
 $('#setNextMove').on('click', function() {
 
-//  console.log( "Pos: " + positionIndex + " Var: " + variationIndex + " Timer: " + timerIsOn);
+  console.log( "Pos: " + positionIndex + " Alt: " + alternativeIndex + 
+	  " Var: " + variationIndex + " Timer: " + timerIsOn);
 
   if( variationIndex > 0) {
-    if (typeof Positions[positionIndex][_T1_MOVE][variationIndex] !== 'undefined')
-      currentGame.move( Positions[positionIndex][_T1_MOVE][variationIndex++]);
+    if (typeof Positions[positionIndex][_VARS][_VAR_MOVE][alternativeIndex][variationIndex] !== 'undefined')
+      currentGame.move( Positions[positionIndex][_VARS][_VAR_MOVE][alternativeIndex][variationIndex++]);
   } else {
     if (typeof Positions[positionIndex+1] !== 'undefined')
       currentGame.move( Positions[++positionIndex][_MOVE]);
@@ -854,15 +854,18 @@ $('#setPrevMove').on('click', function() {
   updateMovelist2();
 });
 
-function setMove( pIndex, vIndex) {
+function setMove( pIndex, aIndex, vIndex) {
 
   positionIndex = pIndex;
+  alternativeIndex = aIndex-1;
   variationIndex = vIndex;
 
   timerIsOn = false;
   clearTimeout( TimeOut);
 
-//  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+  console.log( "Pos: " + positionIndex + 
+	  " Alt: " + alternativeIndex + 
+	  " Var: " + variationIndex);
 
   // Start from the beginning
   currentGame.reset();
@@ -875,7 +878,7 @@ function setMove( pIndex, vIndex) {
   if( variationIndex > 0) {
     currentGame.undo();
     for (index = 0; index < variationIndex; index++)
-      currentGame.move( Positions[pIndex][_T1_MOVE][index]);
+      currentGame.move( Positions[pIndex][_VARS][_VAR_MOVE][alternativeIndex][index]);
   }
 
   console.log( currentGame.fen());
@@ -883,15 +886,6 @@ function setMove( pIndex, vIndex) {
   board.position( currentGame.fen());
 
   updateMovelist2();
-  
-//console.log( "Pos: " + index + " Var: " + vindex + " FEN: " + Positions[positionIndex+1][_T1_FEN][variationIndex]);
-/*
-  if( variationIndex > 0)
-    board.position( Positions[positionIndex+1][_T1_FEN][variationIndex]);
-  else
-    board.position( Positions[++positionIndex][_FEN]);
-*/
-//  updateMovelist2();
 }
 
 // Get evaluation string for a move
@@ -1008,11 +1002,23 @@ var updateMovelist2 = function() {
                 + Positions[index+1][_ECO] + '</abbr>';
     }
 
-    // Current move SAN
+    // Current move SAN, mark it bold
     if( index+1 === positionIndex && variationIndex == 0) {
 
       moveList += "<b><span class='mark_" + Positions[index+1][_MARK] + "'>" + 
 	Positions[index+1][_MOVE] + "</span></b>" + eco_str + " ";
+
+    // Other regular SAN, make a link
+    } else {
+
+      moveList += "<a href=" + window.location.pathname + "#" + (index+1) + 
+	" onclick='return setMove( " + (index+1) + ", 0, 0);'>" +
+	"<span class='mark_" + Positions[index+1][_MARK] + "'>" + 
+	Positions[index+1][_MOVE] + "</span></a>" + eco_str + " ";
+    }
+
+    // Current move, show alternative lines
+    if( index+1 === positionIndex) {
 
       // Show alternative lines
       for (altidx = 0; altidx < 3; altidx++) {
@@ -1020,48 +1026,48 @@ var updateMovelist2 = function() {
   	document.getElementById('varEval'+(altidx+1)).innerHTML = '';
         document.getElementById('var'+(altidx+1)).innerHTML = '';
 
-    // There can be no alternatives (forced or not fetched)
-    if( typeof Positions[index+1][_VARS][_VAR_MOVE][altidx] !== 'undefined'
-	&& Positions[index+1][_VARS][_VAR_MOVE][altidx].length > 0) {
+	// There can be no alternatives (forced or not fetched)
+	if( typeof Positions[index+1][_VARS][_VAR_MOVE][altidx] !== 'undefined'
+	  && Positions[index+1][_VARS][_VAR_MOVE][altidx].length > 0) {
 
-  altList="";
+	  altList="";
 
-	var altEval = getEvalString( currentGame, positionIndex, altidx, 1);
-  	document.getElementById('varEval'+(altidx+1)).innerHTML = altEval;
+	  var altEval = getEvalString( currentGame, positionIndex, altidx, 1);
+  	  document.getElementById('varEval'+(altidx+1)).innerHTML = altEval;
 
-    // Go through the variation array
-    for (vindex = 0; vindex < Positions[index+1][_VARS][_VAR_MOVE][altidx].length; vindex++) {
+	  // Go through the variation array
+	  for (vindex = 0; vindex < Positions[index+1][_VARS][_VAR_MOVE][altidx].length; vindex++) {
     
-    // Move number for White moves
-    if( (index+vindex)%2 == 0) {
+	    // Move number for White moves
+	    if( (index+vindex)%2 == 0) {
 
-      altList += (~~((index+vindex)/2)+1) + '. ';
-    }
+	      altList += (~~((index+vindex)/2)+1) + '. ';
+	    }
 
-    // #. ... SAN for first black move only
-    else if( vindex == 0) {
-      altList += (~~((index+vindex)/2)+1) + '. ... ';
-    }
+	    // #. ... SAN for first black move only
+	    else if( vindex == 0) {
 
-      altList += "<a href=" + window.location.pathname + "#" + (index+1) + 
-	" onclick='return setMove( " + (index+1) + ", 0);'>" +
-	"<span>" + Positions[index+1][_VARS][_VAR_MOVE][altidx][vindex] + "</span></a> ";
+	      altList += (~~((index+vindex)/2)+1) + '. ... ';
+	    }
 
-    }
+	    // Mark current alternative move with bold
+	    if( altidx == alternativeIndex && vindex+1 == variationIndex) {
 
-  // Put the collected altlist in place
-  document.getElementById('var'+(altidx+1)).innerHTML = altList;
+	      altList += "<b><span>" + Positions[index+1][_VARS][_VAR_MOVE][altidx][vindex] + "</span></b> ";
 
+	    // Other regular alternative move
+	    } else {
+
+	      altList += "<a href=" + window.location.pathname + "#" + (index+1) + 
+		" onclick='return setMove( " + (index+1) + ", " + (altidx+1) + ", " + (vindex+1) + ");'>" +
+		"<span>" + Positions[index+1][_VARS][_VAR_MOVE][altidx][vindex] + "</span></a> ";
+	    }
+	  }
+
+	  // Put the collected altlist in place
+	  document.getElementById('var'+(altidx+1)).innerHTML = altList;
+        }
       }
-
-      }
-
-    // Other regular SAN
-    } else {
-      moveList += "<a href=" + window.location.pathname + "#" + (index+1) + 
-	" onclick='return setMove( " + (index+1) + ", 0);'>" +
-	"<span class='mark_" + Positions[index+1][_MARK] + "'>" + 
-	Positions[index+1][_MOVE] + "</span></a>" + eco_str + " ";
     }
   }
 
