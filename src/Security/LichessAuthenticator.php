@@ -5,6 +5,8 @@ namespace App\Security;
 use App\Entity\User; // your user entity
 use Doctrine\ORM\EntityManagerInterface;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\SocialAuthenticator;
+use App\Provider\Lichess;
+use App\Provider\LichessClient;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,10 +14,9 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
-use App\Provider\Lichess;
-//use App\Provider\LichessResourceOwner;
 use GraphAware\Neo4j\Client\ClientInterface;
 use App\Service\UserManager;
+use App\Provider\LichessUser;
 
 class LichessAuthenticator extends SocialAuthenticator
 {
@@ -54,11 +55,15 @@ class LichessAuthenticator extends SocialAuthenticator
 
     public function getUser($credentials, UserProviderInterface $userProvider)
     {
-        $lichessUserId = $this->getLichessClient()
-            ->fetchUserFromToken($credentials)->getId();
+        /** @var LichessUser $lichessUser */
+        $lichessUser = $this->getLichessClient()
+            ->fetchUserFromToken($credentials);
+
+	$lichessUserId = $lichessUser->getId();
 
 	$this->provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
-        $lichessUserEmail = $this->provider->getResourceOwner($credentials)->getEmail();
+//        $lichessUserEmail = $this->provider->getResourceOwner($credentials)->getEmail();
+        $lichessUserEmail = $lichessUser->getEmail();
 
         // 1) have they logged in with Lichess before? Easy!
         $existingUser = $this->em->getRepository(User::class)

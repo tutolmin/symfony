@@ -37,10 +37,10 @@ class ExportPGNController extends AbstractController
       $request = Request::createFromGlobals();
 
       // get Game IDs from the query
-      $this->gids = json_decode( $request->request->get( 'gids'));
+      $gids = json_decode( $request->request->get( 'gids'));
 
       // Fetch the games from the cache
-      $PGNstring = $this->fetcher->getPGNs( $this->gids);
+      $PGNstring = $this->fetcher->getPGNs( $gids);
 
       return new Response( $PGNstring);
     }

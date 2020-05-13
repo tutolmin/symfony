@@ -190,7 +190,7 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	foreach ($result->records() as $record) {
   	  $this->neo4j_node_id = $record->value('id');
 	}
-        $this->logger->debug('Root node id '.$record->value('id'));
+        $this->logger->debug('Root node id '.$this->neo4j_node_id);
     }
 
     // Get move list
@@ -537,6 +537,7 @@ $query = 'MATCH (p:Player)<-[:'.$bl_type[$side][$game_result].']-(b:Baseline)
 $result = $this->neo4j_client->run( $query, $params);
 
 $baselines = array();
+$baseline = array();
 
 	foreach ($result->records() as $record) {
 $baselineObj = $record->get('b');

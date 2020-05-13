@@ -502,7 +502,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	$params["start_year"]	= intval( "0");
 	$params["start_month"]	= intval( "0");
 	$params["start_day"]	= intval( "0");
-	$params["end_year"]	= intval( date( "Y")+1);
+	$params["end_year"]	= intval( intval( date( "Y")) + 1);
 	$params["end_month"]	= intval( "0");
 	$params["end_day"]	= intval( "0");
 	switch( $sort_cond) {

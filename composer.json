@@ -1,4 +1,6 @@
 {
+    "name": "tutolmin/symfony",
+    "description": "Symfony framwork for ChessCheat project",
     "type": "project",
     "license": "proprietary",
     "require": {
@@ -11,6 +13,7 @@
         "league/oauth2-google": "^3.0",
         "neo4j/neo4j-bundle": "^0.4.2",
         "sensio/framework-extra-bundle": "5.2.1",
+	"sensiolabs/security-checker": "^6.0",
         "symfony/apache-pack": "^1.0",
         "symfony/asset": "4.4.*",
         "symfony/cache": "4.4.*",
@@ -64,7 +67,8 @@
     "scripts": {
         "auto-scripts": {
             "cache:clear": "symfony-cmd",
-            "assets:install %PUBLIC_DIR%": "symfony-cmd"
+            "assets:install %PUBLIC_DIR%": "symfony-cmd",
+            "security-checker security:check": "script"
         },
         "post-install-cmd": [
             "@auto-scripts"
@@ -83,6 +87,7 @@
         }
     },
     "require-dev": {
+        "phpstan/phpstan": "^0.12.17",
         "symfony/maker-bundle": "^1.11",
         "symfony/phpunit-bridge": "^5.0",
         "symfony/profiler-pack": "^1.0"

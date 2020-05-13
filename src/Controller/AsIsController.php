@@ -10,6 +10,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use App\Service\PGNUploader;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class AsIsController extends AbstractController
 {

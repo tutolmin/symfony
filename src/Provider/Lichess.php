@@ -64,7 +64,7 @@ class Lichess extends AbstractProvider
 
     protected function createResourceOwner(array $response, AccessToken $token)
     {
-        return new LichessResourceOwner($response);
+        return new LichessUser($response);
     }
 }
 ?>
