@@ -489,12 +489,12 @@ function openTab(evt, tabName) {
 
 // Get the element with id="analysisTab" and click on it
 document.getElementById("analysisTab").click();
-
+/*
 var positionIndex=0;
 var alternativeIndex=-1;
 var variationIndex=-1;
 var neo4j_root_FEN="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
+*/
 var onMoveEnd = function() {
 /*
 var boardEl = $('#board'),
@@ -597,22 +597,28 @@ const _T1_TIME  = 11;
 var init = function() {
 
 positionIndex=0;
-alternativeIndex=0;
+alternativeIndex=-1;
 variationIndex=0;
 currentGame.reset();
 board.position( currentGame.fen());
 
+console.time("Process positions");
+
 // Replay the game and convert LAN to SAN
 for (index = 1; index < Positions.length; index++) {
 
+  console.timeLog("Process positions");
+
   // Chess game for variation replay
-  var moveVar = new Chess( currentGame.fen());
+//  var moveVar = new Chess( currentGame.fen());
 
 //  console.log( index + ' ' + Positions[index][_MOVE]);
   var cmove = currentGame.move( Positions[index][_MOVE], {sloppy: true});
   Positions[index][_MOVE] = cmove.san;
+/*
+  console.time("Process alternatives");
 
-   // Iterate through 3 possible alternatives
+  // Iterate through 3 possible alternatives
   for (altidx = 0; altidx < 3; altidx++) {
 
     // Chess game for alternative replay
@@ -630,22 +636,21 @@ for (index = 1; index < Positions.length; index++) {
       Positions[index][_VARS][_VAR_MOVE][altidx][vindex] = cmove.san;
 //      console.log( Positions[index][_VARS][_VAR_MOVE][altidx][vindex]);
     }
-  }
-/*
-  // Go through the variation array
-  for (vindex = 0; vindex < Positions[index][_T1_MOVE].length; vindex++) 
 
-    cmove = moveVar.move( Positions[index][_T1_MOVE][vindex], {sloppy: true});
-    Positions[index][_T1_MOVE][vindex] = cmove.san;
-//    console.log( Positions[index][_T1_MOVE][vindex]);
+    console.timeLog("Process alternatives");
+  }
+
+  console.timeEnd("Process alternatives");
 */
 }
+
+console.timeEnd("Process positions");
 
 currentGame.reset();
 
 // Start playing the moves
 timerIsOn = true;
-window.setTimeout( makeNextMove, 500);
+window.setTimeout( makeNextMove, 1000);
 
 /*
 // Reinitializing for the new game load
@@ -773,7 +778,7 @@ function makeNextMove() {
   $('#setNextMove').click();
 
   if( timerIsOn)
-    TimeOut = window.setTimeout( makeNextMove, 500);
+    TimeOut = window.setTimeout( makeNextMove, 1000);
 }
 
 $('#boardFlip').on('click', function() {
@@ -783,13 +788,20 @@ $('#boardFlip').on('click', function() {
 $('#setStartBtn').on('click', function() {
   positionIndex=0;
   alternativeIndex=-1;
-  variationIndex=-1;
+  variationIndex=0;
 
   timerIsOn = false;
   clearTimeout( TimeOut);
 
   currentGame.reset();
   board.position( currentGame.fen());
+
+  // Clear alternative lines
+  for (altidx = 0; altidx < 3; altidx++) {
+
+    document.getElementById('varEval'+(altidx+1)).innerHTML = '';
+    document.getElementById('var'+(altidx+1)).innerHTML = '';
+  }
 
   updateMovelist2();
 });
@@ -812,7 +824,7 @@ function pausePlayback() {
 
 $('#setNextMove').on('click', function() {
 
-  console.log( "Pos: " + positionIndex + " Alt: " + alternativeIndex + 
+  console.log( "Next btn clk - Pos: " + positionIndex + " Alt: " + alternativeIndex + 
 	  " Var: " + variationIndex + " Timer: " + timerIsOn);
 
   if( variationIndex > 0) {
@@ -837,16 +849,24 @@ $('#setNextMove').on('click', function() {
 
 $('#setPrevMove').on('click', function() {
 
-//  console.log( "Pos: " + positionIndex + " Var: " + variationIndex);
+  console.log( "Prev btn clk - Pos: " + positionIndex + " Alt: " + alternativeIndex + 
+	  " Var: " + variationIndex);
 
+  // Remove timer
   timerIsOn = false;
   clearTimeout( TimeOut);
 
   // Update respective index
-  if( variationIndex > 0)
+  if( variationIndex > 1)
     variationIndex--;
-  else if( positionIndex > 0)
+  else if( positionIndex > 0) {
+
     positionIndex--;
+
+    // Exiting variation line
+    alternativeIndex=-1;
+    variationIndex=0;
+  }
 
   currentGame.undo();
   board.position( currentGame.fen());
@@ -860,10 +880,11 @@ function setMove( pIndex, aIndex, vIndex) {
   alternativeIndex = aIndex-1;
   variationIndex = vIndex;
 
+  // Remove timer
   timerIsOn = false;
   clearTimeout( TimeOut);
 
-  console.log( "Pos: " + positionIndex + 
+  console.log( "Set move - Pos: " + positionIndex + 
 	  " Alt: " + alternativeIndex + 
 	  " Var: " + variationIndex);
 
@@ -876,12 +897,16 @@ function setMove( pIndex, aIndex, vIndex) {
 
   // Replay variation
   if( variationIndex > 0) {
+
+    // Undo last game move
     currentGame.undo();
+
+    // Replay variation moves
     for (index = 0; index < variationIndex; index++)
       currentGame.move( Positions[pIndex][_VARS][_VAR_MOVE][alternativeIndex][index]);
   }
 
-  console.log( currentGame.fen());
+//  console.log( currentGame.fen());
 
   board.position( currentGame.fen());
 
@@ -891,8 +916,6 @@ function setMove( pIndex, aIndex, vIndex) {
 // Get evaluation string for a move
 var getEvalString = function( game, posIndex, altIndex, varIndex) {
 
-  console.log( posIndex + " " + altIndex + " " + varIndex);
-
   // Game move eval
   var p_eval    = Positions[posIndex][_SCORE];
 
@@ -900,6 +923,9 @@ var getEvalString = function( game, posIndex, altIndex, varIndex) {
   if( altIndex >= 0 && varIndex > 0) { 
     p_eval  = Positions[posIndex][_VARS][_VAR_SCORE][altIndex][varIndex-1];
   }
+
+  console.log( "Evaluation string for p/a/v " + 
+	  posIndex + "/" + altIndex + "/" + varIndex + ": '" + p_eval + "'");
 
   // Mate in X moves handling
   var mateLine = 0;
@@ -923,8 +949,6 @@ var getEvalString = function( game, posIndex, altIndex, varIndex) {
   // Cumulative index for main line and variation
   posInd = posIndex;
   if( varIndex > 0) posInd = posIndex + varIndex - 1;
-
-  console.log( posIndex + " " + varIndex + " " + p_eval + " " + p_eval.indexOf("-"));
 
   // White with negative eval OR Black with Positive eval
   if( (posInd%2==0 && p_eval.indexOf("-") == -1) ||
@@ -1002,13 +1026,13 @@ var updateMovelist2 = function() {
                 + Positions[index+1][_ECO] + '</abbr>';
     }
 
-    // Current move SAN, mark it bold
+    // Current move in a real game, mark it bold
     if( index+1 === positionIndex && variationIndex == 0) {
 
       moveList += "<b><span class='mark_" + Positions[index+1][_MARK] + "'>" + 
 	Positions[index+1][_MOVE] + "</span></b>" + eco_str + " ";
 
-    // Other regular SAN, make a link
+    // Other regular game SAN, make a link
     } else {
 
       moveList += "<a href=" + window.location.pathname + "#" + (index+1) + 
@@ -1020,8 +1044,19 @@ var updateMovelist2 = function() {
     // Current move, show alternative lines
     if( index+1 === positionIndex) {
 
+      // Undo actual game move if not showing variation move
+      if( variationIndex == 0) {
+        currentGame.undo();
+      }
+
+      // Chess game for variation replay
+      var moveVar = new Chess( currentGame.fen());
+
       // Show alternative lines
       for (altidx = 0; altidx < 3; altidx++) {
+
+        // Chess game for alternative replay
+        var moveAlt = new Chess( moveVar.fen());
 
   	document.getElementById('varEval'+(altidx+1)).innerHTML = '';
         document.getElementById('var'+(altidx+1)).innerHTML = '';
@@ -1050,6 +1085,13 @@ var updateMovelist2 = function() {
 	      altList += (~~((index+vindex)/2)+1) + '. ... ';
 	    }
 
+	    // Convert to human-readable notation
+	    if( variationIndex == 0) {
+
+	      cmove = moveAlt.move( Positions[index+1][_VARS][_VAR_MOVE][altidx][vindex], {sloppy: true});
+	      Positions[index+1][_VARS][_VAR_MOVE][altidx][vindex] = cmove.san;
+	    }
+
 	    // Mark current alternative move with bold
 	    if( altidx == alternativeIndex && vindex+1 == variationIndex) {
 
@@ -1068,6 +1110,9 @@ var updateMovelist2 = function() {
 	  document.getElementById('var'+(altidx+1)).innerHTML = altList;
         }
       }
+
+      // Replay game move
+      currentGame.move( Positions[index+1][_MOVE]);
     }
   }
 
