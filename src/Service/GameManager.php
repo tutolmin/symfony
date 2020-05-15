@@ -385,6 +385,7 @@ RETURN length(path) AS length LIMIT 1';
 //      $this->logger->debug( "Fetched games: ". $PGNstring);
 
       $filesystem = new Filesystem();
+      $tmp_file = '';
       try {
 
         // Filename SHOULD contain 'lines' prefix in order to make sure

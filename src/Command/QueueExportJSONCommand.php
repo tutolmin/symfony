@@ -20,6 +20,9 @@ class QueueExportJSONCommand extends Command
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:export:json';
 
+    // Logger
+    private $logger;
+
     // Queue/Game manager reference
     private $queueManager;
     private $gameManager;

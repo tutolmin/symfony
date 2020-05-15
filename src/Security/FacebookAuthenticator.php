@@ -16,6 +16,7 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Psr\Log\LoggerInterface;
 use App\Service\UserManager;
+use League\OAuth2\Client\Provider\FacebookUser;
 
 class FacebookAuthenticator extends SocialAuthenticator
 {

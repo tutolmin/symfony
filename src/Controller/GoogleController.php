@@ -26,8 +26,9 @@ class GoogleController extends AbstractController
             ->redirect([
 //	    	'public_profile', 'email' // the scopes you want to access
 	    	'email' // the scopes you want to access
-            ])
-        ;
+		],
+		[]	// options
+		);
 	}
 
     /**
@@ -39,30 +40,7 @@ class GoogleController extends AbstractController
      */
     public function connectCheckAction(Request $request, ClientRegistry $clientRegistry)
     {
-        // ** if you want to *authenticate* the user, then
-        // leave this method blank and create a Guard authenticator
-        // (read below)
-
-        /** @var \KnpU\OAuth2ClientBundle\Client\Provider\GoogleClient $client */
-//        $client = $clientRegistry->getClient('google_main');
-
-//        try {
-            // the exact class depends on which provider you're using
-            /** @var \League\OAuth2\Client\Provider\GoogleUser $user */
-//            $user = $client->fetchUser();
-
-            // do something with all this new power!
-	    // e.g. $name = $user->getFirstName();
-//            var_dump($request); die;
-            // ...
-//        } catch (IdentityProviderException $e) {
-            // something went wrong!
-            // probably you should return the reason to the user
-//            var_dump($e->getMessage()); die;
-//        }
-
-    return $this->redirectToRoute('index');
-
+      return $this->redirectToRoute('index');
     }
 }
 ?>

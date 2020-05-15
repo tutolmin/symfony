@@ -19,7 +19,7 @@ use League\OAuth2\Client\Tool\ArrayAccessorTrait;
 /**
  * Represents a generic resource owner for use with the GenericProvider.
  */
-class LichessResourceOwner implements ResourceOwnerInterface
+class LichessUser implements ResourceOwnerInterface
 {
     use ArrayAccessorTrait;
 
