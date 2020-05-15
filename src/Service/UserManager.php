@@ -7,8 +7,12 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Security;
 use App\Entity\User;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class UserManager
 {
@@ -27,13 +31,17 @@ class UserManager
     // Security
     private $security;
 
-    public function __construct( ClientInterface $client, 
-	EntityManagerInterface $em, LoggerInterface $logger, Security $security)
+    /** @var TokenStorageInterface */
+    private $tokenStorage;
+
+    public function __construct( ClientInterface $client,
+	EntityManagerInterface $em, LoggerInterface $logger, Security $security, TokenStorageInterface $tokenStorage)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
         $this->em = $em;
-	$this->security = $security;
+	    $this->security = $security;
+	    $this->tokenStorage = $tokenStorage;
 
         // get the User repository
         $this->userRepository = $this->em->getRepository( User::class);
@@ -45,7 +53,7 @@ class UserManager
     public function mergeUser( $uid)
     {
 /*
-	Can be called from Social authenticator for regular user	
+	Can be called from Social authenticator for regular user
 
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
           $this->logger->debug('Access denied');
@@ -79,7 +87,7 @@ class UserManager
 
 	// Iterate through all the users
 	foreach( $users as $user) {
-	
+
 	  $this->mergeUser( $user->getId());
 	  $counter++;
 	}
@@ -125,7 +133,7 @@ class UserManager
 	// Get the user by email
         $user = $this->userRepository->findOneBy(['email' => $email]);
 
-	// Get the roles, add a new role and save	
+	// Get the roles, add a new role and save
 	if( $user != null) {
 
           $this->logger->debug('User id '.$user->getId());
@@ -154,6 +162,27 @@ class UserManager
 
         // Erase all nodes
         $this->neo4j_client->run( "MATCH (w:WebUser) DETACH DELETE w", null);
+    }
+
+    /**
+     * @return User
+     *
+     * @throws AccessDeniedException
+     */
+    public function getCurrentUser(): User
+    {
+        $user = null;
+
+        $token = $this->tokenStorage->getToken();
+        if ($token instanceof TokenInterface) {
+            $user = $token->getUser();
+        }
+
+        if (!$user instanceof User) {
+            throw new AccessDeniedException();
+        }
+
+        return $user;
     }
 }
 ?>

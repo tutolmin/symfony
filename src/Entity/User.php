@@ -69,7 +69,8 @@ class User implements UserInterface
 
     public function __construct()
     {
-        $this->createdDateTime = new \DateTime(); 
+        $this->createdDateTime = new \DateTime();
+        $this->canUpload = true;
     }
 
     public function getId(): ?int
@@ -227,7 +228,7 @@ class User implements UserInterface
         return $this;
     }
 
-    public function getCanUpload(): ?bool
+    public function isCanUpload(): ?bool
     {
         return $this->canUpload;
     }

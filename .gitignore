@@ -15,4 +15,5 @@
 ###< symfony/phpunit-bridge ###
 
 /cache/
-/public/uploads/PGNs/
+/var/upload-games/*
+!/var/upload-games/.gitkeep

@@ -8,6 +8,11 @@
     </head>
     <body onload="showGameDetails(0);$('.tagsinput#form-tags').addTag('1-0');$('.tagsinput#queue-form-tags').addTag('Pending');">
         {% block body %}{% endblock %}
+
+        <script>
+            const APP_HOST = '{{ appHost() }}';
+        </script>
+
         {% block javascripts %}{% endblock %}
     </body>
 </html>

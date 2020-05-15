@@ -61,12 +61,14 @@ Use the form below to upload your games.</p>
 -->
 </p>
 
-    {{ form_row(form.pgn) }}
+    {{ form_row(form.regular) }}
+    {{ form_row(form.file) }}
 
 <!--
 <p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
 -->
 
+    <input type="button" value="Reset" name="reset" />
     <input type="submit" value="Upload PGN" name="submit"
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {% else %}
@@ -77,6 +79,8 @@ Use the form below to upload your games.</p>
 {% else %}
     <br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can upload your games.</span>
 {% endif %}
+
+<div style="display: none; padding: 10px;" id="upload_game_message"></div>
 
 {{ form_end(form) }}
 
@@ -368,9 +372,9 @@ Use the form below to upload your games.</p>
 <option value="deep">deep</option>
 </select>
 <div id="analysis_submit">
-     <button type="submit" 
-             class="input_submit" 
-             style="margin-right: 15px;" 
+     <button type="submit"
+             class="input_submit"
+             style="margin-right: 15px;"
              onClick="processGame()"
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {% else %}
@@ -439,13 +443,14 @@ Use the form below to upload your games.</p>
 {% endblock %}
 
 {% block javascripts %}
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> 
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js"></script>
 <script src="js/chessboard-0.3.0.min.js"></script>
 <script src="js/jquery.tagsinput-revisited.min.js"></script>
 <script src="js/chesscheat.js"></script>
+<script src="js/upload-game.js"></script>
 {% if is_granted('ROLE_QUEUE_MANAGER') %}
 <script src="js/queue_manager.js"></script>
 {% else %}

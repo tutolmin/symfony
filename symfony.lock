@@ -392,6 +392,9 @@
     "symfony/polyfill-php73": {
         "version": "v1.13.1"
     },
+    "symfony/polyfill-uuid": {
+        "version": "v1.17.0"
+    },
     "symfony/profiler-pack": {
         "version": "v1.0.4"
     },

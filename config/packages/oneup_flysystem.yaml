@@ -1,0 +1,9 @@
+oneup_flysystem:
+    adapters:
+        user_upload_games_adapter:
+            local:
+                directory: "%kernel.project_dir%/var/upload-games"
+    filesystems:
+        user_upload_games_fs:
+            adapter: user_upload_games_adapter
+            mount: user_upload_games_fs_filesystem
