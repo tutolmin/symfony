@@ -493,7 +493,6 @@ function openTab(evt, tabName) {
 document.getElementById("analysisTab").click();
 
 
-
 var onMoveEnd = function() {
 
   // Get board element
@@ -554,9 +553,6 @@ var onMoveEnd = function() {
     }
   }
 };
-
-
-
 
 
 //--- start example JS ---
@@ -744,6 +740,7 @@ function makeNextMove() {
 
 $('#boardFlip').on('click', function() {
   board.flip();
+  onMoveEnd();
 });
 
 $('#setStartBtn').on('click', function() {
