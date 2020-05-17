@@ -24,12 +24,23 @@ let uploadGameModule = (function() {
                 url: APP_HOST + '/uploadGame',
                 type: 'POST',
                 data: new FormData(this),
+                timeout: 60000,
                 success: function (response) {
                     showMessage(response);
                     resetForm();
                 },
                 error: function(jqXHR) {
-                    showMessage(jqXHR.responseJSON);
+                    let errorMessage = 'An error occurred while trying to process the request.';
+
+                    if ('timeout' === jqXHR.statusText) {
+                        errorMessage = 'Connection timed out.';
+                    } else if (jqXHR.responseJSON) {
+                        errorMessage = jqXHR.responseJSON;
+                    } else if (jqXHR.statusText) {
+                        errorMessage = jqXHR.statusText;
+                    }
+
+                    showMessage(errorMessage);
                 },
                 cache: false,
                 contentType: false,
