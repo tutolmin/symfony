@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 /**
  * @ORM\Entity(repositoryClass="App\Repository\UserUploadGameTaskRepository")
+ *
+ * @UniqueEntity(fields={"hash"})
  */
 class UserUploadGameTask
 {
     /**
+     * @var int|null
+     *
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
@@ -22,6 +27,7 @@ class UserUploadGameTask
      * @var User
      *
      * @ORM\ManyToOne(targetEntity="App\Entity\User")
+     * @ORM\JoinColumn(nullable=false)
      */
     private $user;
 
@@ -37,7 +43,7 @@ class UserUploadGameTask
     /**
      * @var \DateTimeImmutable
      *
-     * @ORM\Column(type="date_immutable")
+     * @ORM\Column(type="datetime_immutable")
      */
     private $createdAt;
 
@@ -48,7 +54,16 @@ class UserUploadGameTask
     public function __construct(User $user, string $hash)
     {
         $this->hash = $hash;
+        $this->user = $user;
         $this->createdAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getId(): ?int
+    {
+        return $this->id;
     }
 
     /**

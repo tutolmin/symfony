@@ -6,6 +6,7 @@
 parameters:
     PGNs_directory: '%kernel.project_dir%/public/uploads/PGNs'
     cache_directory: '%kernel.project_dir%/cache'
+    upload_games_parent_directory: '%kernel.project_dir%/var/upload-games'
 
 services:
     # default configuration for services in *this* file
@@ -15,6 +16,7 @@ services:
         bind:
             $appHost: '%env(APP_HOST)%'
             $uploadGamesTaskFilesystem: '@oneup_flysystem.user_upload_games_fs_filesystem'
+            $uploadGamesParentDirectory: '%upload_games_parent_directory%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

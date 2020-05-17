@@ -1,6 +1,6 @@
 {
     "name": "tutolmin/symfony",
-    "description": "Symfony framwork for ChessCheat project",
+    "description": "Symfony framework for ChessCheat project",
     "type": "project",
     "license": "proprietary",
     "require": {

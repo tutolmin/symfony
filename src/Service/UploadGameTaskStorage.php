@@ -14,13 +14,16 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 class UploadGameTaskStorage
 {
     private $filesystem;
+    private $uploadGamesParentDirectory;
 
     /**
      * @param FilesystemInterface $uploadGamesTaskFilesystem
+     * @param string              $uploadGamesParentDirectory
      */
-    public function __construct(FilesystemInterface $uploadGamesTaskFilesystem)
+    public function __construct(FilesystemInterface $uploadGamesTaskFilesystem, string $uploadGamesParentDirectory)
     {
         $this->filesystem = $uploadGamesTaskFilesystem;
+        $this->uploadGamesParentDirectory = $uploadGamesParentDirectory;
     }
 
     /**
@@ -39,9 +42,10 @@ class UploadGameTaskStorage
 
         $file = $task->getFile();
         if ($file instanceof UploadedFile) {
-            $filePath = sprintf('%s/file.%s', $parentDirectory, $file->getClientOriginalExtension());
+            $fileName = sprintf('file.%s', $file->getClientOriginalExtension());
+            $parentDirectory = sprintf('%s/%s', $this->uploadGamesParentDirectory, $parentDirectory);
 
-            $this->filesystem->copy($file->getRealPath(), $filePath);
+            $file->move($parentDirectory, $fileName);
         }
     }
 
