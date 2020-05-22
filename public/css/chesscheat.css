@@ -267,6 +267,11 @@ div.moveVariationsContainer
   height: 100px;
   padding:1px;
 }
+div.mainContainer
+{
+  width: 550px;
+  padding:1px;
+}
 div.variationLine
 {
   float:right;
