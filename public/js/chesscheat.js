@@ -784,22 +784,36 @@ countersTable += "</tr>";
 // Hide FAQ accordion
 if( W_analysis_depth == 0 && B_analysis_depth == 0) {
 
+  document.getElementById("evaluationContainer").style.visibility = "hidden";
+
+  document.getElementById("mainContainer").style.zIndex = "1";
   document.getElementById("mainContainer").style.visibility = "visible";
+
+  document.getElementById("countersContainer").style.visibility = "hidden";
+
+  document.getElementById("accordionContainer").style.zIndex = "1";
   document.getElementById("accordionContainer").style.visibility = "visible";
 
 } else {
 
-document.getElementById("evaluationContainer").style.zIndex = "1";
-document.getElementById("evaluationContainer").style.visibility = "visible";
+  document.getElementById("mainContainer").style.visibility = "hidden";
+
+  document.getElementById("evaluationContainer").style.zIndex = "1";
+  document.getElementById("evaluationContainer").style.visibility = "visible";
 
 if( (side == "White" && W_analysis_depth > 0)
   || (side == "Black" && B_analysis_depth > 0)) {
+
+  document.getElementById("accordionContainer").style.visibility = "hidden";
 
   document.getElementById("countersContainer").style.zIndex = "1";
   document.getElementById("countersContainer").style.visibility = "visible";
 
 } else {
 
+  document.getElementById("countersContainer").style.visibility = "hidden";
+
+  document.getElementById("accordionContainer").style.zIndex = "1";
   document.getElementById("accordionContainer").style.visibility = "visible";
 }
 
