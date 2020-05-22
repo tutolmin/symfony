@@ -249,6 +249,7 @@ div.moveListContainer
 }
 div.moveList
 {
+  width: 550px;
   height:175px;
   overflow:auto;
   text-align: justify;
@@ -256,6 +257,7 @@ div.moveList
 }
 div.moveListButtons
 {
+  width: 550px;
   text-align:center;
   padding:10px;
 }
@@ -285,4 +287,51 @@ div.varEval
 {
   float:left;
   padding:3px 0 3px 0;
+}
+
+.s-accordion, .q-accordion, .u-accordion, .a-accordion, .c-accordion {
+  background-color: #eee;
+  color: #444;
+  cursor: pointer;
+  padding: 12px;
+  width: 100%;
+  border: none;
+  text-align: left;
+  outline: none;
+  font-size: 15px;
+  transition: 0.4s;
+}
+
+.s-accordion:after, .q-accordion:after, .u-accordion:after, .a-accordion:after, .c-accordion:after {
+  content: '\002B';
+  color: #777;
+  font-weight: bold;
+  float: right;
+  margin-left: 5px;
+}
+
+.s-panel, .q-panel, .u-panel, .a-panel, .c-panel {
+  padding: 0 10px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+  font-size:90%;
+}
+
+.active-accordion, .s-accordion:hover, .q-accordion:hover, .u-accordion:hover, .a-accordion:hover, .c-accordion:hover {
+  background-color: #ccc;
+}
+
+.active-accordion:after {
+  content: "\2212";
+}
+
+.w3-bar{display:inline-block;width:auto}
+.w3-bar .w3-bar-item{padding:8px 16px;float:left;width:auto;border:none;display:block;outline:0}
+.w3-bar .w3-button{white-space:normal}
+.w3-bar:before,.w3-bar:after{content:"";display:table;clear:both}
+
+.cheat-score {
+  font-size: 130%;
 }

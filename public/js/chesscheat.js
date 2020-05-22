@@ -18,9 +18,47 @@ URI_arr.pop();
 //var Game = new Object();
 var Positions;
 var W_baselines, B_baselines;
+var W_analysis_depth, B_analysis_depth;
 
 var TimeOut;
 var timerIsOn = false;
+
+
+
+
+// Array of accordions
+var accordions = ['u-accordion','q-accordion','s-accordion', 'a-accordion'];
+var a;
+for (a = 0; a < accordions.length; a++) {
+
+  var acc = document.getElementsByClassName( accordions[a]);
+  var i;
+  // Bind listeners for accordion items click
+  for (i = 0; i < acc.length; i++) {
+    acc[i].addEventListener("click",
+      show_accordion_item.bind(this, acc[i], accordions[a]), false);
+  }
+}
+
+// Open accordion item and close others
+function show_accordion_item( btn, ac) {
+
+  var acc = document.getElementsByClassName( ac);
+  var j;
+  for (j = 0; j < acc.length; j++) {
+
+    acc[j].classList.remove("active-accordion");
+    var pan = acc[j].nextElementSibling;
+    pan.style.maxHeight = null;
+  }
+
+  btn.classList.add("active-accordion");
+  var panel = btn.nextElementSibling;
+  panel.style.maxHeight = panel.scrollHeight + "px";
+}
+
+
+
 
 // Doe NOT work!!!
 $("#checkAll").click(function(){
@@ -152,6 +190,8 @@ function showGameDetails( gid) {
   Positions = Game["Positions"];
   W_baselines = Game["W_baselines"];
   B_baselines = Game["B_baselines"];
+  W_analysis_depth = Game["W_analysis_depth"];
+  B_analysis_depth = Game["B_analysis_depth"];
 
   // Replay game moves and display new game data
   init();
@@ -641,10 +681,28 @@ var gameEDR = Game['Event'] + ", " + Game['Date'] + ", " + Game['Result'];
 //  gameDetails += " (effectively " + Game['eResult'] + ")"; }
 document.getElementById('gameEDR').innerHTML = gameEDR;
 
+// Show initial counters
+if( B_analysis_depth > 0 && W_analysis_depth == 0) {
+  $('#blackSide').click();
+} else {
+  $('#whiteSide').click();
+}
+
+}; // end init()
+
+
+// Update counters for a side
+function updateCounters( side) {
+
 // Show game details
 var countersTable = "<table border=0 cellspacing=0 cellpadding=0 class='gameInfo'>";
 
-for( const prefix of ["W_", "B_"]) {
+// Select which side analysis data to show, White has a priority
+var prefix = "W_";
+
+// Unless specific side requested
+if( side == "White") prefix = "W_";
+if( side == "Black") prefix = "B_";
 
 countersTable += "<tr><td>" +
 "<table>" +
@@ -722,11 +780,36 @@ countersTable += "<td>" +
 
 countersTable += "</tr>";
 
+// Bring analysis data to the front and make it visible
+// Hide FAQ accordion
+if( W_analysis_depth == 0 && B_analysis_depth == 0) {
+
+  document.getElementById("mainContainer").style.visibility = "visible";
+  document.getElementById("accordionContainer").style.visibility = "visible";
+
+} else {
+
+document.getElementById("evaluationContainer").style.zIndex = "1";
+document.getElementById("evaluationContainer").style.visibility = "visible";
+
+if( (side == "White" && W_analysis_depth > 0)
+  || (side == "Black" && B_analysis_depth > 0)) {
+
+  document.getElementById("countersContainer").style.zIndex = "1";
+  document.getElementById("countersContainer").style.visibility = "visible";
+
+} else {
+
+  document.getElementById("accordionContainer").style.visibility = "visible";
+}
+
 }
 
 document.getElementById('counters').innerHTML = countersTable + "</table>";
 
-}; // end init()
+}
+
+
 
 // Makes next move until the end
 // Then loads new game
