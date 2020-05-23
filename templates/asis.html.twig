@@ -18,9 +18,10 @@
   <button onclick="openTab(event, 'Analyze')">
 <table style="border:1px;margin:0;padding:0;">
 <tr>
-<td><img src="img/chesspieces/wikipedia/bK.png" width="48"/></td>
-<td><img src="img/chesspieces/wikipedia/wQ.png" width="48"/></td>
-<td style="padding-left:10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+<td><img src="img/chesspieces/wikipedia/bK.png" width="48" alt="Black King" title="Black King"/></td>
+<td><img src="img/chesspieces/wikipedia/wQ.png" width="48" alt="White Queen" title="White Queen"/></td>
+<td style="padding: 0 10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+<td><img src="img/beta1.png" width="30" alt="beta" title="Beta testing is still in progress"/></td>
 </tr>
 </table>
   </button>
@@ -609,11 +610,11 @@ this score with other players, grandmasters and computers.</p>
 </td><td valign=top>
 
   <div class="w3-bar">
-  <button class="" id="whiteSide" onclick="updateCounters('White')">White</button>
-  <button class="" id="blackSide" onclick="updateCounters('Black')">Black</button>
+  <button class="side_button" id="whiteSide" onclick="updateCounters('White')">White</button>
+  <button class="side_button" id="blackSide" onclick="updateCounters('Black')">Black</button>
   </div>
 
-  <div class="cheat-score" id="cheatscore">Cheat Score: 0</div>
+  <div class="cheat-score" id="cheatScore">Cheat Score: 0</div>
 
 <div class="" style="width:300px;position:absolute;">
 

@@ -722,7 +722,6 @@ countersTable += "<tr><td>" +
 "<tr><td><abbr title='Average Difference'>A.&nbsp;D.</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
 "<tr><td><abbr title='Median Error'>Median</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
 "<tr><td><abbr title='Standard Deviation'>S.&nbsp;D.</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
-"<tr><td><abbr title='Calculated ELO score'>cELO</abbr></td></tr>" +
 "<tr><td><abbr title='Distance to baseline'>bDist</abbr></td></tr>" +
 "</table>" +
 "</td>";
@@ -745,7 +744,6 @@ countersTable += "<td>" +
 "<tr><td>" + Game[prefix+'avg_diff'].toFixed(1) + "</td></tr>" +
 "<tr><td>" + Game[prefix+'median'].toFixed(1) + "</td></tr>" +
 "<tr><td>" + Game[prefix+'std_dev'].toFixed(1) + "</td></tr>" +
-"<tr><td>" + Game[prefix+'cheat_score'].toFixed(0) + "</td></tr>" +
 "<tr><td>" + Game[prefix+'perp_len'].toFixed(1) + "</td></tr>" +
 "</table>" +
 "</td>";
@@ -779,6 +777,10 @@ countersTable += "<td>" +
 }
 
 countersTable += "</tr>";
+
+document.getElementById("cheatScore").innerHTML =  "Cheat Score: " +
+  Game[prefix+'cheat_score'].toFixed(0);
+
 
 // Bring analysis data to the front and make it visible
 // Hide FAQ accordion
