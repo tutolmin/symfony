@@ -420,10 +420,10 @@ RETURN summary LIMIT 2';
 		$this->game[$prefix.'median'] = $summaryObj->value('median');
 	if($summaryObj->hasValue('stddev'))
 		$this->game[$prefix.'std_dev'] = $summaryObj->value('stddev');
-	if($summaryObj->hasValue('cheatscore'))
-		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheatscore');
-	if($summaryObj->hasValue('perplen'))
-		$this->game[$prefix.'perp_len'] = $summaryObj->value('perplen');
+	if($summaryObj->hasValue('cheat_score'))
+		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheat_score');
+	if($summaryObj->hasValue('perp_len'))
+		$this->game[$prefix.'perp_len'] = $summaryObj->value('per_plen');
 	}
     }
 

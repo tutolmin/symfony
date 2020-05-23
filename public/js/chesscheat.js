@@ -778,8 +778,8 @@ countersTable += "<td>" +
 
 countersTable += "</tr>";
 
-document.getElementById("cheatScore").innerHTML =  "Cheat Score: " +
-  Game[prefix+'cheat_score'].toFixed(0);
+document.getElementById("cheatScore").innerHTML =
+  "Cheat Score: " + Game[prefix+'cheat_score'];
 
 
 // Bring analysis data to the front and make it visible

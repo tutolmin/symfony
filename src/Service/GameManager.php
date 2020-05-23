@@ -833,11 +833,11 @@ $Totals[$side]['cheat_score'] = $_ENV['ELO_START'];
       $y1 = 50 * $t;
       $z1 = 100 * $t;
 
-      $Totals[$side]['perp_len'] = sqrt(
+      $Totals[$side]['perp_len'] = round( sqrt(
         pow( $Totals[$side]['best_rate'] - $x1, 2) +
         pow( $Totals[$side]['median'] - $y1, 2) +
         pow( $Totals[$side]['mean'] - $z1, 2)
-      );
+      ), 1);
 
       $Totals[$side]['cheat_score'] + round(
         sqrt(
