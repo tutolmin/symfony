@@ -79,7 +79,7 @@ class LichessUser implements ResourceOwnerInterface
      */
     public function getFirstName()
     {
-      return $this->getValueByKey($this->response, 'first_name');
+      return $this->getValueByKey($this->response, 'profile.firstName');
     }
 
     /**
@@ -89,7 +89,7 @@ class LichessUser implements ResourceOwnerInterface
      */
     public function getLastName()
     {
-      return $this->getValueByKey($this->response, 'last_name');
+      return $this->getValueByKey($this->response, 'profile.lastName');
     }
 
     /**

@@ -2638,7 +2638,7 @@ RETURN average.milliseconds AS speed';
               'gid' => $gid,
               'game' => $game,
               'expiration_date' => new \DateTime('+7 days'),
-              'firstName' => $user->getFirstName(),
+              'firstName' => (strlen( $user->getFirstName())>0)?$user->getFirstName():"User",
           ])
       ;
 

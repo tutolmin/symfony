@@ -1,4 +1,18 @@
-function parse_url( url){
+function pageLoad( gid) {
+  
+  // Show particular game
+  showGameDetails( gid);
+
+  // Show Pending games in a queue
+  $('.tagsinput#queue-form-tags').importTags( 'Pending;');
+  loadQueue();
+
+  // Show white wins
+  $('.tagsinput#form-tags').importTags( '1-0;');
+  loadGames();
+}
+
+function parse_url( url) {
         // example 1: parse_url('http://example.com:3000/pathname/?search=test#hash');
         // returns 1: {protocol: 'http:', hostname: 'example.com', port: '3000', pathname: '/pathname/', search: '?search=test', hash: '#hash', host: 'example.com:3000'}
 
@@ -436,7 +450,6 @@ function loadGames() {
   });
 }
 
-    $(function() {
             $('#queue-form-tags').tagsInput({
                     'unique': true,
                     'minChars': 2,
@@ -463,10 +476,8 @@ function loadGames() {
       }
     }
             });
-    });
 
 
-    $(function() {
             $('#form-tags').tagsInput({
                     'unique': true,
                     'minChars': 2,
@@ -493,7 +504,6 @@ function loadGames() {
       }
     }
             });
-    });
 
 //  'autocomplete_url':'http://dev.chesscheat.com/autocomplete.php',
 //  'autocomplete':{selectFirst:true,width:'100px',autoFill:true},
