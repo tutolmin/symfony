@@ -27,7 +27,7 @@ class LichessAuthenticator extends SocialAuthenticator
     /** @var Lichess */
     protected $provider;
 
-    public function __construct(ClientRegistry $clientRegistry, 
+    public function __construct(ClientRegistry $clientRegistry,
 	EntityManagerInterface $em, Lichess $provider, UserManager $um)
     {
         $this->clientRegistry = $clientRegistry;
@@ -61,6 +61,9 @@ class LichessAuthenticator extends SocialAuthenticator
 
 	$lichessUserId = $lichessUser->getId();
 
+  $lichessUserFirstName = $lichessUser->getFirstName();
+  $lichessUserLastName = $lichessUser->getLastName();
+
 	$this->provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
 //        $lichessUserEmail = $this->provider->getResourceOwner($credentials)->getEmail();
         $lichessUserEmail = $lichessUser->getEmail();
@@ -87,6 +90,8 @@ class LichessAuthenticator extends SocialAuthenticator
         // a User object
         $user->setLichessId($lichessUserId);
         $user->setEmail($lichessUserEmail);
+        $user->setFirstName($lichessUserFirstName);
+        $user->setLastName($lichessUserLastName);
         $this->em->persist($user);
         $this->em->flush();
 

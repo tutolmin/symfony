@@ -423,7 +423,7 @@ RETURN summary LIMIT 2';
 	if($summaryObj->hasValue('cheat_score'))
 		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheat_score');
 	if($summaryObj->hasValue('perp_len'))
-		$this->game[$prefix.'perp_len'] = $summaryObj->value('per_plen');
+		$this->game[$prefix.'perp_len'] = $summaryObj->value('perp_len');
 	}
     }
 

@@ -26,7 +26,7 @@ class FacebookAuthenticator extends SocialAuthenticator
     private $neo4j_client;
     private $logger;
 
-    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em, 
+    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em,
 	ClientInterface $client, LoggerInterface $logger, UserManager $um)
     {
         $this->clientRegistry = $clientRegistry;
@@ -94,6 +94,8 @@ class FacebookAuthenticator extends SocialAuthenticator
         // a User object
         $user->setFacebookId($facebookUser->getId());
         $user->setEmail($facebookUser->getEmail());
+        $user->setFirstName($facebookUser->getFirstName());
+        $user->setLastName($facebookUser->getLastName());
         $this->em->persist($user);
         $this->em->flush();
 

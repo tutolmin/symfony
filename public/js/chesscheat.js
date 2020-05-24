@@ -644,7 +644,7 @@ console.time("Process positions");
 // Replay the game and convert LAN to SAN
 for (index = 1; index < Positions.length; index++) {
 
-  console.timeLog("Process positions");
+//  console.timeLog("Process positions");
 
   // We only process actual game moves here
   // in order to be faster
@@ -881,8 +881,8 @@ function pausePlayback() {
 
 $('#setNextMove').on('click', function() {
 
-  console.log( "Next btn clk - Pos: " + positionIndex + " Alt: " + alternativeIndex +
-	  " Var: " + variationIndex + " Timer: " + timerIsOn);
+//  console.log( "Next btn clk - Pos: " + positionIndex + " Alt: " + alternativeIndex +
+//	  " Var: " + variationIndex + " Timer: " + timerIsOn);
 
   // Make next variation move
   if( variationIndex >= 0) {

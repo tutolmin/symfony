@@ -3,4 +3,7 @@ twig:
     debug: '%kernel.debug%'
     strict_variables: '%kernel.debug%'
     globals:
-        oauth_google_cleant_id: '%env(OAUTH_GOOGLE_CLIENT_ID)%'
+        oauth_google_client_id: '%env(OAUTH_GOOGLE_CLIENT_ID)%'
+    paths:
+        '%kernel.project_dir%/public/css': css
+        '%kernel.project_dir%/public/img': img

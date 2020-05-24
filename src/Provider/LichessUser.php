@@ -63,6 +63,36 @@ class LichessUser implements ResourceOwnerInterface
     }
 
     /**
+     * Returns the name for the user as a string if present.
+     *
+     * @return string|null
+     */
+    public function getName()
+    {
+        return $this->getFirstName()." ".getLastName();
+    }
+
+    /**
+     * Returns the first name for the user as a string if present.
+     *
+     * @return string|null
+     */
+    public function getFirstName()
+    {
+      return $this->getValueByKey($this->response, 'first_name');
+    }
+
+    /**
+     * Returns the last name for the user as a string if present.
+     *
+     * @return string|null
+     */
+    public function getLastName()
+    {
+      return $this->getValueByKey($this->response, 'last_name');
+    }
+
+    /**
      * Returns the raw resource owner response.
      *
      * @return array

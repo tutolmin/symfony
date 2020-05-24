@@ -1,7 +1,9 @@
-index:
-    path: /
-    controller: App\Controller\AsIsController::asis
-
 app_logout:
     path: /logout
     methods: GET
+
+index:
+    path: /{gid}
+    controller: App\Controller\AsIsController::asis
+    defaults:
+      gid: 0
