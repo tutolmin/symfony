@@ -3,7 +3,7 @@
 {% block title %}Login required!{% endblock %}
 
 {% block head %}
-  <meta name="google-signin-client_id" content="{{ oauth_google_cleant_id }}">
+  <meta name="google-signin-client_id" content="{{ oauth_google_client_id }}">
 {% endblock %}
 
 {% block body %}
@@ -23,6 +23,11 @@
 <div class="fb-login-button" data-size="large" data-button-type="login_with" data-auto-logout-link="true" data-use-continue-as="true"></div>
 <div id="my-signin2"></div>
 -->
+
+<script>
+function pageLoad() {
+}
+</script>
 
   <script>
     function onSuccess(googleUser) {

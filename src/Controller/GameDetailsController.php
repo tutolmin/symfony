@@ -12,6 +12,7 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Psr\Log\LoggerInterface;
 use App\Service\CacheFileFetcher;
 use App\Service\GameManager;
+use App\Service\QueueManager;
 
 class GameDetailsController extends AbstractController
 {
@@ -20,6 +21,7 @@ class GameDetailsController extends AbstractController
     private $logger;
     private $fetcher;
     private $gameManager;
+    private $queueManager;
 
     // Initial position properties
     const ROOT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -46,22 +48,28 @@ class GameDetailsController extends AbstractController
     private $scores = array();
     private $depths = array();
     private $times = array();
+    private $var_moves = array();
+    private $var_depths = array();
+    private $var_scores = array();
+    private $var_times = array();
+/*
     private $T1_moves = array();
     private $T1_depths = array();
     private $T1_scores = array();
     private $T1_times = array();
-
+*/
     private $sides = ["White" => "W_", "Black" => "B_"];
 
     // Dependency injection of the Neo4j ClientInterface
-    public function __construct( ClientInterface $client, Stopwatch $watch, 
-	LoggerInterface $logger, CacheFileFetcher $fetcher, GameManager $gm)
+    public function __construct( ClientInterface $client, Stopwatch $watch,
+	LoggerInterface $logger, CacheFileFetcher $fetcher, GameManager $gm, QueueManager $qm)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
         $this->logger = $logger;
         $this->fetcher = $fetcher;
         $this->gameManager = $gm;
+        $this->queueManager = $qm;
 
 	foreach( $this->sides as $prefix) {
 	$this->game[$prefix.'Plies']="";
@@ -110,7 +118,7 @@ class GameDetailsController extends AbstractController
 	$this->game['ID'] = $request->query->getInt('gid', -1);
 
 	// Get game info
-	if( $this->getGameInfo() != -1) {
+	if( $this->getGameInfo()) {
 
 	  // Lap, Game node details fetched
 	  $this->stopwatch->lap('getGameDetails');
@@ -152,7 +160,7 @@ class GameDetailsController extends AbstractController
 	// Encode in JSON and output
         return new JsonResponse( $this->game);
     }
-
+/*
     // Get random (:Game) id
     private function getRandomGameId()
     {
@@ -174,7 +182,7 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 
 	return $gid;
     }
-
+*/
     // Get root node id
     private function getRootId()
     {
@@ -185,7 +193,7 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	foreach ($result->records() as $record) {
   	  $this->neo4j_node_id = $record->value('id');
 	}
-        $this->logger->debug('Root node id '.$record->value('id'));
+        $this->logger->debug('Root node id '.$this->neo4j_node_id);
     }
 
     // Get move list
@@ -193,12 +201,12 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
     {
 	$response = $this->fetcher->getFile( $this->game["MoveListHash"].'.json');
 	$response_eval = $this->fetcher->getFile( 'evals-'.$this->game["MoveListHash"].'.json');
-
 	if( $response_eval != null) {
 
 //	  $data = $response_eval->toArray();
 	  $content = json_decode( $response_eval->getContent(), true);
 
+	  // Parse each ply info (it can be simple SAN or huge array with alternative lines)
 	  foreach( $content as $key => $item) {
 
 	    $this->moves[$key]		= "";
@@ -209,54 +217,91 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	    $this->scores[$key]		= "";
 	    $this->depths[$key]		= "";
 	    $this->times[$key]		= "";
+/*
 	    $this->T1_moves[$key]		= array();
 	    $this->T1_depths[$key]		= array();
 	    $this->T1_scores[$key]		= array();
 	    $this->T1_times[$key]		= array();
+*/
+	    // Up to three alternative lines
+	    for( $i=0;$i<3;$i++) {
+	      $this->var_moves[$key][$i]	= array();
+	      $this->var_depths[$key][$i]	= array();
+	      $this->var_scores[$key][$i]	= array();
+	      $this->var_times[$key][$i]	= array();
+	    }
 
 	    // Only SAN is present
 	    if( !is_array( $item)) {
 
 	      $this->moves[$key]	= $item;
 
+	    // An array, can be just SAN with eval info w/o alternatives
 	    } else {
 
 	      // SAN should always be there
 	      $this->moves[$key]	= $item['san'];
-	      if( array_key_exists( 'eco', $item)) 
+
+	      // Other items are optional (eco, eval info)
+	      if( array_key_exists( 'eco', $item))
 		$this->ECOs[$key]	= $item['eco'];
-	      if( array_key_exists( 'opening', $item)) 
+	      if( array_key_exists( 'opening', $item))
 	        $this->openings[$key]	= $item['opening'];
-	      if( array_key_exists( 'variation', $item)) 
+	      if( array_key_exists( 'variation', $item))
 	        $this->variations[$key]	= $item['variation'];
-	      if( array_key_exists( 'mark', $item)) 
+	      if( array_key_exists( 'mark', $item))
 	        $this->marks[$key]	= $item['mark'];
-	      if( array_key_exists( 'score', $item)) 
+	      if( array_key_exists( 'score', $item))
 	        $this->scores[$key]	= $item['score'];
-	      if( array_key_exists( 'depth', $item)) 
+	      if( array_key_exists( 'depth', $item))
 	        $this->depths[$key]	= $item['depth'];
-	      if( array_key_exists( 'time', $item)) 
+	      if( array_key_exists( 'time', $item))
 	        $this->times[$key]	= $item['time'];
-
-	      // Parse alternative lines for best moves only
-	      if( $this->marks[$key] != "Best" 
+/*
+	      // Parse alternative lines for NOT best moves only
+	      if( $this->marks[$key] != "Best"
 		&& array_key_exists( 'alt', $item))
+*/
+	      // Alternative lines are present
+	      // It can be a single san or array of SANs or
+	      // array of arrays with san and eval info
+	      if( array_key_exists( 'alt', $item))
 
-		// Take into account only fisrt(best) line
-		foreach( $item['alt'][0] as $variation)
+		// Up to 3 alternative lines
+		foreach( $item['alt'] as $altkey => $variation)
 
+		// Each alternative line is a SAN or array of eval info
+		foreach( $variation as $varkey => $varitem)
+
+		// Only SAN with no eval data
+		if( !is_array( $varitem)) {
+
+		  array_push( $this->var_moves[$key][$altkey], $varitem);
+		  array_push( $this->var_depths[$key][$altkey], 0);
+		  array_push( $this->var_scores[$key][$altkey], "");
+		  array_push( $this->var_times[$key][$altkey], "00:00.000");
+
+		} else {
+
+		  array_push( $this->var_moves[$key][$altkey],  $varitem['san']);
+		  array_push( $this->var_depths[$key][$altkey],  $varitem['depth']);
+		  array_push( $this->var_scores[$key][$altkey],  $varitem['score']);
+		  array_push( $this->var_times[$key][$altkey],  $varitem['time']);
+		}
+/*
 		// Only SAN with no eval data
 		if( !is_array( $variation)) {
 		  array_push( $this->T1_moves[$key],  $variation);
 		  array_push( $this->T1_depths[$key], 0);
 		  array_push( $this->T1_scores[$key], "");
 		  array_push( $this->T1_times[$key],  "00:00.000");
-		} else {	
+		} else {
 		  array_push( $this->T1_moves[$key],  $variation['san']);
 		  array_push( $this->T1_scores[$key], $variation['score']);
 		  array_push( $this->T1_depths[$key], $variation['depth']);
 		  array_push( $this->T1_times[$key],  $variation['time']);
 		}
+*/
 	    }
 	  }
 	} else // Only SANs are present
@@ -272,7 +317,7 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 
 	$URL = 'http://cache.chesscheat.com/'.$this->game["MoveListHash"].'.json';
         $this->logger->debug('URL '.$URL);
-	$response = $client->request('GET', $URL); 
+	$response = $client->request('GET', $URL);
 
 	$statusCode = $response->getStatusCode();
 	// $statusCode = 200
@@ -294,7 +339,7 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
     // Get move list
     private function getMoveList( $gid)
     {
-	// Fetch game move list 
+	// Fetch game move list
 	$params = ["gid" => $gid];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
 MATCH (game)-[:FINISHED_ON]->(:Line)-[:ROOT*0..]->(l:Line)-[:LEAF]->(ply:Ply)
@@ -310,7 +355,7 @@ RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
     // Get game summary for both players
     private function getSummary()
     {
-	// Fetch game details 
+	// Fetch game details
 	$params = ["gid" => $this->game['ID']];
 	$query = 'MATCH (game:Game) WHERE id(game) = $gid
 MATCH (game)-[:FINISHED_ON]->(line:Line)
@@ -375,10 +420,10 @@ RETURN summary LIMIT 2';
 		$this->game[$prefix.'median'] = $summaryObj->value('median');
 	if($summaryObj->hasValue('stddev'))
 		$this->game[$prefix.'std_dev'] = $summaryObj->value('stddev');
-	if($summaryObj->hasValue('cheatscore'))
-		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheatscore');
-	if($summaryObj->hasValue('perplen'))
-		$this->game[$prefix.'perp_len'] = $summaryObj->value('perplen');
+	if($summaryObj->hasValue('cheat_score'))
+		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheat_score');
+	if($summaryObj->hasValue('perp_len'))
+		$this->game[$prefix.'perp_len'] = $summaryObj->value('perp_len');
 	}
     }
 
@@ -386,17 +431,22 @@ RETURN summary LIMIT 2';
     private function getGameInfo()
     {
 	// Check if specified game id does not exist, get random game
-	if( !$this->gameManager->gameExists( $this->game['ID'])) 
-	  $this->game['ID'] = $this->gameManager->getRandomGameId( "checkmate");
+	if( !$this->gameManager->gameExists( $this->game['ID']))
+//	  $this->game['ID'] = $this->gameManager->getRandomGameId( "checkmate");
+    $this->game['ID'] = $this->gameManager->getRandomGameId( "1-0");
 
-	// Fetch game details 
+	// Game has not been selected
+	if( $this->game['ID'] == -1)
+	  return false;
+
+	// Fetch game details
 	$params = ["gid" => $this->game['ID']];
 	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
 MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
-WITH game, 
+WITH game,
  CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
  CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
- CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str 
+ CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str
  MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
   MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
   MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
@@ -404,8 +454,9 @@ WITH game,
   MATCH (game)-[:WAS_PART_OF]->(event:Event)
   MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
   MATCH (game)-[:FINISHED_ON]->(line:Line)
- RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash 
-LIMIT 1";
+  MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
+ RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
+	eco.code, opening.opening, opening.variation LIMIT 1";
 	$result = $this->neo4j_client->run( $query, $params);
 
 	foreach ($result->records() as $record) {
@@ -419,39 +470,38 @@ LIMIT 1";
 	  $this->game['B_ELO']  = $record->value('elo_b.rating');
 	  $this->game['Event']  = $record->value('event.name');
 	  $this->game['Date']   = $record->value('date_str');
-	  $this->game['MoveListHash']   = $record->value('line.hash');
+	  $this->game['ECO']	= $record->value('eco.code');
+	  $this->game['ECO_opening']	= $record->value('opening.opening');
+	  $this->game['ECO_variation']	= $record->value('opening.variation');
+	  $this->game['MoveListHash']	= $record->value('line.hash');
 
 	  // Result in human readable format
-          $labelsObj = $record->get('result_w');
-          $labelsArray = $labelsObj->labels();
-          if( in_array( "Draw", $labelsArray))
-            $this->game['Result'] = "1/2-1/2";
-          else if( in_array( "Win", $labelsArray))
-            $this->game['Result'] = "1-0";
-          else if( in_array( "Loss", $labelsArray))
-            $this->game['Result'] = "0-1";
-          else
-            $this->game['Result'] = "Unknown";
+    $labelsObj = $record->get('result_w');
+    $labelsArray = $labelsObj->labels();
+    if( in_array( "Draw", $labelsArray))
+      $this->game['Result'] = "1/2-1/2";
+    else if( in_array( "Win", $labelsArray))
+      $this->game['Result'] = "1-0";
+    else if( in_array( "Loss", $labelsArray))
+      $this->game['Result'] = "0-1";
+    else
+      $this->game['Result'] = "Unknown";
 
-// Optional game properties
-$this->game['eResult']="";
+    // Get analysis depth for both sides
+    $depths = $this->queueManager->getGameAnalysisDepths( $this->game['ID']);
+    $this->game['W_analysis_depth'] = $depths['White'];
+    $this->game['B_analysis_depth'] = $depths['Black'];
+
+/*
+	// Effective result
+	$this->game['eResult']="";
+	if($gameObj->hasValue('effective_result'))
+        	$this->game['eResult'] = $gameObj->value('effective_result');
 //$this->game['analyze']="";
-//$this->game['ECO']="";
-//$this->game['ECO_opening']="";
-//$this->game['ECO_variation']="";
 //$this->game['eval_time']="";
 //$this->game['eval_date']="";
-if($gameObj->hasValue('effective_result'))
-        $this->game['eResult'] = $gameObj->value('effective_result');
-/*
 if($gameObj->hasValue('analyze'))
         $this->game['analyze'] = $gameObj->value('analyze');
-if($gameObj->hasValue('ECO'))
-        $this->game['ECO'] = $gameObj->value('ECO');
-if($gameObj->hasValue('opening'))
-        $this->game['ECO_opening'] = $gameObj->value('opening');
-if($gameObj->hasValue('variation'))
-        $this->game['ECO_variation'] = $gameObj->value('variation');
 if($gameObj->hasValue('eval_time'))
         $this->game['eval_time'] = $gameObj->value('eval_time');
 if($gameObj->hasValue('eval_date'))
@@ -463,7 +513,7 @@ foreach( $this->sides as $side => $prefix) {
 */
 	}
 
-	return $this->game['ID'];
+	return true;
     }
 
     // Get baselines
@@ -485,17 +535,18 @@ if( strlen( $this->game['eResult'])>0)
 // Get baselines for both players
 $params = ["Name" => $this->game[$side], "Plies" => intval( $this->game[$prefix.'Plies']),
  "ELO" => intval( $this->game[$prefix.'ELO']), "cELO" => intval( $this->game[$prefix.'cheat_score'])];
-//$query = 'MATCH (p:Player{ name: $Name })<-[:'.$bl_type[$side][$game['Result']].']-(b:Baseline) 
-// WHERE b.min_plies<$Plies AND b.ELO_min<$ELO AND b.ELO_max>$ELO 
-//$query = 'MATCH (p:Player)<-[:'.$bl_type[$side][$game['Result']].']-(b:Baseline) 
+//$query = 'MATCH (p:Player{ name: $Name })<-[:'.$bl_type[$side][$game['Result']].']-(b:Baseline)
+// WHERE b.min_plies<$Plies AND b.ELO_min<$ELO AND b.ELO_max>$ELO
+//$query = 'MATCH (p:Player)<-[:'.$bl_type[$side][$game['Result']].']-(b:Baseline)
 // ORDER BY p.name is slooooooooooooooooooooow
-$query = 'MATCH (p:Player)<-[:'.$bl_type[$side][$game_result].']-(b:Baseline) 
- WHERE p.name IN["Aggregate Data Player", {Name}] AND b.min_plies<={Plies} 
+$query = 'MATCH (p:Player)<-[:'.$bl_type[$side][$game_result].']-(b:Baseline)
+ WHERE p.name IN["Aggregate Data Player", {Name}] AND b.min_plies<={Plies}
  AND ((b.ELO_min<={ELO} AND b.ELO_max>{ELO}) OR (b.ELO_min<={cELO} AND b.ELO_max>{cELO}))
  RETURN b ORDER BY abs(b.cheat_score-{ELO}) LIMIT ' . self::BASELINES_PER_SIDE;
 $result = $this->neo4j_client->run( $query, $params);
 
 $baselines = array();
+$baseline = array();
 
 	foreach ($result->records() as $record) {
 $baselineObj = $record->get('b');
@@ -589,6 +640,7 @@ $this->game[$prefix.'baselines'] = $baselines;
 	$T1_times  = array();
 
 	// Lets go through all the moves in the movelist
+if( false)
 	foreach( $this->moves as $key => $move) {
 
 	  $ECOs[$key]    = "";
@@ -613,14 +665,13 @@ $this->game[$prefix.'baselines'] = $baselines;
 	  $var_start_id = null;
 	  $var_end_id = null;
 
-continue;
 	  // Forced move flag
 	  $forced_move_flag = FALSE;
 
 	  $params = ["move" => $move, "node_id" => intval( $this->neo4j_node_id)];
 
 	  // Get best :Evaluation :Score for the actual game move
-	  $query = 'MATCH (l1:Line)<-[:ROOT]-(l2:Line)-[:LEAF]->(:Ply{san: {move}}) 
+	  $query = 'MATCH (l1:Line)<-[:ROOT]-(l2:Line)-[:LEAF]->(:Ply{san: {move}})
 WHERE id(l1) = {node_id}
 OPTIONAL MATCH (l2)-[:COMES_TO]->(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode)
 OPTIONAL MATCH (l2)-[:HAS_GOT]->(v:Evaluation)-[:RECEIVED]->(score:Score)
@@ -716,13 +767,13 @@ ORDER BY score.idx LIMIT 1';
 	// Actual move better than best line score
 	if( $best_score_idx >= $move_score_idx)
           $marks[$key] = "Best";
-	
+
 	else {	// If the scores do NOT match add better variation
 
 	  $params["best_eval_id"] = intval( $best_eval_id);
 	  $params["var_start_id"] = intval( $var_start_id);
 
-	  $query = 'MATCH (v:Evaluation)-[:RECEIVED]->(score:Score) 
+	  $query = 'MATCH (v:Evaluation)-[:RECEIVED]->(score:Score)
 WHERE id(v) = {best_eval_id}
 MATCH (l:Line) WHERE id(l) = {var_start_id}
 OPTIONAL MATCH (v)-[:PROPOSED]->(vl:Line)
@@ -766,11 +817,11 @@ LIMIT 1';
 
 	  $query = 'MATCH (l:Line) WHERE id(l) = {var_start_id}
 MATCH (vl:Line) WHERE id(vl) = {var_end_id}
-MATCH path = (l)<-[:ROOT*1..9]-(vl) 
+MATCH path = (l)<-[:ROOT*1..9]-(vl)
 UNWIND nodes(path) AS n MATCH (n)-[:LEAF]->(ply:Ply)
 RETURN COLLECT( ply.san) AS variationLine
 LIMIT 1';
-	
+
 	else
 
 	  $query = 'MATCH (l:Line) WHERE id(l) = {var_start_id}
@@ -796,6 +847,7 @@ LIMIT 1';
 
 	// Initialize positions array wit hfirst element
 	$positions = array();
+//	array_push( $positions, array( "", self::ROOT_FEN, self::ROOT_ZOBRIST, "", "", "", "", "", "" ,"" ,"", "" ,""));
 	array_push( $positions, array( "", self::ROOT_FEN, self::ROOT_ZOBRIST, "", "", "", "", "", "" ,"" ,"", "" ,""));
 
 	// Add position info for each move
@@ -809,11 +861,17 @@ LIMIT 1';
           $position[] = array_key_exists( $key, $this->scores)		?$this->scores[$key]	:"";
           $position[] = array_key_exists( $key, $this->depths)		?$this->depths[$key]	:"";
           $position[] = array_key_exists( $key, $this->times)		?$this->times[$key]	:"";
+
+          $position[] = array_key_exists( $key, $this->var_moves)	?
+		[$this->var_moves[$key], $this->var_scores[$key],
+		$this->var_depths[$key], $this->var_times[$key]] : ["","","","",""];
+
+/*
           $position[] = array_key_exists( $key, $this->T1_moves)	?$this->T1_moves[$key]	:[];
           $position[] = array_key_exists( $key, $this->T1_scores)	?$this->T1_scores[$key]	:[];
           $position[] = array_key_exists( $key, $this->T1_depths)	?$this->T1_depths[$key]	:[];
           $position[] = array_key_exists( $key, $this->T1_times)	?$this->T1_times[$key]	:[];
-
+*/
           $positions[] = $position;
 	}
 

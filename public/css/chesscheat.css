@@ -3,6 +3,7 @@ body {
  background-color: #fff;
     width:1350px;
 }
+a {text-decoration: none;}
 .FEN {
  font-size: 75%; /* Размер шрифта в процентах */
  font-family: serif; /* Шрифт с засечками */
@@ -131,17 +132,17 @@ td.deepAnalysisCell:hover { background-color:#6a6a6a;font-color:#AAA;}
 .highlight-white {
   -webkit-box-shadow: inset 0 0 3px 3px yellow;
   -moz-box-shadow: inset 0 0 3px 3px yellow;
-  box-shadow: inset 0 0 3px 3px yellow;  
+  box-shadow: inset 0 0 3px 3px yellow;
 }
 .highlight-black {
   -webkit-box-shadow: inset 0 0 3px 3px blue;
   -moz-box-shadow: inset 0 0 3px 3px blue;
-  box-shadow: inset 0 0 3px 3px blue;  
+  box-shadow: inset 0 0 3px 3px blue;
 }
-.highlight-best {
+.highlight-capture {
   -webkit-box-shadow: inset 0 0 3px 3px red;
   -moz-box-shadow: inset 0 0 3px 3px red;
-  box-shadow: inset 0 0 3px 3px red;  
+  box-shadow: inset 0 0 3px 3px red;
 }
 .tooltip {
   position: relative;
@@ -165,4 +166,193 @@ td.deepAnalysisCell:hover { background-color:#6a6a6a;font-color:#AAA;}
 
 .tooltip:hover .tooltiptext {
   visibility: visible;
+}
+div.gameHeaderContainer {
+  width: 415px;
+  height: 100px;
+  padding:1px;
+}
+div.gamePlayers
+{
+  height:68px;
+  overflow:auto;
+  font-size:175%;
+}
+div.gameEDRContainer
+{
+  float:left;
+  height:32px;
+  width:375px;
+  padding:1px;
+}
+div.gameEDR
+{
+  width:370px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:125%;
+}
+div.boardFlip
+{
+  float:right;
+  height:35px;
+}
+div.gameEFPContainer {
+  width: 415px;
+  height: 300px;
+  padding:1px;
+}
+div.gameECO
+{
+  float:right;
+  width:360px;
+  height:20px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:80%;
+  padding:3px 0 3px 0;
+}
+div.gameFEN
+{
+  float:right;
+  width:360px;
+  height:20px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:80%;
+  padding:3px 0 3px 0;
+}
+div.gamePGNContainer {
+  float:right;
+  width: 360px;
+  height: 125px;
+  padding:1px;
+}
+div.gamePGN
+{
+  height:125px;
+  overflow:auto;
+  font-size:80%;
+  padding:3px 0 3px 0;
+}
+div.blockName
+{
+  float:left;
+  height:20px;
+  padding:3px 0 3px 0;
+}
+div.moveListContainer
+{
+  width: 550px;
+  height: 200px;
+  padding:1px;
+}
+div.moveList
+{
+  width: 550px;
+  height:175px;
+  overflow:auto;
+  text-align: justify;
+//  font-size:80%;
+}
+div.moveListButtons
+{
+  width: 550px;
+  text-align:center;
+  padding:10px;
+}
+div.moveVariationsContainer
+{
+  width: 550px;
+  height: 100px;
+  padding:1px;
+}
+div.mainContainer
+{
+  width: 550px;
+  padding:1px;
+}
+div.variationLine
+{
+  float:right;
+  width:500px;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size:80%;
+  padding:3px 0 3px 0;
+}
+div.evaluationInfo
+{
+  width: 550px;
+  height: 30px;
+  padding:5px 0 5px 0;
+  font-size:175%;
+}
+div.varEval
+{
+  float:left;
+  padding:3px 0 3px 0;
+}
+
+.s-accordion, .q-accordion, .u-accordion, .a-accordion, .c-accordion {
+  background-color: #eee;
+  color: #444;
+  cursor: pointer;
+  padding: 12px;
+  width: 100%;
+  border: none;
+  text-align: left;
+  outline: none;
+  font-size: 15px;
+  transition: 0.4s;
+}
+
+.s-accordion:after, .q-accordion:after, .u-accordion:after, .a-accordion:after, .c-accordion:after {
+  content: '\002B';
+  color: #777;
+  font-weight: bold;
+  float: right;
+  margin-left: 5px;
+}
+
+.s-panel, .q-panel, .u-panel, .a-panel, .c-panel {
+  padding: 0 10px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+  font-size:90%;
+}
+
+.active-accordion, .s-accordion:hover, .q-accordion:hover, .u-accordion:hover, .a-accordion:hover, .c-accordion:hover {
+  background-color: #ccc;
+}
+
+.active-accordion:after {
+  content: "\2212";
+}
+
+.w3-bar{display:inline-block;width:auto}
+.w3-bar .w3-bar-item{padding:8px 16px;float:left;width:auto;border:none;display:block;outline:0}
+.w3-bar .w3-button{white-space:normal}
+.w3-bar:before,.w3-bar:after{content:"";display:table;clear:both}
+
+.side_button {
+background-color: #aaaaaa;
+border: none;
+color: black;
+width: 150px;
+padding: 15px 32px;
+text-align: center;
+text-decoration: none;
+display: inline-block;
+font-size: 16px;
+}
+
+.cheat-score {
+  text-align: center;
+  font-size: 150%;
+  font-weight: bold;
+  padding: 15px;
+  width: 300px;
 }

@@ -14,6 +14,7 @@ class ConnectController extends AbstractController
     {
         return $this->render('connect/index.html.twig', [
             'controller_name' => 'ConnectController',
+            'gid' =>  0,
         ]);
     }
 }

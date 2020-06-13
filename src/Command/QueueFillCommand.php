@@ -31,6 +31,9 @@ class QueueFillCommand extends Command
     private $queueManager;
     private $gameManager;
 
+    // Logger
+    private $logger;
+
     // Doctrine EntityManager
     private $em;
 

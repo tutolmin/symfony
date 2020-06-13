@@ -50,6 +50,9 @@ class LoadQueueController extends AbstractController
     private $item_action_dts;
     private $item_action_params;
 
+    // Security context
+    private $security;
+
     // User nameger reference
     private $userManager;
 
@@ -668,7 +671,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	$params["start_year"]	= intval( "0");
 	$params["start_month"]	= intval( "0");
 	$params["start_day"]	= intval( "0");
-	$params["end_year"]	= intval( date( "Y")+1);
+	$params["end_year"]	= intval( intval( date( "Y")) + 1);
 	$params["end_month"]	= intval( "0");
 	$params["end_day"]	= intval( "0");
 	switch( $sort_cond) {

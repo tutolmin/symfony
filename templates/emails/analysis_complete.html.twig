@@ -1,0 +1,49 @@
+{% apply inline_css(source('@css/email.css')) %}
+
+<table style="border:1px;margin:0;padding:0;">
+<tr>
+<td>
+<img src="{{ email.image('@img/chesspieces/wikipedia/bK.png') }}" alt="Black King">
+</td>
+<td>
+<img src="{{ email.image('@img/chesspieces/wikipedia/wQ.png') }}" alt="White Queen">
+</td>
+<td style="padding: 0 10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+<td>
+<img src="{{ email.image('@img/beta1.png') }}" alt="Beta">
+</td>
+</tr>
+</table>
+
+<h3>Dear {{ firstName }}!</h3>
+
+<p>The following game analysis is complete. You can view the full report at ChessCheat
+  by clicking on the Analysis icon.</p>
+
+<table>
+<tr>
+  <th>White</th>
+  <th>Black</th>
+  <th>Result</th>
+  <th>ECO</th>
+  <th>Event</th>
+  <th>Date</th>
+  <th>Analysis</th>
+</tr>
+<tr>
+  <td>{{ game['White'] }} ({{ game['W_ELO'] }})</td>
+  <td>{{ game['Black'] }} ({{ game['B_ELO'] }})</td>
+  <td>{{ game['Result'] }}</td>
+  <td>{{ game['ECO'] }}</td>
+  <td>{{ game['Event'] }}</td>
+  <td>{{ game['Date'] }}</td>
+  <td><a href="{{ url('index', {gid: gid}) }}">
+  <img src="{{ email.image('@img/analysis.png') }}" alt="Analysis"></a></td>
+</tr>
+</table>
+<!--
+<p>Regards,<br/>
+ChessCheat
+</p>
+-->
+{% endapply %}

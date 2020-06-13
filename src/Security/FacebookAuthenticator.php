@@ -15,22 +15,27 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Psr\Log\LoggerInterface;
+use App\Service\UserManager;
+use League\OAuth2\Client\Provider\FacebookUser;
 
 class FacebookAuthenticator extends SocialAuthenticator
 {
     private $clientRegistry;
     private $em;
+    private $userManager;
     private $neo4j_client;
     private $logger;
 
-    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em, ClientInterface $client, LoggerInterface $logger)
+    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em,
+	ClientInterface $client, LoggerInterface $logger, UserManager $um)
     {
         $this->clientRegistry = $clientRegistry;
         $this->em = $em;
+        $this->userManager = $um;
         $this->neo4j_client = $client;
 	$this->logger = $logger;
     }
-
+/*
     public function mergeNeo4jUserEntity( int $id)
     {
         $this->logger->debug('Merging entity for '.$id);
@@ -41,7 +46,7 @@ class FacebookAuthenticator extends SocialAuthenticator
 
         return $this;
     }
-
+*/
     public function supports(Request $request)
     {
         // continue ONLY if the current ROUTE matches the check ROUTE
@@ -74,7 +79,7 @@ class FacebookAuthenticator extends SocialAuthenticator
         if ($existingUser) {
 
 	    // Merge a :WebUser entity in Neo4j
-	    $this->mergeNeo4jUserEntity( $existingUser->getId());
+	    $this->userManager->mergeUser( $existingUser->getId());
 
             return $existingUser;
         }
@@ -89,11 +94,13 @@ class FacebookAuthenticator extends SocialAuthenticator
         // a User object
         $user->setFacebookId($facebookUser->getId());
         $user->setEmail($facebookUser->getEmail());
+        $user->setFirstName($facebookUser->getFirstName());
+        $user->setLastName($facebookUser->getLastName());
         $this->em->persist($user);
         $this->em->flush();
 
 	// Merge a :WebUser entity in Neo4j
-	$this->mergeNeo4jUserEntity( $user->getId());
+	$this->userManager->mergeUser( $user->getId());
 
         return $user;
     }

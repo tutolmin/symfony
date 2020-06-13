@@ -38,8 +38,6 @@ class GameManager
     // Find :Game node in the database
     public function gameExists( $gid)
     {
-        $this->logger->debug( "Memory usage (".memory_get_usage().")");
-
         $this->logger->debug( "Checking for game existance");
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
@@ -52,7 +50,7 @@ RETURN id(g) AS gid LIMIT 1';
           if( $record->value('gid') != null)
             return true;
 
-        // Return 
+        // Return
         return false;
     }
 
@@ -91,7 +89,7 @@ RETURN id(g) AS gid LIMIT 1';
 	  $counter = apcu_fetch( $cacheVarName);
 
 	// Return counter, stored in the cache
-	if( $counter > 0) { 
+	if( $counter > 0) {
           $this->logger->debug('Total games of type '.
 	    $type. ' and length '.$plycount.' = ' .$counter. ' (cached)');
 	  return $counter;
@@ -135,7 +133,7 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 
         $this->logger->debug('Total games of type '.
 		$type. ' and length '.$plycount.' = ' .$counter);
-	
+
 	// Storing the value in cache
 	apcu_add( $cacheVarName, $counter, 3600);
 
@@ -157,7 +155,7 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 	  $counter = apcu_fetch( $cacheVarName);
 
 	// Return counter, stored in the cache
-	if( $counter > 0) { 
+	if( $counter > 0) {
           $this->logger->debug('Maximum ply counter for game type '.
 	    $type.' = '.$counter. ' (cached)');
 	  return $counter;
@@ -173,12 +171,12 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
         	$query .= '(p:StaleMatePlyCount)';
 		break;
 	  case "1-0":
-        	$query .= '(p:GamePlyCount) WITH p 
+        	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
 		break;
 	  case "0-1":
-        	$query .= '(p:GamePlyCount) WITH p 
+        	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 		break;
@@ -218,13 +216,13 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 	  $counter = apcu_fetch( $cacheVarName);
 
 	// Return counter, stored in the cache
-	if( $counter > 0) { 
+	if( $counter > 0) {
           $this->logger->debug('Maximum ply counter for game type '.
 	    $type.' = '.$counter. ' (cached)');
 	  return $counter;
 	}
 
-        $query = 'MATCH (:PlyCount{counter:0})-[:LONGER*0..]->';
+        $query = 'MATCH (:PlyCount{counter:0})-[:LONGER*0..999]->';
 
 	switch( $type) {
 	  case "checkmate":
@@ -234,12 +232,12 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
         	$query .= '(p:StaleMatePlyCount)';
 		break;
 	  case "1-0":
-        	$query .= '(p:GamePlyCount) WITH p 
+        	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
 		break;
 	  case "0-1":
-        	$query .= '(p:GamePlyCount) WITH p 
+        	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 		break;
@@ -272,13 +270,18 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
 	$skip = 0;
+	$params["counter"] = 0;
 	do {
 
-	// Select a game plycount
-        $params["counter"] = rand( $this->getMinPlyCount( $type), 
+	  // If there are ANY games of this type
+	  if( $this->getGamesNumber( $type, 0) == 0)
+	    break;
+
+	  // Select a game plycount
+          $params["counter"] = rand( $this->getMinPlyCount( $type),
 				$this->getMaxPlyCount( $type));
 
-        $this->logger->debug('Selected game plycount '.$params["counter"]);
+          $this->logger->debug('Selected game plycount '.$params["counter"]);
 
 	// Get total games for a certain plycount
 	} while( ($skip = $this->getGamesNumber( $type, $params["counter"])) == 0);
@@ -306,7 +309,7 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
 		break;
 	  case "0-1":
-        	$query .= '(p:GamePlyCount) 
+        	$query .= '(p:GamePlyCount)
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 		break;
@@ -320,7 +323,7 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 
         $result = $this->neo4j_client->run( $query, $params);
 
-	$gid=0;
+	$gid=-1;
         foreach ($result->records() as $record) {
           $gid = $record->value('id');
         }
@@ -382,6 +385,7 @@ RETURN length(path) AS length LIMIT 1';
 //      $this->logger->debug( "Fetched games: ". $PGNstring);
 
       $filesystem = new Filesystem();
+      $tmp_file = '';
       try {
 
         // Filename SHOULD contain 'lines' prefix in order to make sure
@@ -414,13 +418,13 @@ RETURN length(path) AS length LIMIT 1';
       // Fetch movelist, ECOs, Forced labels
       $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line) WITH l LIMIT 1
-MATCH path=shortestPath((l)-[:ROOT*0..]->(r:Root)) WITH l, nodes(path) AS moves 
-UNWIND moves AS move 
- MATCH (move)-[:LEAF]->(p:Ply) 
- OPTIONAL MATCH (move)-[:COMES_TO]-(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode) 
+MATCH path=shortestPath((l)-[:ROOT*0..]->(r:Root)) WITH l, nodes(path) AS moves
+UNWIND moves AS move
+ MATCH (move)-[:LEAF]->(p:Ply)
+ OPTIONAL MATCH (move)-[:COMES_TO]-(:Position)-[:KNOWN_AS]->(o:Opening)-[:PART_OF]->(e:EcoCode)
   WITH l,
-   reverse( collect( id(move))) AS lids, 
-   reverse( collect( p.san)) AS movelist, 
+   reverse( collect( id(move))) AS lids,
+   reverse( collect( p.san)) AS movelist,
    reverse( collect(COALESCE(e.code,""))) AS ecos,
    reverse( collect(COALESCE(o.opening,""))) AS openings,
    reverse( collect(COALESCE(o.variation,""))) AS variations,
@@ -439,10 +443,10 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
       $moves		= $record->value('movelist');
       $plycount		= count( $moves);
       $keys		= array_keys( $lids);
-      $ecos		= array_combine( $keys, $record->value('ecos')); 
-      $openings		= array_combine( $keys, $record->value('openings')); 
-      $variations	= array_combine( $keys, $record->value('variations')); 
-      $marks		= array_combine( $keys, $record->value('marks')); 
+      $ecos		= array_combine( $keys, $record->value('ecos'));
+      $openings		= array_combine( $keys, $record->value('openings'));
+      $variations	= array_combine( $keys, $record->value('variations'));
+      $marks		= array_combine( $keys, $record->value('marks'));
 
       // Go through all the SANs, build huge array
       $arr = array();
@@ -482,14 +486,14 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 
 	// Switch side/depth based on ply number
 	$side = 'White';
-	if( $key % 2) $side = 'Black'; 
+	if( $key % 2) $side = 'Black';
 	$depth = $sides_depth[$side];
 //	if( $depth == 0) continue;
-	
+
 	// We will need it to decide later if it was best move
 	$move_score_idx	= -1;
 
-	// Push move SAN as first element	
+	// Push move SAN as first element
 	$item = array();
 	$item['san'] = $moves[$key];
 
@@ -522,7 +526,7 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 	  $item['score'] = $best_eval['score'];
 	  $move_score_idx = $best_eval['idx'];
 	}
-	
+
 	// Final move, store effective result
 	if( $key == $plycount-1) {
 
@@ -538,15 +542,15 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
 	  }
 
 	  // Set opposite result for Black
-	  if( $effectiveResult['White'] == 'EffectiveWin') 
+	  if( $effectiveResult['White'] == 'EffectiveWin')
 	    $effectiveResult['Black'] = 'EffectiveLoss';
-	  else if( $effectiveResult['White'] == 'EffectiveLoss') 
+	  else if( $effectiveResult['White'] == 'EffectiveLoss')
 	    $effectiveResult['Black'] = 'EffectiveWin';
         }
 	$prev_ply_eval_idx = $move_score_idx;
 
         // No need to check for alternative moves if we have forced line or book move
-        if( (!array_key_exists( 'mark', $item) || $item['mark'] != "Forced") && 
+        if( (!array_key_exists( 'mark', $item) || $item['mark'] != "Forced") &&
 		!array_key_exists( 'eco', $item) && $depth != 0) {
 
           $this->logger->debug( "Fetching alternatives for ". $lid);
@@ -572,7 +576,7 @@ UNWIND slice AS node RETURN id(node) AS node_id';
 	    // Push alternative move score into array
 	    $T_scores[] = $alt_eval['idx'];
 
-            $this->logger->debug( "Alternative move score idx: ". $alt_eval['idx']. 
+            $this->logger->debug( "Alternative move score idx: ". $alt_eval['idx'].
 		" for node id: ". $record_a->value('node_id'));
 
 	    // Fetch all proposed nodes for alternative line
@@ -586,7 +590,7 @@ UNWIND list AS node
 MATCH (node)-[:LEAF]->(ply:Ply)
 RETURN ply.san, id(node) AS node_id';
 
-      	    $params_v = ["node_id" => intval( $record_a->value('node_id')), 
+      	    $params_v = ["node_id" => intval( $record_a->value('node_id')),
 			"idx" => intval( $alt_eval['idx']),
 			"depth" => intval( $depth)];
             $result_v = $this->neo4j_client->run( $query, $params_v);
@@ -625,7 +629,7 @@ RETURN ply.san, id(node) AS node_id';
 
 	  // Dummy records to count T3 properly
 	  $alt_lines = count( $T_scores);
-	  while( count( $T_scores) < 4) $T_scores[] = -1; 
+	  while( count( $T_scores) < 4) $T_scores[] = -1;
 
 	  // Count T1/2/3
 	  foreach( $T_scores as $skey => $index) {
@@ -648,7 +652,7 @@ RETURN ply.san, id(node) AS node_id';
 	  $delta = $move_score_idx - $T_scores[0];
           if( $T_scores[0] != -1 && $delta > 0)
             $deltas[$key] = $delta;
-  
+
           // Second alternative is much worse, (recapture, missed chance)
           if( ($delta <= 0 && abs( $delta) > $_ENV['SOUND_MOVE_THRESHOLD'])) {
 
@@ -665,9 +669,9 @@ RETURN ply.san, id(node) AS node_id';
 
           // Won/lost positions
 	  } else if (
-	          ($move_score_idx < $_ENV['WON_POSITION_IDX'] && 
+	          ($move_score_idx < $_ENV['WON_POSITION_IDX'] &&
 			$T_scores[0] < $_ENV['WON_POSITION_IDX']) ||
-	          ($move_score_idx > $_ENV['LOST_POSITION_IDX'] && 
+	          ($move_score_idx > $_ENV['LOST_POSITION_IDX'] &&
 			$T_scores[0] > $_ENV['LOST_POSITION_IDX'])) {
 
               $Totals[$side]['sound']++;
@@ -676,7 +680,7 @@ RETURN ply.san, id(node) AS node_id';
 
 	  } else if ( $delta <= 0 ||      // Move better than T1 or equal
         	( $T_scores[0] - $_ENV['EQUAL_POSITION_IDX'] != 0 &&
-		$delta * 100 / abs( $T_scores[0] - $_ENV['EQUAL_POSITION_IDX']) 
+		$delta * 100 / abs( $T_scores[0] - $_ENV['EQUAL_POSITION_IDX'])
 			< $_ENV['BEST_MOVE_THRESHOLD'] // diff below threshold
         	)) {
 
@@ -769,9 +773,9 @@ RETURN ply.san, id(node) AS node_id';
       // Counters and rates
       foreach( ['White','Black'] as $side) {
 
-	$Totals[$side]['analyzed'] = $Totals[$side]['plies'] - 
-		$Totals[$side]['ecos'] - 
-		$Totals[$side]['forced'] - 
+	$Totals[$side]['analyzed'] = $Totals[$side]['plies'] -
+		$Totals[$side]['ecos'] -
+		$Totals[$side]['forced'] -
 		$Totals[$side]['sound'];
 
         $Totals[$side]['deltas'] = count( $Deltas[$side]);
@@ -812,23 +816,56 @@ RETURN ply.san, id(node) AS node_id';
 	  $Totals[$side]['best_rate'] = round( $Totals[$side]['best'] * 100 / $Totals[$side]['analyzed'], 1);
 	}
 
+
+$Totals[$side]['perp_len'] = 0;
+$Totals[$side]['cheat_score'] = $_ENV['ELO_START'];
+
+    // Do not even attempt to calculate elo for erroneous games
+    // We should have at least one delta
+    if( ($Totals[$side]['median'] > 0 || $Totals[$side]['best_rate'] > 0)
+  	   && $Totals[$side]['median'] < 50 && $Totals[$side]['mean'] < 100) {
+
+      $t = (10000 - 100 * $Totals[$side]['best_rate'] +
+      50 * $Totals[$side]['median'] +
+      100 * $Totals[$side]['mean']) / 22500;
+
+      $x1 = 100 - 100 * $t;
+      $y1 = 50 * $t;
+      $z1 = 100 * $t;
+
+      $Totals[$side]['perp_len'] = round( sqrt(
+        pow( $Totals[$side]['best_rate'] - $x1, 2) +
+        pow( $Totals[$side]['median'] - $y1, 2) +
+        pow( $Totals[$side]['mean'] - $z1, 2)
+      ), 1);
+
+      $Totals[$side]['cheat_score'] + round(
+        sqrt(
+          pow( $x1, 2) +
+          pow( 50 - $Totals[$side]['median'], 2) +
+          pow( 100 - $Totals[$side]['mean'], 2)
+        ) * ($_ENV['ELO_END'] - $_ENV['ELO_START']) / 150);
+    }
+
+
         $this->logger->debug( $side.": ".implode(',', $Totals[$side]));
 
         $query = 'MATCH (game:Game)-[:FINISHED_ON]->(line:Line) WHERE id(game) = $gid
-MATCH (game)-[:ENDED_WITH]->(wr)<-[:ACHIEVED]-(:White) 
-MATCH (game)-[:ENDED_WITH]->(br)<-[:ACHIEVED]-(:Black) 
+MATCH (game)-[:ENDED_WITH]->(wr)<-[:ACHIEVED]-(:White)
+MATCH (game)-[:ENDED_WITH]->(br)<-[:ACHIEVED]-(:Black)
 MERGE (s:Summary:'.$side.')<-[:HAS_GOT]-(line)
-REMOVE wr:EffectiveWin:EffectiveLoss:EffectiveDraw 
-REMOVE br:EffectiveWin:EffectiveLoss:EffectiveDraw 
+REMOVE wr:EffectiveWin:EffectiveLoss:EffectiveDraw
+REMOVE br:EffectiveWin:EffectiveLoss:EffectiveDraw
 SET wr:'.$effectiveResult['White'].', br:'.$effectiveResult['Black'].',
-s.deltas = $deltas, s.plies = $plies, s.analyzed = $analyzed, 
-s.t1 = $t1, s.t2 = $t2, s.t3 = $t3, 
+s.deltas = $deltas, s.plies = $plies, s.analyzed = $analyzed,
+s.t1 = $t1, s.t2 = $t2, s.t3 = $t3,
 s.et3 = $et3, s.ecos = $ecos, s.sound = $sound, s.best = $best, s.forced = $forced,
 s.eco_rate = $eco_rate, s.et3_rate = $et3_rate, s.t1_rate = $t1_rate, s.t2_rate = $t2_rate, s.t3_rate = $t3_rate,
 s.sound_rate = $sound_rate, s.best_rate = $best_rate, s.forced_rate = $forced_rate,
-s.mean = $mean, s.median = $median, s.stddev = $stddev';
+s.mean = $mean, s.median = $median, s.stddev = $stddev,
+s.perp_len = $perp_len, s.cheat_score = $cheat_score';
 
-        $params = $Totals[$side]; 
+        $params = $Totals[$side];
 	$params['gid'] = intval( $gid);
         $result = $this->neo4j_client->run( $query, $params);
       }
@@ -871,14 +908,14 @@ s.mean = $mean, s.median = $median, s.stddev = $stddev';
       foreach( $array as $value)
         $var += pow(($value - $mean), 2);
 
-      if( $counter > 0) 
+      if( $counter > 0)
 	return round( sqrt( $var / $counter),1);
 
       return 0;
     }
 
     // Format evaluation time
-    private function formatEvaluationTime( $minute, $second, $msec) 
+    private function formatEvaluationTime( $minute, $second, $msec)
     {
       return str_pad( $minute, 2, '0', STR_PAD_LEFT) . ":" .
              str_pad( $second, 2, '0', STR_PAD_LEFT) . "." .
@@ -924,9 +961,9 @@ ORDER BY score.idx LIMIT 1';
 
         $eval_data['depth']	= $record_e->value('depth.level');
         $eval_data['seldepth']	= $record_e->value('seldepth.level');
-        $eval_data['time']	= $this->formatEvaluationTime( 
+        $eval_data['time']	= $this->formatEvaluationTime(
 		$record_e->value('minute.minute'),
-		$record_e->value('second.second'), 
+		$record_e->value('second.second'),
 		$record_e->value('msec.ms'));
 
         // Skip if null returned

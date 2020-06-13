@@ -1,0 +1,16 @@
+h1 {
+    color: #000;
+}
+table {
+  border: 0;
+}
+th {
+  padding: 10px;
+  font-size: 150%;
+  font-weight: bold;
+  background-color: #ccc;
+}
+td {
+  padding: 5px;
+  font-size: 125%;
+}

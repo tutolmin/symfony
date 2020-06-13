@@ -26,9 +26,10 @@ class LichessController extends AbstractController
             ->redirect([
 //	    	'email:read game:read preference:read', // the scopes you want to access
 	    	'email:read preference:read', // the scopes you want to access
-            ])
-        ;
-	}
+            	],
+		[]	// options
+		);
+    }
 
     /**
      * After going to Lichess, you're redirected back here
@@ -39,47 +40,7 @@ class LichessController extends AbstractController
      */
     public function connectCheckAction(Request $request, ClientRegistry $clientRegistry)
     {
-        // ** if you want to *authenticate* the user, then
-        // leave this method blank and create a Guard authenticator
-        // (read below)
-
-        /** @var \App\Client\Provider\LichessClient $client */
-/*
-        $client = $clientRegistry->getClient('lichess_oauth');
-
-var_dump( $client);
-//var_dump( $client); die;
-        try {
-            // the exact class depends on which provider you're using
-            // @var \App\Provider\LichessUser $user 
-//            $user = $client->fetchUser();
-// get the access token and then user
-$accessToken = $client->getAccessToken();
-var_dump( $accessToken);
-$user = $client->fetchUserFromToken($accessToken)->getId();
-var_dump( $user);
-
-
-// access the underlying "provider" from league/oauth2-client
-$provider = $client->getOAuth2Provider();
-var_dump( $provider->getResourceOwnerDetailsUrl( $accessToken));
-$provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
-var_dump( $provider->getResourceOwnerDetailsUrl( $accessToken));
-$email = $client->fetchUserFromToken($accessToken)->getEmail();
-var_dump( $email);
-
-            // do something with all this new power!
-	    // e.g. $name = $user->getFirstName();
-            var_dump($request); die;
-            // ...
-        } catch (IdentityProviderException $e) {
-            // something went wrong!
-            // probably you should return the reason to the user
-//            var_dump($e->getMessage()); die;
-        }
-*/
-    return $this->redirectToRoute('index');
-
+      return $this->redirectToRoute('index');
     }
 }
 ?>

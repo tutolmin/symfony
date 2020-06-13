@@ -14,8 +14,8 @@ doctrine:
         default_table_options:
             charset: utf8
             collate: utf8_unicode_ci
-
         url: '%env(resolve:DATABASE_URL)%'
+        schema_filter: '~^(?!messenger_messages)~'
     orm:
         auto_generate_proxy_classes: true
         naming_strategy: doctrine.orm.naming_strategy.underscore

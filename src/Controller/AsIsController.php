@@ -10,14 +10,15 @@ use Symfony\Component\Routing\Annotation\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use App\Service\PGNUploader;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class AsIsController extends AbstractController
 {
      /**
-      * @Route("/asis")
+      * @Route("/asis/{gid}", requirements={"gid": "\d+"})
       * @Security("is_granted('IS_AUTHENTICATED_ANONYMOUSLY')")
       */
-    public function asis( Request $request, PGNUploader $fileUploader)
+    public function asis( Request $request, PGNUploader $fileUploader, $gid)
     {
 
         $number = random_int(0, 100);
@@ -49,8 +50,9 @@ class AsIsController extends AbstractController
 */
 
         return $this->render('asis.html.twig', [
-            'number' => $number,
-	    'form' => $form->createView(),
+          'number' => $number,
+          'gid' =>  $gid,
+	        'form' => $form->createView(),
         ]);
     }
 }

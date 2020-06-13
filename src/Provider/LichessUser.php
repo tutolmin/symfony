@@ -19,7 +19,7 @@ use League\OAuth2\Client\Tool\ArrayAccessorTrait;
 /**
  * Represents a generic resource owner for use with the GenericProvider.
  */
-class LichessResourceOwner implements ResourceOwnerInterface
+class LichessUser implements ResourceOwnerInterface
 {
     use ArrayAccessorTrait;
 
@@ -60,6 +60,36 @@ class LichessResourceOwner implements ResourceOwnerInterface
         }
         return null;
 */
+    }
+
+    /**
+     * Returns the name for the user as a string if present.
+     *
+     * @return string|null
+     */
+    public function getName()
+    {
+        return $this->getFirstName()." ".getLastName();
+    }
+
+    /**
+     * Returns the first name for the user as a string if present.
+     *
+     * @return string|null
+     */
+    public function getFirstName()
+    {
+      return $this->getValueByKey($this->response, 'profile.firstName');
+    }
+
+    /**
+     * Returns the last name for the user as a string if present.
+     *
+     * @return string|null
+     */
+    public function getLastName()
+    {
+      return $this->getValueByKey($this->response, 'profile.lastName');
     }
 
     /**

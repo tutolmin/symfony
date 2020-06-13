@@ -111,7 +111,7 @@ class QueueSyncStatusCommand extends Command
 	// Iterate
         while( $number-- > 0)
 
-	// Execute queue manager member function	
+	// Execute queue manager member function
 	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1) {
 
           $status = $this->queueManager->getAnalysisStatus( $aid);
@@ -131,7 +131,10 @@ class QueueSyncStatusCommand extends Command
 
             // Request JSON files update for the game
             $this->gameManager->exportJSONFile( $gid, $depths);
-	  }  
+
+            // Send notification message
+            $this->queueManager->notifyUser( $aid);
+	  }
 	}
 
         return 0;

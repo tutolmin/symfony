@@ -7,7 +7,13 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Security\Core\Security;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\Mime\Address;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Analysis;
+use App\Entity\User;
 
 class QueueManager
 {
@@ -41,17 +47,33 @@ class QueueManager
     // We need to check roles and get user id
     private $security;
 
+    // Doctrine EntityManager
+    private $em;
+
+    // Mailer interface
+    private $mailer;
+
+    // User repo
+    private $userRepository;
+
     // Special flags to avoid redundant DB calls
     private $queueGraphExistsFlag;
     private $analysisNodeExistsFlag;
     private $updateCurrentFlag;
 
-    public function __construct( ClientInterface $client, 
+    public function __construct( ClientInterface $client,
+    EntityManagerInterface $em, MailerInterface $mailer,
 	LoggerInterface $logger, Security $security)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
 	$this->security = $security;
+
+  $this->em = $em;
+  $this->mailer = $mailer;
+
+  // get the User repository
+  $this->userRepository = $this->em->getRepository( User::class);
 
 	$this->queueGraphExistsFlag=false;
 	$this->analysisNodeExistsFlag=false;
@@ -98,13 +120,13 @@ class QueueManager
     private function queueGraphExists()
     {
 	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Checking for queue graph existance: '. 
+          $this->logger->debug('Checking for queue graph existance: '.
 	    ($this->getQueueGraphExistsFlag()?"skip":"proceed"));
 
 	// Queue graph existance has been checked already
 	if( $this->getQueueGraphExistsFlag()) return true;
 
-        // If there is at least one :Queue node in the db       
+        // If there is at least one :Queue node in the db
         $query = 'MATCH (h:Head) MATCH (t:Tail) MATCH (c:Current)
 MATCH (p:Status{status:"Pending"})
 RETURN id(h) AS head, id(t) AS tail, id(c) AS current, id(p) AS pending LIMIT 1';
@@ -150,7 +172,7 @@ RETURN id(q) AS qid LIMIT 1';
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Queue node does NOT exist');
 
-        // Return 
+        // Return
         return false;
     }
 
@@ -184,7 +206,7 @@ RETURN id(a) AS aid LIMIT 1';
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Analysis node does NOT exist');
 
-        // Return 
+        // Return
         return false;
     }
 
@@ -203,7 +225,7 @@ RETURN id(a) AS aid LIMIT 1';
 	}
 
 	// Check if there is already analysis graph present
-	if( $this->queueGraphExists()){ 
+	if( $this->queueGraphExists()){
 
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug('Queue graph already exists');
@@ -220,7 +242,7 @@ RETURN id(a) AS aid LIMIT 1';
 
 
     // Erase existing Analysis node
-    public function eraseAnalysisNode( $aid) 
+    public function eraseAnalysisNode( $aid)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Erasing analysis node id: '. $aid);
@@ -242,7 +264,7 @@ RETURN id(a) AS aid LIMIT 1';
 
         // Erase Analysis node and all relationships
         $params = ["aid" => intval( $aid)];
-        $this->neo4j_client->run( "MATCH (a:Analysis) WHERE id(a)={aid} 
+        $this->neo4j_client->run( "MATCH (a:Analysis) WHERE id(a)={aid}
 OPTIONAL MATCH (a)<-[:WAS_TAKEN_ON]-(c:Action)
 DETACH DELETE a,c", $params);
 
@@ -252,7 +274,7 @@ DETACH DELETE a,c", $params);
 
 
     // Erase existing queue graph
-    public function eraseQueueGraph() 
+    public function eraseQueueGraph()
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Erasing analysis queue graph');
@@ -269,7 +291,7 @@ DETACH DELETE a,c", $params);
 	  // Error occured while deleting analysis node
 	  if( !$this->eraseAnalysisNode( $aid)) return false;
 
-	  // Reset analysis existance flag for each new node 
+	  // Reset analysis existance flag for each new node
 	  $this->setAnalysisNodeExistsFlag( false);
 	}
 	return true;
@@ -293,11 +315,11 @@ MATCH (q:Queue:Current) RETURN id(q) AS qid LIMIT 1', null);
             if( $record->value('qid') != null)
               return $record->value('qid');
 	}
-	
+
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug( "Current queue node has NOT been found.");
 
-        // Return non-existant id 
+        // Return non-existant id
         return -1;
     }
 */
@@ -314,10 +336,10 @@ MATCH (q:Queue:Current) RETURN id(q) AS qid LIMIT 1', null);
         if( $this->getUpdateCurrentQueueNodeFlag() && !$force_flag) return true;
 
 	// Check if there is already analysis graph present
-	if( !$this->queueGraphExists()) return false; 
+	if( !$this->queueGraphExists()) return false;
 /*
 	  // Move :Current label forward
-          $query = 'MATCH (t:Queue:Tail) 
+          $query = 'MATCH (t:Queue:Tail)
 OPTIONAL MATCH (c:Current)-[:FIRST]->(s:Analysis)
 OPTIONAL MATCH (s)-[:NEXT*0..]->(e:Pending)
 OPTIONAL MATCH (e)<-[:QUEUED]-(q:Queue)
@@ -329,7 +351,7 @@ REMOVE c:Current SET q:Current';
 
             $this->logger->debug('No current queue node. Investigate!');
 
-	    $query = 'MATCH (h:Queue:Head) MATCH (t:Queue:Tail) 
+	    $query = 'MATCH (h:Queue:Head) MATCH (t:Queue:Tail)
 OPTIONAL MATCH (h)-[:FIRST]->(s:Analysis)
 OPTIONAL MATCH (s)-[:NEXT*0..]->(e:Pending)
 OPTIONAL MATCH (e)<-[:QUEUED]-(q:Queue)
@@ -376,7 +398,7 @@ REMOVE c:Current SET q:Current';
 	if( !$this->queueGraphExists()) return -1;
 
 	// Indicate error if status is not in the list
-	if( strlen( $status) && !in_array( $status, Analysis::STATUS)) 
+	if( strlen( $status) && !in_array( $status, Analysis::STATUS))
 	  return -1;
 
 	$total = $this->countAnalysisNodes( $status);
@@ -390,7 +412,7 @@ REMOVE c:Current SET q:Current';
 
 	// What is the point to folow the NEXT rels!?
 /*
-        $query = 'MATCH (:Head)-[:FIRST]->(s:Analysis) 
+        $query = 'MATCH (:Head)-[:FIRST]->(s:Analysis)
 MATCH (s)-[:NEXT*0..]->(a:Analysis)
 RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
 */
@@ -399,11 +421,11 @@ RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
 	// Query for specific status
 	if( strlen( $status))
 /*
-          $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(s:Analysis) 
+          $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(s:Analysis)
 MATCH (s)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
 RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
 */
-          $query = 'MATCH (:Status{status:{status}})<-[:HAS_GOT]-(a:Analysis) 
+          $query = 'MATCH (:Status{status:{status}})<-[:HAS_GOT]-(a:Analysis)
 RETURN id(a) AS aid SKIP $SKIP LIMIT 1';
 
 
@@ -472,21 +494,21 @@ RETURN count(q) AS total LIMIT 1', null);
 	if( !$this->queueGraphExists()) return -1;
 
 	// Indicate error if status is not in the list
-	if( strlen( $status) && !in_array( $status, Analysis::STATUS)) 
+	if( strlen( $status) && !in_array( $status, Analysis::STATUS))
 	  return -1;
 
-	$query = 'MATCH (a:Analysis) 
+	$query = 'MATCH (a:Analysis)
 RETURN count(a) AS total LIMIT 1';
 
 	// Query for specific status
 	if( strlen( $status))
-	  $query = 'MATCH (s:Status{status:$status}) 
-OPTIONAL MATCH (s)-[:FIRST]->(f:Analysis) 
-OPTIONAL MATCH (s)-[:LAST]->(l:Analysis) 
-OPTIONAL MATCH path=shortestPath((f)-[:NEXT_BY_STATUS*0..]->(l)) 
- WITH size(nodes(path)) AS length 
-RETURN 
- CASE length WHEN null THEN 0 
+	  $query = 'MATCH (s:Status{status:$status})
+OPTIONAL MATCH (s)-[:FIRST]->(f:Analysis)
+OPTIONAL MATCH (s)-[:LAST]->(l:Analysis)
+OPTIONAL MATCH path=shortestPath((f)-[:NEXT_BY_STATUS*0..]->(l))
+ WITH size(nodes(path)) AS length
+RETURN
+ CASE length WHEN null THEN 0
  ELSE length END AS total LIMIT 1';
 
 	$params = ['status' => $status];
@@ -554,7 +576,7 @@ RETURN id(a) AS aid LIMIT 1';
 	  return -1; // Negative to indicat ethe error
 
         $query = '
-MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:'.$label.') 
+MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(l:'.$label.')
 RETURN id(l) AS aid LIMIT 1';
 
         $result = $this->neo4j_client->run( $query, null);
@@ -593,10 +615,10 @@ RETURN id(l) AS aid LIMIT 1';
         $query = '
 MATCH (s:Analysis) WHERE id(s)={said}
 MATCH (f:Analysis) WHERE id(f)={faid}
-MATCH path=shortestPath((s)-[:NEXT_BY_STATUS*0..]->(f)) 
+MATCH path=shortestPath((s)-[:NEXT_BY_STATUS*0..]->(f))
  WITH nodes(path) AS nodes LIMIT 1
-UNWIND nodes AS node 
-MATCH (node)-[:REQUIRED_DEPTH]->(d:Depth) 
+UNWIND nodes AS node
+MATCH (node)-[:REQUIRED_DEPTH]->(d:Depth)
 MATCH (node)-[:PERFORMED_ON]->(l:Line)-[:GAME_HAS_LENGTH]->(p:GamePlyCount)
 RETURN node, d.level AS depth, p.counter AS plies';
 
@@ -607,7 +629,7 @@ RETURN node, d.level AS depth, p.counter AS plies';
 	$records = $result->records();
 
 	// Process all but last element
-        foreach ( array_slice( $records, 0, count( $records) - 1) as $record) { 
+        foreach ( array_slice( $records, 0, count( $records) - 1) as $record) {
 
           $labelsObj = $record->get('node');
           $labelsArray = $labelsObj->labels();
@@ -618,15 +640,15 @@ RETURN node, d.level AS depth, p.counter AS plies';
 
           // Analysis sides, do not divide if both labels present
 	  $divider = 2;
-          if( in_array( Analysis::SIDE['White'], $labelsArray) 
+          if( in_array( Analysis::SIDE['White'], $labelsArray)
 	   && in_array( Analysis::SIDE['Black'], $labelsArray))
 	    $divider = 1;
 
 	  // Select analysis type
           if( $record->value('depth') == $this->depth['fast'])
-	    $interval += $fast * $record->value('plies') / $divider; 
+	    $interval += $fast * $record->value('plies') / $divider;
 	  else
-	    $interval += $deep * $record->value('plies') / $divider; 
+	    $interval += $deep * $record->value('plies') / $divider;
 	}
 
         if( $_ENV['APP_DEBUG'])
@@ -651,7 +673,7 @@ RETURN node, d.level AS depth, p.counter AS plies';
 	// Indicate error if status is not in the list
 	if( !in_array( $status, Analysis::STATUS)) return -1;
 
-        $query = 'MATCH (w:WebUser{id:{uid}}) 
+        $query = 'MATCH (w:WebUser{id:{uid}})
 MATCH (s:Status{status:{status}})
 OPTIONAL MATCH (w)<-[:REQUESTED_BY]-(a:Analysis)-[:HAS_GOT]->(s)
 RETURN count(a) AS items LIMIT 1';
@@ -737,7 +759,7 @@ RETURN count(a) AS items LIMIT 1';
 	}
 
         $query = 'MATCH (q:Queue) WHERE id(q)={qid}
-MATCH (q)-[:'.$type.']->(a:Analysis) 
+MATCH (q)-[:'.$type.']->(a:Analysis)
 RETURN count(a) AS total';
 
         $params = ["qid" => intval( $this->queue_id)];
@@ -771,7 +793,7 @@ RETURN count(a) AS total';
           return 0; // width = 0 items
 
         $query = '
-MATCH (:Current)-[:QUEUED]->(a:Analysis)-[:REQUIRED_DEPTH]->(:Depth{level:{level}}) 
+MATCH (:Current)-[:QUEUED]->(a:Analysis)-[:REQUIRED_DEPTH]->(:Depth{level:{level}})
 RETURN count(a) AS width';
 
         $params = ["level" => intval( $depth)];
@@ -809,13 +831,13 @@ RETURN count(a) AS width';
         // Check if there is already analysis graph present
         if( !$this->updateCurrentQueueNode()) return -1;
 
-        $query = 'MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1 
+        $query = 'MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1
 MATCH (s)<-[:NEXT*0..]-(a:Analysis)-[:EVALUATED]->(p:PlyCount) WITH a,p LIMIT {number}
   MATCH (ys:Year)<-[:OF]-(ms:Month)<-[:OF]-(ds:Day)<-[:WAS_CREATED_DATE]-(a)
   MATCH (a)-[:EVALUATION_WAS_STARTED_DATE]->(df:Day)-[:OF]->(mf:Month)-[:OF]->(yf:Year)
   MATCH (hs:Hour)<-[:OF]-(ns:Minute)<-[:OF]-(ss:Second)<-[:WAS_CREATED_TIME]-(a)
   MATCH (a)-[:EVALUATION_WAS_STARTED_TIME]->(sf:Second)-[:OF]->(nf:Minute)-[:OF]->(hf:Hour)
-WITH 
+WITH
 duration.inSeconds(
   datetime({ year: yf.year, month: mf.month, day: df.day, hour: hf.hour, minute: nf.minute, second: sf.second}),
   datetime({ year: ys.year, month: ms.month, day: ds.day, hour: hs.hour, minute: ns.minute, second: ss.second})
@@ -851,8 +873,8 @@ RETURN round('.$function.'( duration.seconds)) AS wait';
         if( !in_array( $status, self::STATUS)) return -1;
 
 	$query = 'MATCH (s:Status{status:{status}})
-OPTIONAL MATCH (s)-[:FIRST]->(f:Analysis) 
-OPTIONAL MATCH (s)-[:LAST]->(l:Analysis) 
+OPTIONAL MATCH (s)-[:FIRST]->(f:Analysis)
+OPTIONAL MATCH (s)-[:LAST]->(l:Analysis)
 OPTIONAL MATCH path=(f)-[:NEXT_BY_STATUS*0..]->(l)
 RETURN size(nodes(path)) AS length LIMIT 1';
 
@@ -881,7 +903,7 @@ RETURN size(nodes(path)) AS length LIMIT 1';
 	// Check if analysis graph present
 	if( !$this->queueGraphExists()) return -1;
 
-        $query = 'MATCH (t:Tail) 
+        $query = 'MATCH (t:Tail)
 CREATE (q:Queue)
 MERGE (t)-[:NEXT]->(q)
 SET q:Tail REMOVE t:Tail
@@ -921,14 +943,14 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
           if( $record->value('qid') != null)
             return true;
 
-        // Return 
+        // Return
         return false;
     }
 */
 
 
     // Returns an array of evaluated analysis depths for both sides
-    public function getGameAnalysisDepths( $gid) 
+    public function getGameAnalysisDepths( $gid)
     {
 	$depths = ['White' => 0, 'Black' => 0];
 	$processing = array_search( "Processing", Analysis::STATUS);
@@ -977,7 +999,7 @@ MATCH (a)<-[:QUEUED]-(q:Queue:Tail) RETURN id(q) AS qid LIMIT 1';
     public function matchGameAnalysis( $gid, $depth, $sideLabel)
     {
 	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Matching analysis node for depth: '. 
+          $this->logger->debug('Matching analysis node for depth: '.
 		$depth. ' side: '.$sideLabel);
 
 	// Check if analysis graph present
@@ -1021,8 +1043,8 @@ RETURN id(a) AS aid LIMIT 1';
 	// Potentially slow
 	// As it has to examine all :Queue nodes past Current
         $query = 'MATCH (w:WebUser{id:{wuid}})
-MATCH path=(:Current)-[:NEXT*0..]->(q:Queue) 
-WHERE NOT (q)-[:QUEUED]->(:Analysis)-[:REQUESTED_BY]->(w) 
+MATCH path=(:Current)-[:NEXT*0..]->(q:Queue)
+WHERE NOT (q)-[:QUEUED]->(:Analysis)-[:REQUESTED_BY]->(w)
 WITH q, size(nodes(path)) AS length ORDER BY length LIMIT 1
 RETURN id(q) AS qid';
 
@@ -1036,7 +1058,7 @@ RETURN id(q) AS qid';
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Suitable queue node has NOT been found!');
 
-        // Return 
+        // Return
         return -1;
     }
 
@@ -1048,7 +1070,7 @@ RETURN id(q) AS qid';
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching last analysis action node');
 
-	$query = 'MATCH (t:Action) WHERE id(t)={tid} 
+	$query = 'MATCH (t:Action) WHERE id(t)={tid}
 MATCH (t)-[:WAS_TAKEN_ON]->(a:Analysis)
 OPTIONAL MATCH (a)<-[:WAS_TAKEN_ON]->(f:Action{action:"Creation"})
 OPTIONAL MATCH path=(f)-[:NEXT*0..]->(l:Action)
@@ -1083,7 +1105,7 @@ RETURN id(l) AS tid';
 	if( $lid == -1) return false;
 
 	// Attach to the end of the list
-	$query = 'MATCH (l:Action) WHERE id(l)={lid} 
+	$query = 'MATCH (l:Action) WHERE id(l)={lid}
 MATCH (t:Action) WHERE id(t)={tid}
 MERGE (l)-[:NEXT]->(t)
 RETURN id(t) AS tid';
@@ -1136,7 +1158,7 @@ RETURN id(t) AS tid';
 	// Special relation to the status node
 	$match_param = '';
 	$merge_param = '';
-	$parameter_str = ''; 
+	$parameter_str = '';
 
 	if( $action == 'SideChange') {
 	  $parameter_str = ',parameter:{parameter}';
@@ -1153,7 +1175,7 @@ RETURN id(t) AS tid';
 	  $params["parameter"] = $parameter;
 	}
 
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (date:Day {day: {day}})-[:OF]->(:Month {month: {month}})-[:OF]->(:Year {year: {year}})
 MATCH (time:Second {second: {second}})-[:OF]->(:Minute {minute: {minute}})-[:OF]->(:Hour {hour: {hour}})
 '.$match_param.'
@@ -1205,10 +1227,10 @@ RETURN id(t) AS tid LIMIT 1';
         if( $qid == -1) $qid = $this->createQueueNode();
 
 	// Could NOT match/create an appropriate queue node
-        if( $qid == -1) return -1; 
+        if( $qid == -1) return -1;
 
 	// Check analysis side labels (all valid combinations)
-	if( $sideLabel != ':'.Analysis::SIDE['White'] 
+	if( $sideLabel != ':'.Analysis::SIDE['White']
 		&& $sideLabel != ':'.Analysis::SIDE['Black'])
           $sideLabel = ':'.Analysis::SIDE['White'].':'.Analysis::SIDE['Black'];
 
@@ -1223,9 +1245,9 @@ MERGE (g)<-[:REQUESTED_FOR]-(a)-[:PERFORMED_ON]->(l)
 MERGE (a)-[:REQUESTED_BY]->(w)
 RETURN id(a) AS aid LIMIT 1';
 
-        $params = ["qid" => intval( $qid), 
+        $params = ["qid" => intval( $qid),
           "gid"		=> intval( $gid),
-          "wuid"	=> intval( $user->getId()), 
+          "wuid"	=> intval( $user->getId()),
           "depth"	=> intval( $depth)
 	];
         $result = $this->neo4j_client->run($query, $params);
@@ -1373,15 +1395,15 @@ WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 1';
 	if( $status == 'Processing') {
 /*
 	  $query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
-WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"] 
+WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"]
 RETURN id(a) AS aid, a.status LIMIT 1';
 */
 	  $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(f:Analysis)
-MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis) 
- WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"] 
+MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
+ WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"]
  WITH a LIMIT 1
 RETURN id(a) AS aid, a.status';
-	}	
+	}
 
 	// Iterate through all the fetched records
         $result = $this->neo4j_client->run($query, $params);
@@ -1396,9 +1418,9 @@ RETURN id(a) AS aid, a.status';
 	      $status = 'Skipped';
 
 	    // Switch from Pending to Processing
-	    else if( $status == 'Pending' && 
-		($property == 'Processing' 
-		|| $property == 'Partially' 
+	    else if( $status == 'Pending' &&
+		($property == 'Processing'
+		|| $property == 'Partially'
 		|| $property == 'Evaluated'))
 	      $status = 'Processing';
 
@@ -1423,7 +1445,7 @@ RETURN id(a) AS aid, a.status';
 
 
 
-    // Set Analysis status 
+    // Set Analysis status
     // Should NEVER be called directly
     // Call promoteAnalysis instead to rearrange all rels properly
     private function setAnalysisStatus( $aid, $status = 'Pending')
@@ -1518,7 +1540,7 @@ DELETE r';
 /*
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})
-MATCH (:Status{status:{status}})<-[:HAS_GOT]-(p:Analysis)-[:NEXT*0..]->(a) 
+MATCH (:Status{status:{status}})<-[:HAS_GOT]-(p:Analysis)-[:NEXT*0..]->(a)
   WITH p LIMIT 1
 MATCH (p)-[r:NEXT_BY_STATUS]->(n)
 MERGE (a)-[:HAS_GOT]->(s)
@@ -1582,14 +1604,14 @@ DELETE r';
 */
         $this->neo4j_client->run($query, $params);
 
-/*	
+/*
 
         $params = ["aid" => intval( $aid)];
         $this->neo4j_client->run($query, $params);
 
-/*	
+/*
 	// Deleting existing status labels and adding new
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 REMOVE a:'.$statusLabels.' SET a:'.$label;
 
 	// Send the query, we do NOT expect any return
@@ -1620,7 +1642,7 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Suggested analysis node labels :'.
 		implode( ':', $sides));
-	
+
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug('Access denied');
@@ -1649,7 +1671,7 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Adding analysis node labels :'.
 		implode( ':', $sides));
-	
+
 	// Sides array does not have any records
 	if( count( $sides) == 0) {
 	  if( $_ENV['APP_DEBUG'])
@@ -1658,8 +1680,8 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 	}
 
 	// Deleting existing labels and adding new
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
-REMOVE a:'.Analysis::SIDE['White'].':'.Analysis::SIDE['Black'].' 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+REMOVE a:'.Analysis::SIDE['White'].':'.Analysis::SIDE['Black'].'
 SET a:' . implode( ':', $sides);
 
 	// Send the query, we do NOT expect any return
@@ -1667,7 +1689,7 @@ SET a:' . implode( ':', $sides);
         $this->neo4j_client->run($query, $params);
 
 	// Record action
-	$this->createAnalysisActionNode( $aid, 
+	$this->createAnalysisActionNode( $aid,
 		'SideChange', implode( ' ',$sides));
 
 	return true;
@@ -1685,7 +1707,7 @@ SET a:' . implode( ':', $sides);
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Setting analysis node depth '.$depth);
-	
+
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug('Access denied');
@@ -1708,7 +1730,7 @@ SET a:' . implode( ':', $sides);
 
 	// Iterate through all possible side lables
 	$sides = Analysis::SIDE;
-	foreach( $sides as $key => $side) 
+	foreach( $sides as $key => $side)
 	  if( $this->matchGameAnalysis( $gid, $depth, ':'.$side) == -1)
 	    unset( $sides[$key]);
 
@@ -1735,8 +1757,8 @@ SET a:' . implode( ':', $sides);
 	  $this->setAnalysisSide( $aid, array_pop( $diff_sides));
 
 	// Deleting existing relation and adding new
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
-MATCH (a)-[r:REQUIRED_DEPTH]->(old:Depth) 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+MATCH (a)-[r:REQUIRED_DEPTH]->(old:Depth)
 MATCH (new:Depth{level:{depth}})
 CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
 
@@ -1757,7 +1779,7 @@ CREATE (a)-[:REQUIRED_DEPTH]->(new) DELETE r';
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching Analysis status property');
-	
+
 	// Check if analysis node exists
 	if( !$this->analysisNodeExists( $aid))
 	  return -1;
@@ -1786,7 +1808,7 @@ RETURN a.status AS status';
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching Analysis status');
-	
+
 	// Check if analysis node exists
 	if( !$this->analysisNodeExists( $aid))
 	  return -1;
@@ -1840,12 +1862,12 @@ RETURN t.status AS status';
 
 	// Basic label check
 	if( !$this->queueGraphExists()) return -1;
-	
+
         // Match queue node by label by default
         $query = 'MATCH (q:'.$type.') RETURN id(q) AS qid LIMIT 2';
 
 	if( $type == 'Next')
-          $query = 'MATCH (q:Queue) WHERE id(q)={qid} 
+          $query = 'MATCH (q:Queue) WHERE id(q)={qid}
 OPTIONAL MATCH (q)-[:NEXT]->(n:Queue) RETURN id(n) AS qid LIMIT 2';
 
 	$params = ['qid' => intval( $this->queue_id)];
@@ -1875,7 +1897,7 @@ OPTIONAL MATCH (q)-[:NEXT]->(n:Queue) RETURN id(n) AS qid LIMIT 2';
         return -1;
     }
 
-	
+
     // Return node id for given status (first/last/previous)
     public function getStatusQueueNode( $status = 'Pending', $type = 'first') {
 
@@ -1884,35 +1906,35 @@ OPTIONAL MATCH (q)-[:NEXT]->(n:Queue) RETURN id(n) AS qid LIMIT 2';
 
 	// Check if the status is valid
 	if( !in_array( $status, Analysis::STATUS)) return -1;
-	
+
 	// Check if analysis node exists
 	if( !$this->queueGraphExists()) return -1;
-	
+
 	// By default we want first node
 	$rel = 'FIRST';
 	if( $type == 'last') $rel = 'LAST';
 
-	$query = 'MATCH (s:Status{status:{status}}) 
+	$query = 'MATCH (s:Status{status:{status}})
 OPTIONAL MATCH (s)-[:'.$rel.']->(a:Analysis)
 RETURN id(a) AS aid';
 
 	// Previous node requires var-length path
-	// But we limit it to a :Queue node 
+	// But we limit it to a :Queue node
 	// so it does NOT expand till :Head
 	if( $type == 'prev')
 	  $query = '
-MATCH (f:Analysis)<-[:FIRST]-(:Queue)-[:QUEUED]->(l:Analysis)-[:NEXT]->(a:Analysis) 
-WHERE id(a) = {aid} 
-MATCH path=shortestPath((f)-[:NEXT*0..]->(l)) WITH a,nodes(path) as nodes 
-UNWIND nodes AS node 
-MATCH (node)-[:HAS_GOT]->(:Status{status:{status}}) 
-MATCH path=shortestPath((node)-[:NEXT*0..]->(a)) WITH id(node) AS aid, size(nodes(path)) AS dist 
+MATCH (f:Analysis)<-[:FIRST]-(:Queue)-[:QUEUED]->(l:Analysis)-[:NEXT]->(a:Analysis)
+WHERE id(a) = {aid}
+MATCH path=shortestPath((f)-[:NEXT*0..]->(l)) WITH a,nodes(path) as nodes
+UNWIND nodes AS node
+MATCH (node)-[:HAS_GOT]->(:Status{status:{status}})
+MATCH path=shortestPath((node)-[:NEXT*0..]->(a)) WITH id(node) AS aid, size(nodes(path)) AS dist
 RETURN aid ORDER BY dist LIMIT 1';
 /*
 	  $query = '
 MATCH (a:Analysis) WHERE id(a) = {aid}
-MATCH (s:Status{status:{status}}) 
-MATCH path=(a)<-[:NEXT*1..]-(p:Analysis)-[:HAS_GOT]->(s) 
+MATCH (s:Status{status:{status}})
+MATCH path=(a)<-[:NEXT*1..]-(p:Analysis)-[:HAS_GOT]->(s)
  WITH size(nodes(path)) as distance, p
 RETURN id(p) AS aid ORDER BY distance LIMIT 1';
 */
@@ -1930,13 +1952,13 @@ RETURN id(p) AS aid ORDER BY distance LIMIT 1';
     }
 
 
-	
+
     // Return Analysis depth for a particular node
     public function getAnalysisDepth( $aid) {
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching Analysis depth for: '.$aid);
-	
+
 	// Check if analysis node exists
 	if( !$this->analysisNodeExists( $aid)) return -1;
 
@@ -1958,13 +1980,13 @@ RETURN d.level AS depth';
     }
 
 
-	
+
     // Return a Game Id for an Analysis
     public function getAnalysisGameId( $aid) {
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching Game Id for '. $aid);
-	
+
 	// Check if analysis node exists
 	if( !$this->analysisNodeExists( $aid)) return -1;
 
@@ -1986,13 +2008,39 @@ RETURN id(g) AS gid';
     }
 
 
-	
+    // Return a Game Id for an Analysis
+    public function getAnalysisUserId( $aid) {
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Fetching User Id for '. $aid);
+
+	// Check if analysis node exists
+	if( !$this->analysisNodeExists( $aid)) return -1;
+
+	$query = '
+MATCH (a:Analysis)-[:REQUESTED_BY]->(u:WebUser) WHERE id(a)={aid}
+RETURN u.id AS uid';
+
+        $params = ["aid" => intval( $aid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('uid') != null)
+            return $record->value('uid');
+
+	if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Error fetching analysis user id');
+
+	return -1; // Negative to indicate error
+    }
+
+
     // Return Analysis sides array
     private function getAnalysisSides( $aid) {
 
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Fetching analysis sides for '. $aid);
-	
+
 	// Check if analysis node exists
 	if( !$this->analysisNodeExists( $aid)) return -1;
 
@@ -2003,7 +2051,7 @@ RETURN id(g) AS gid';
 
         foreach ($result->records() as $record)
           if( ($labelsObj = $record->get('a')) != null)
-	    return array_intersect( 
+	    return array_intersect(
 		Analysis::SIDE, $labelsObj->labels());
 
 	if( $_ENV['APP_DEBUG'])
@@ -2019,7 +2067,7 @@ RETURN id(g) AS gid';
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Promoting analysis node');
-	
+
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
           $this->logger->debug('Access denied');
 	  return false;
@@ -2031,7 +2079,7 @@ RETURN id(g) AS gid';
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug('Invalid status '.$status);
 	  return false;
-	}	
+	}
 
 	// Make sure the analysis exists
 	if( !$this->analysisNodeExists( $aid)) {
@@ -2048,7 +2096,7 @@ RETURN id(g) AS gid';
 	if( !$this->detachAnalysisNode( $aid)) return false;
 
 	// Attach floating Analysis node to the :Current node
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} MATCH (c:Current) 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} MATCH (c:Current)
 MERGE (c)-[:QUEUED]->(a)';
 
 	// Send the query, we do NOT expect any return
@@ -2057,23 +2105,23 @@ MERGE (c)-[:QUEUED]->(a)';
 
 	// Record promotion for Pending only
 	if( $status == 'Pending')
-	  if( !$this->createAnalysisActionNode( $aid, 'Promotion')) 
+	  if( !$this->createAnalysisActionNode( $aid, 'Promotion'))
 	    return false;
 
         // Finally create necessary relationships with siblings
 	if( !$this->enqueueAnalysisNode( $aid)) return false;
 
-	if( !$this->setAnalysisStatus( $aid, $status)) 
+	if( !$this->setAnalysisStatus( $aid, $status))
 	  return false;
 /*
 	// Set the same status as before
 	if( ($current_status = $this->getAnalysisStatus( $aid)) != -1)
-	  if( !$this->setAnalysisStatus( $aid, self::STATUS[$status])) 
+	  if( !$this->setAnalysisStatus( $aid, self::STATUS[$status]))
 	    return false;
 	else
 	  return false;
 */
-        // Return 
+        // Return
         return true;
     }
 
@@ -2088,7 +2136,7 @@ MERGE (c)-[:QUEUED]->(a)';
 	// Make sure analysis node exists
 	if( !$this->analysisNodeExists( $aid)) return false;
 
-	// Previous :Queue last :Analysis node 
+	// Previous :Queue last :Analysis node
 	// Current :Queue previous :Analysis node
 	// Current :Queue next Analysis node
 	// Next :Queue first :analysis node
@@ -2099,12 +2147,12 @@ MERGE (c)-[:QUEUED]->(a)';
 	$nf_id=-1;
 	$current = false;
 
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 OPTIONAL MATCH (a)<-[:QUEUED]-(q:Queue)
-OPTIONAL MATCH (pl:Analysis)<-[:LAST]-(:Queue)-[:NEXT]->(q) 
-OPTIONAL MATCH (q)-[:NEXT]->(:Queue)-[:FIRST]->(nf:Analysis) 
-OPTIONAL MATCH (q)-[:QUEUED]->(cp:Analysis)-[:NEXT]->(a) 
-OPTIONAL MATCH (a)-[:NEXT]->(cn:Analysis)<-[:QUEUED]-(q) 
+OPTIONAL MATCH (pl:Analysis)<-[:LAST]-(:Queue)-[:NEXT]->(q)
+OPTIONAL MATCH (q)-[:NEXT]->(:Queue)-[:FIRST]->(nf:Analysis)
+OPTIONAL MATCH (q)-[:QUEUED]->(cp:Analysis)-[:NEXT]->(a)
+OPTIONAL MATCH (a)-[:NEXT]->(cn:Analysis)<-[:QUEUED]-(q)
 RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id,
 	"Current" IN labels(q) AS current';
 
@@ -2123,44 +2171,44 @@ RETURN id(pl) AS pl_id, id(nf) AS nf_id, id(cp) AS cp_id, id(cn) AS cn_id,
           $this->logger->debug( "pl: $pl_id, cp: $cp_id, cn: $cn_id, nf: $nf_id");
 
 	// Basic :analysis matching query
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (a)<-[:QUEUED]-(q:Queue) ';
 
 	//
 	// See Ticket https://trac.tutolmin.com/chess/ticket/107
 	//
 
-	// 1) The only :Analysis node left in the graph 
+	// 1) The only :Analysis node left in the graph
         if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id == null) {
 	  $query .= 'RETURN id(a)';
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Detach Analysis type1");
 	}
 
-	// 2) The only :Analysis node for the :Head, next :Queue node(s) exist 
+	// 2) The only :Analysis node for the :Head, next :Queue node(s) exist
         if( $pl_id == null && $cp_id == null && $cn_id == null && $nf_id != null) {
 
 	  // Assign Current label to the next Queue node
 	  $query_current = "";
 	  if( $current) $query_current = ":Current";
 
-	  $query .= 'MATCH (q)-[:NEXT]->(n:Queue) 
+	  $query .= 'MATCH (q)-[:NEXT]->(n:Queue)
 SET n:Head'.$query_current.' DETACH DELETE q';
 
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Detach Analysis type2 ". ($current?":Current":""));
 	}
 
-	// 3) First :Analysis node for single :Head node (:Tail) 
-	// 4) First :Analysis node for :Head, next :Queue node(s) exist 
-        if( ($pl_id == null && $cp_id == null && $cn_id != null && $nf_id == null) || 
+	// 3) First :Analysis node for single :Head node (:Tail)
+	// 4) First :Analysis node for :Head, next :Queue node(s) exist
+        if( ($pl_id == null && $cp_id == null && $cn_id != null && $nf_id == null) ||
             ($pl_id == null && $cp_id == null && $cn_id != null && $nf_id != null)) {
 	  $query .= 'MATCH (a)-[:NEXT]->(cn:Analysis) MERGE (cn)<-[:FIRST]-(q)';
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Detach Analysis type34");
 	}
-	
-	// 5) Last (but not the only) :Analysis node for single :Head (:Tail) 
+
+	// 5) Last (but not the only) :Analysis node for single :Head (:Tail)
 	// 13) Last (but not the only) :Analysis node for the :Tail
         if( ($pl_id == null && $cp_id != null && $cn_id == null && $nf_id == null) ||
             ($pl_id != null && $cp_id != null && $cn_id == null && $nf_id == null)) {
@@ -2169,11 +2217,11 @@ SET n:Head'.$query_current.' DETACH DELETE q';
             $this->logger->debug( "Detach Analysis type513");
 	}
 
-	// 6) Last :Analysis node for :Head, next :Queue node(s) exist 
-	// 14) Last :Analysis node for the regular :Queue 
+	// 6) Last :Analysis node for :Head, next :Queue node(s) exist
+	// 14) Last :Analysis node for the regular :Queue
         if( ($pl_id == null && $cp_id != null && $cn_id == null && $nf_id != null) ||
             ($pl_id != null && $cp_id != null && $cn_id == null && $nf_id != null)) {
-	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis) 
+	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis)
 MERGE (cp)<-[:LAST]-(q) MERGE (cp)-[:NEXT]->(nf)';
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Detach Analysis type614");
@@ -2182,40 +2230,40 @@ MERGE (cp)<-[:LAST]-(q) MERGE (cp)-[:NEXT]->(nf)';
 	// 7) Regular :Analysis node for single :Head node (:Tail)
 	// 8) Regular :Analysis node for :Head, next :Queue node(s) exist
 	// 15) Regular :Analysis node for the :Tail
-	// 16) Regular :Analysis node for regular :Queue 
+	// 16) Regular :Analysis node for regular :Queue
         if( ($pl_id == null && $cp_id != null && $cn_id != null && $nf_id == null) ||
             ($pl_id == null && $cp_id != null && $cn_id != null && $nf_id != null) ||
             ($pl_id != null && $cp_id != null && $cn_id != null && $nf_id == null) ||
             ($pl_id != null && $cp_id != null && $cn_id != null && $nf_id != null)) {
-	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis) 
+	  $query .= 'MATCH (cp:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis)
 MERGE (cp)-[:NEXT]->(cn)';
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Detach Analysis type781516");
 	}
 
-	// 9) The only :Analysis node for the :Tail 
+	// 9) The only :Analysis node for the :Tail
         if( $pl_id != null && $cp_id == null && $cn_id == null && $nf_id == null) {
 
 	  // Assign Current label to the next Queue node
 	  $query_current = "";
 	  if( $current) $query_current = ":Current";
 
-	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q) 
-SET p:Tail'.$query_current.' DETACH DELETE q'; 
+	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q)
+SET p:Tail'.$query_current.' DETACH DELETE q';
 
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Detach Analysis type9 ".($current?":Current":""));
 	}
 
-	// 10) The only :Analysis node for the regular :Queue 
+	// 10) The only :Analysis node for the regular :Queue
         if( $pl_id != null && $cp_id == null && $cn_id == null && $nf_id != null) {
-	
+
 	  // Assign Current label to the next Queue node
 	  $query_current = "";
 	  if( $current) $query_current = "SET n:Current";
 
-	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q)-[:NEXT]->(n:Queue) 
-MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis) 
+	  $query .= 'MATCH (p:Queue)-[:NEXT]->(q)-[:NEXT]->(n:Queue)
+MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(nf:Analysis)
 MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) '.$query_current.' DETACH DELETE q';
 
 	  if( $_ENV['APP_DEBUG'])
@@ -2226,7 +2274,7 @@ MERGE (p)-[:NEXT]->(n) MERGE (pl)-[:NEXT]->(nf) '.$query_current.' DETACH DELETE
 	// 12) First :Analysis node for the regular :Queue
         if( ($pl_id != null && $cp_id == null && $cn_id != null && $nf_id == null) ||
             ($pl_id != null && $cp_id == null && $cn_id != null && $nf_id != null)) {
-	  $query .= 'MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis) 
+	  $query .= 'MATCH (pl:Analysis)-[:NEXT]->(a)-[:NEXT]->(cn:Analysis)
 MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
 	  if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Detach Analysis type1112");
@@ -2236,14 +2284,14 @@ MERGE (cn)<-[:FIRST]-(q) MERGE (pl)-[:NEXT]->(cn)';
         $this->neo4j_client->run( $query, $params);
 
 	// Delete relationships to siblings and :Queue
-	$query = 'MATCH (a:Analysis) WHERE id(a)={aid} 
-OPTIONAL MATCH (:Analysis)-[s:NEXT]-(a) 
+	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
+OPTIONAL MATCH (:Analysis)-[s:NEXT]-(a)
 OPTIONAL MATCH (:Queue)-[r]->(a) DELETE s,r';
 
 	// Send the query, we do NOT expect any return
         $this->neo4j_client->run( $query, $params);
 
-        // Return 
+        // Return
         return true;
     }
 
@@ -2276,7 +2324,7 @@ RETURN id(p) AS pid, id(l) AS lid, id(f) AS fid LIMIT 1';
           $l_id = $record->value('lid');
           $f_id = $record->value('fid');
         }
- 
+
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug( "pid: $p_id, lid: $l_id, fid: $f_id");
 
@@ -2290,7 +2338,7 @@ MERGE (q)-[:FIRST]->(a)
 MERGE (q)-[:LAST]->(a)
 RETURN id(a) AS aid LIMIT 1';
 	}
-	
+
         // Adding (:Analysis) node to a new (:Tail) node
         if( $p_id != null && $l_id == null && $f_id == null) {
 
@@ -2339,7 +2387,7 @@ RETURN id(a) AS aid LIMIT 1';
 //	    $this->linkStatusRelationships( $aid);
 	    return true;
 	}
-	
+
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Error while enqueuing analysis node!');
 
@@ -2349,7 +2397,7 @@ RETURN id(a) AS aid LIMIT 1';
 
 
     // Queue Game Analysis function
-    public function enqueueGameAnalysis( $gid, $depth, $sideLabel) 
+    public function enqueueGameAnalysis( $gid, $depth, $sideLabel)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Staring game anaysis enqueueing process.');
@@ -2372,7 +2420,7 @@ RETURN id(a) AS aid LIMIT 1';
 
 	    if( $_ENV['APP_DEBUG'])
               $this->logger->debug(
-		'The game has already been queued for analysys for '. 
+		'The game has already been queued for analysys for '.
 		$side. ' depth '.$depth);
 
 	    // Delete array element
@@ -2397,7 +2445,7 @@ RETURN id(a) AS aid LIMIT 1';
 	}
 
 	// Check system wide limit
-	if( $this->countAnalysisNodes( 'Pending', true) >= 
+	if( $this->countAnalysisNodes( 'Pending', true) >=
 		$_ENV['PENDING_QUEUE_LIMIT']) {
 
 	    if( $_ENV['APP_DEBUG'])
@@ -2409,13 +2457,13 @@ RETURN id(a) AS aid LIMIT 1';
 
         // Create a new (:Analysis) node
         $aid = $this->createAnalysisNode( $gid, $depth, $sideLabel);
-	
+
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Created game analysis id: '.$aid);
 
 	// Error creating analysis node
 	if( $aid == -1) return -1;
-          
+
         // Finally create necessary relationships with siblings
 	if( !$this->enqueueAnalysisNode( $aid)) return -1;
 
@@ -2432,7 +2480,7 @@ RETURN id(a) AS aid LIMIT 1';
     {
 	// Depth paramaeter
 	$depth = $this->depth['fast'];
-	if( $type == $this->depth['deep']) 
+	if( $type == $this->depth['deep'])
 	  $depth = $this->depth['deep'];
 
 	// Limit number of games to get
@@ -2461,14 +2509,14 @@ RETURN id(a) AS aid LIMIT 1';
 	if( !$this->updateCurrentQueueNode()) return -1;
 
         $query = '
-MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1 
-MATCH (s)<-[:NEXT*0..]-(a:Analysis)-[:EVALUATED]->(p:PlyCount) WHERE p.counter>0 
+MATCH (:Current)-[:LAST]->(:Analysis)<-[:NEXT*0..]-(s:Analysis)-[:EVALUATED]->(:PlyCount) WITH s LIMIT 1
+MATCH (s)<-[:NEXT*0..]-(a:Analysis)-[:EVALUATED]->(p:PlyCount) WHERE p.counter>0
 MATCH (a)-[:REQUIRED_DEPTH]-(d:Depth{level:{level}}) WITH a,p LIMIT {number}
   MATCH (ys:Year)<-[:OF]-(ms:Month)<-[:OF]-(ds:Day)<-[:EVALUATION_WAS_STARTED_DATE]-(a)
   MATCH (a)-[:EVALUATION_WAS_FINISHED_DATE]->(df:Day)-[:OF]->(mf:Month)-[:OF]->(yf:Year)
   MATCH (hs:Hour)<-[:OF]-(ns:Minute)<-[:OF]-(ss:Second)<-[:EVALUATION_WAS_STARTED_TIME]-(a)
   MATCH (a)-[:EVALUATION_WAS_FINISHED_TIME]->(sf:Second)-[:OF]->(nf:Minute)-[:OF]->(hf:Hour)
-WITH 
+WITH
 avg(
 duration.inSeconds(
   datetime({ year: ys.year, month: ms.month, day: ds.day, hour: hs.hour, minute: ns.minute, second: ss.second}),
@@ -2496,6 +2544,106 @@ RETURN average.milliseconds AS speed';
         apcu_add( $cacheVarName, $speed, 3600);
 
 	return $speed;
+    }
+
+    // Notify a user about analysis completion
+    public function notifyUser( $aid) {
+
+//      $depth = $this->getAnalysisDepth( $aid);
+      $gid = $this->getAnalysisGameId( $aid);
+      $uid = $this->getAnalysisUserId( $aid);
+
+      if( $_ENV['APP_DEBUG'])
+              $this->logger->debug( 'Fetched uid: '.$uid);
+
+      $user = $this->userRepository->findOneBy(['id' => $uid]);
+
+      if( $_ENV['APP_DEBUG'])
+              $this->logger->debug( 'Fetched email: '.$user->getEmail());
+
+
+
+
+              // Fetch game details
+            	$params = ["gid" => $gid];
+            	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
+            MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
+            WITH game,
+             CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
+             CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
+             CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str
+             MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
+              MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
+              MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
+              MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
+              MATCH (game)-[:WAS_PART_OF]->(event:Event)
+              MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
+              MATCH (game)-[:FINISHED_ON]->(line:Line)
+              MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
+             RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
+            	eco.code, opening.opening, opening.variation LIMIT 1";
+            	$result = $this->neo4j_client->run( $query, $params);
+
+            	foreach ($result->records() as $record) {
+
+            	  // Fetch game object
+            	  $gameObj = $record->get('game');
+            //	  $this->game['ID']	= $gameObj->identity();
+            	  $game['White']  = $record->value('player_w.name');
+            	  $game['W_ELO']  = $record->value('elo_w.rating');
+            	  $game['Black']  = $record->value('player_b.name');
+            	  $game['B_ELO']  = $record->value('elo_b.rating');
+            	  $game['Event']  = $record->value('event.name');
+            	  $game['Date']   = $record->value('date_str');
+            	  $game['ECO']	= $record->value('eco.code');
+            	  $game['ECO_opening']	= $record->value('opening.opening');
+            	  $game['ECO_variation']	= $record->value('opening.variation');
+            	  $game['MoveListHash']	= $record->value('line.hash');
+
+            	  // Result in human readable format
+                $labelsObj = $record->get('result_w');
+                $labelsArray = $labelsObj->labels();
+                if( in_array( "Draw", $labelsArray))
+                  $game['Result'] = "1/2-1/2";
+                else if( in_array( "Win", $labelsArray))
+                  $game['Result'] = "1-0";
+                else if( in_array( "Loss", $labelsArray))
+                  $game['Result'] = "0-1";
+                else
+                  $game['Result'] = "Unknown";
+
+                }
+
+
+
+
+
+
+
+      $email = (new TemplatedEmail())
+          ->from(new Address('support@chesscheat.com', 'ChessCheat Support'))
+          ->to(new Address($user->getEmail(),
+            $user->getFirstName()." ".$user->getLastName()))
+          //->cc('cc@example.com')
+          ->bcc('support@chesscheat.com')
+          //->replyTo('fabien@example.com')
+          //->priority(Email::PRIORITY_HIGH)
+          ->subject('Game analysis complete!')
+          // path of the Twig template to render
+          ->htmlTemplate('emails/analysis_complete.html.twig')
+          ->textTemplate('emails/analysis_complete.txt.twig')
+
+          // pass variables (name => value) to the template
+          ->context([
+              'gid' => $gid,
+              'game' => $game,
+              'expiration_date' => new \DateTime('+7 days'),
+              'firstName' => (strlen( $user->getFirstName())>0)?$user->getFirstName():"User",
+          ])
+      ;
+
+      $this->mailer->send($email);
+
     }
 }
 ?>

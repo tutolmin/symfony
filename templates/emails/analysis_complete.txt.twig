@@ -1,0 +1,10 @@
+Dear {{ firstName }}!
+
+The following game analysis is complete. You can view the full report at ChessCheat by following the link.
+
+{{ game['White'] }} ({{ game['W_ELO'] }}) vs. {{ game['Black'] }} ({{ game['B_ELO'] }}) - {{ game['Result'] }}, {{ game['ECO'] }}, {{ game['Event'] }}, {{ game['Date'] }}
+
+{{ url('index', {gid: gid}) }}
+
+Regards,
+ChessCheat

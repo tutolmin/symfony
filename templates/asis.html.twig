@@ -18,9 +18,10 @@
   <button onclick="openTab(event, 'Analyze')">
 <table style="border:1px;margin:0;padding:0;">
 <tr>
-<td><img src="img/chesspieces/wikipedia/bK.png" width="48"/></td>
-<td><img src="img/chesspieces/wikipedia/wQ.png" width="48"/></td>
-<td style="padding-left:10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+<td><img src="img/chesspieces/wikipedia/bK.png" width="48" alt="Black King" title="Black King"/></td>
+<td><img src="img/chesspieces/wikipedia/wQ.png" width="48" alt="White Queen" title="White Queen"/></td>
+<td style="padding: 0 10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+<td><img src="img/beta1.png" width="30" alt="beta" title="Beta testing is still in progress"/></td>
 </tr>
 </table>
   </button>
@@ -83,8 +84,36 @@ Use the form below to upload your games.</p>
 </td>
 
 <td valign="top" style='width:300px'>
-<h3>PGN format</h3>
-<p>PGN format is the de-facto standard for the chess game exchange.</p>
+
+<button class="u-accordion active-accordion">Supported file formats</button>
+<div class="u-panel" style="max-height: 200px;">
+  <p><abbr title='Portable Game Notation'>PGN</abbr> is the standard text format for chess games.
+  You can upload multiple games stored in single PGN file.</p>
+  <p>In order to save bandwidth you can compress your PGN file uzing ZIP or Gzip.</p>
+  <p>Supported file formats are <b>.pgn .txt .zip .gz</b>
+</div>
+
+<button class="u-accordion">Database insertion speed</button>
+<div class="u-panel">
+  <p>If you only pasted a single game or uploaded a PGN file with a dozen of
+  chess games your games will appear in the database instantly.</p>
+  <p>But if your submission contains hundreds of games it might take a few minutes
+  before you can find them in the Search tab.</p>
+</div>
+
+<button class="u-accordion">Upload limit and file size</button>
+<div class="u-panel">
+  <p>There is no upload limit at the moment. You can submit as many games as you like.
+  But we encourage you to only upload games you would like to analyze.</p>
+  <p>In order to optimize database workload we limit the size of single submission to 1MB.</p>
+</div>
+
+<button class="u-accordion">Contact support team</button>
+<div class="u-panel">
+  <p>We are ready to answer all your questions.
+  Please <a href="mailto:support@chesscheat.com?subject=upload">email us</a> and describe the issue in details.</p>
+</div>
+
 </td>
 
 </tr>
@@ -185,33 +214,7 @@ Use the form below to upload your games.</p>
 
   <div class="gameList" id="gameList"></div>
 
-<table style="width:100%"><tr><td>
-<select style="float:left;" name="sideToAnalyzeGroup" id="sideToAnalyzeGroup">
-<option value="">Both sides</option>
-<option value="WhiteSide">White Only</option>
-<option value="BlackSide">Black Only</option>
-</select>
-<select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">
-<option value="fast">Fast</option>
-<option value="deep">Deep</option>
-</select>
-<div id="analysis_submit_group">
-     <button type="submit"
-             class="input_submit"
-             style="margin-right: 15px;"
-             onClick="processGameList()"
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-{% else %}
-	disabled="disabled"
-{% endif %}
->Submit games for analysis
-     </button>
-</div><br/><div id="processGameStatusGroup"></div>
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-{% else %}
-<br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can request analysis.</span>
-{% endif %}
-</td>
+<table style="width:100%"><tr>
 <td>
 <div id="export_submit_group">
      <button type="submit"
@@ -232,8 +235,108 @@ Use the form below to upload your games.</p>
 
 </td>
 <td valign="top">
-<h3>Available tags</h3>
-<p>There are a lot of tag you can use to select the particular game such as player name, result, ECO code.</p>
+
+<button class="s-accordion active-accordion">Game search interface</button>
+<div class="s-panel" style="max-height: 200px;">
+  <p>Before you can submit your games for analysis you will need to find them in the database.
+  You can do so by using the game search interface.</p>
+  <p>When you enter some tag it narrows the search and shows only the games matching the criteria.
+  You can enter several tags to only show the games that match all of them.</p>
+</div>
+
+<button class="s-accordion">Available tags</button>
+<div class="s-panel">
+  <p>There are a lot of tags you can use to quickly find the game you need.
+  If you know game result, enter: <b>1-0</b>, <b>0-1</b> or <b>1/2-1/2</b> for a draw.<p>
+  <p>Player names are also can be used as a tag. Start typing the first letters
+  and select the name from the drop-down list.</p>
+  <p><abbr title='Encyclopedia of Chess Openings'>ECO</abbr> codes and game ending types
+  such as <b>checkmate</b> or <b>stalemate</b> can also be used.</p>
+</div>
+
+<button class="s-accordion">Analysis types</button>
+<div class="s-panel">
+  <p>There are two types of analysis: <b>Fast</b> and <b>Deep</b>.
+   The main purpose for the Fast analysis is to get fast evaluation of the game, check for blunders, etc.</p>
+  <p>It is a good idea to only request Deep analysis for a game if Fast analysis did not show any errors
+  and you suspect one of the players cheated.</p>
+  <p>Deep analysis takes 3-5 times longer to complete.
+  Deep analysis include calculation of the anti-cheat score.</p>
+</div>
+
+<button class="s-accordion">Analysis side</button>
+<div class="s-panel">
+  <p>When you submit a game for analysis you can select to only analyze the moves of a particular side,
+  <b>White</b> or <b>Black</b>.</p>
+  <p>For example: you have played White and suspect your opponent have cheated.
+  You should select to only analyze Black moves in the game.</p>
+</div>
+
+<button class="s-accordion">Submission limit</button>
+<div class="s-panel">
+  <p>In order to provide quality service to all our users there is a submission limit for each user.
+  If there are <b>more than 30</b> pending games you submitted in the analysis queue the system
+  will not allow to add more until previous are processed.</p>
+</div>
+
+<button class="s-accordion">Request game analysis</button>
+<div class="s-panel">
+
+  <p>You can request game analysis by selecting the games in the table,
+  specifying side to analyze <b>White/Black</b>,
+  analysis depth <b>Fast/Deep</b> and clicking Submit.</p>
+  <p>The game(s) will be placed in the analysis queue and you will receive an email
+  when the analysis is complete.</p>
+
+  <table>
+    <tr>
+      <td>
+        <label for="sideToAnalyzeGroup">Side to analyze</label>
+        <select style="float:left;" name="sideToAnalyzeGroup" id="sideToAnalyzeGroup">
+        <option value="">Both</option>
+        <option value="WhiteSide">White</option>
+        <option value="BlackSide">Black</option>
+        </select>
+      </td>
+      <td>
+        <label for="AnalysisDepthGroup">Analysis type</label>
+        <select style="float:left;" name="AnalysisDepthGroup" id="AnalysisDepthGroup">
+        <option value="fast">Fast</option>
+        <option value="deep">Deep</option>
+        </select>
+      </td>
+      <td>
+        <div id="analysis_submit_group">
+             <button type="submit"
+                     class="input_submit"
+                     style="margin-right: 15px;"
+                     onClick="processGameList()"
+        {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+        {% else %}
+        	disabled="disabled"
+        {% endif %}
+        >Submit
+             </button>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div id="processGameStatusGroup"></div>
+
+  {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+  {% else %}
+  <br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can request analysis.</span>
+  {% endif %}
+
+</div>
+
+<button class="s-accordion">Contact support team</button>
+<div class="s-panel">
+  <p>We are ready to answer all your questions.
+  Please <a href="mailto:support@chesscheat.com?subject=search">email us</a> and describe the issue in details.</p>
+</div>
+
 </td>
 
 </tr>
@@ -309,8 +412,54 @@ Use the form below to upload your games.</p>
 </td>
 
 <td valign="top">
-<h3>Available tags</h3>
-<p>There are a lot of tag you can use to select the particular analysis types such as depth, side, etc.</p>
+
+
+<button class="q-accordion active-accordion">Analysis queue</button>
+<div class="q-panel" style="max-height: 250px;">
+  <p>All the games submitted for analysis are placed to the queue.
+  Due to the lack of resources the system analyzes games one by one.</p>
+  <p>It might take minutes, hours or even days before you game will be processed.
+  Please only submit the games you really want to analyze.</p>
+  <p>Check the current game place in the queue shown in the <b>#</b> column.</p>
+</div>
+
+<button class="q-accordion">Fair queueing policy</button>
+<div class="q-panel">
+  <p>The system uses a <b>fair queueing policy</b> for new analysis requests.
+  This means that the first game you submitted will be placed relatively close to the queue head.
+  Each subsequent analysis will be placed closer to the queue tail.</p>
+  <p>This is done to prevent a single user from occupying the analysis queue with their only games.</p>
+</div>
+
+<button class="q-accordion">Estimated processing time</button>
+<div class="q-panel">
+  <p>The system gives you an estimation on when a particular game in the queue will be analyzed.
+  Check the <b>Estimated</b> column.</p>
+  <p>This estimate is based on the current analysis speed and available system resources.</p>
+  <p>You will receive an email notification when a particular game has been analyzed.</p>
+</div>
+
+<button class="q-accordion">Analysis selection tags</button>
+<div class="q-panel">
+  <p>There are a lot of tags you can use to show only certain games in the queue.</p>
+  <p>These are analysis status, analysis side, etc. Also you can only show the games you submitted for analysis.</p>
+</div>
+
+<button class="q-accordion">Promote game analysis</button>
+<div class="q-panel">
+  <p>Currently we do not allow to move particular game closer to the queue head
+  in order to speed up analysis.</p>
+  <p>But if you are analyzing a tournament <abbr title='Over the Board'>OTB</abbr> game
+  and strongly believe the opponent was cheating,
+  please contact our support team.</p>
+</div>
+
+<button class="q-accordion">Contact support team</button>
+<div class="q-panel">
+  <p>We are ready to answer all your questions.
+  Please <a href="mailto:support@chesscheat.com?subject=queue">email us</a> and describe the issue in details.</p>
+</div>
+
 </td>
 
 </tr>
@@ -321,24 +470,42 @@ Use the form below to upload your games.</p>
 <div id="Analyze" class="tabcontent">
 
 <table border=0><tr><td valign=top>
-<div id="header" style="width: 525px">Game header</div>
-<!-- start example HTML -->
-<div id="board" style="width: 500px"></div>
-<div style="float: left;">
-<input type="button" id="setStartBtn" value="Start Position" />
-<input type="button" id="setPrevMove" value="Prev Move" />
-<input type="button" id="setNextMove" value="Next Move" />
-<input type="button" id="setPlayPause" value="Play/Pause" />
+<div class="gameHeaderContainer">
+ <div id="gamePlayers"	class="gamePlayers"></div>
+ <div>
+  <div class="gameEDRContainer">
+   <div id="gameEDR"	class="gameEDR"></div>
+  </div>
+  <div id="boardFlip"	class="boardFlip">
+   <a href="#" title='Flip the board'>
+    <img src="img/flip.png"/>
+   </a>
+  </div>
+ </div>
 </div>
-<div style="float: right;">
-<input type="button" id="flipBoard" value="Flip Board" />
+<div id="board" style="width: 400px"></div>
+<div class="gameEFPContainer">
+ <div>
+  <div class="blockName"><abbr title='Encyclopedia of Chess Openings'>ECO</abbr>:</div>
+  <div id="gameECO" class="gameECO"></div>
+ </div>
+ <br clear="all"/>
+ <div>
+  <div class="blockName"><abbr title='Forsyth–Edwards Notation'>FEN</abbr>:</div>
+  <div id="gameFEN" class="gameFEN"></div>
+ </div>
+ <br clear="all"/>
+ <div>
+  <div class="blockName"><abbr title='Portable Game Notation'>PGN</abbr>:</div>
+  <div class="gamePGNContainer">
+   <div id="gamePGN" class="gamePGN"></div>
+   <input type="hidden" id="game_being_analyzed" value=""/>
+  </div>
+ </div>
 </div>
-<br style="clear:all" />
-<!-- end example HTML -->
-<div id="position" style="width: 525px;">Position details</div>
 
+<!--
 <div>
-<input type="hidden" id="game_being_analyzed" value=""/>
 
 <select style="float:left;" name="sideToAnalyze" id="sideToAnalyze">
 <option value="">Both sides</option>
@@ -350,9 +517,9 @@ Use the form below to upload your games.</p>
 <option value="deep">deep</option>
 </select>
 <div id="analysis_submit">
-     <button type="submit" 
-             class="input_submit" 
-             style="margin-right: 15px;" 
+     <button type="submit"
+             class="input_submit"
+             style="margin-right: 15px;"
              onClick="processGame()"
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {% else %}
@@ -376,15 +543,182 @@ Use the form below to upload your games.</p>
 </div>
 <br/>
 <div id="processGameStatus"></div>
+-->
+
 </td><td valign=top>
-<div id="movelist" style="width: 600px; overflow:auto; height:700px;">Move list</div>
+<div id="moveList" class="moveList"></div>
+<div class="moveListButtons">
+<input type="button" id="setStartBtn" value="Start Position" />
+<input type="button" id="setPrevMove" value="Prev Move" />
+<input type="button" id="setNextMove" value="Next Move" />
+<input type="button" id="setPlayPause" value="Play/Pause" />
+</div>
+
+<div class="" style="position:absolute;">
+
+<div id="mainContainer" class="mainContainer" style="z-index:0; position:absolute;visibility:hidden;">
+
+  <p>ChessCheat was created as an attempt to fight growing problem
+of cheating in online chess and <abbr title='Over the Board'>OTB</abbr> games.
+More and more players are using different aplliances and gadgets
+seeking for forbidden computer assistance.</p>
+
+<p>If you feel the opponent was not following rules of fair play
+you can upload your game to Chess Cheat and let us our
+comprehensive system analyze it for you.</p>
+
+<p>Once the game is analyzed it will assign a special Cheat score
+for both White and Black player moves. Then you can compare
+this score with other players, grandmasters and computers.</p>
+
+<p>This analysis and evaluation can serve as a basis for official appeal.</p>
+
+</div>
+
+<div id="evaluationContainer" style="z-index:-1;position:absolute;visibility:hidden;">
+
+
+<div id="evaluationInfo" class="evaluationInfo"></div>
+<div class="moveVariationsContainer">
+
+<!-- Do I actually need to show current move proposed line?
+ <div>
+  <div class="blockName">Move:</div>
+  <div id="var0" class="variationLine"></div>
+ </div>
+-->
+
+ <br/>
+  <div id="varEval1" class="blockName"></div>
+  <div id="var1" class="variationLine"></div>
+ <br clear="all"/>
+  <div id="varEval2" class="blockName"></div>
+  <div id="var2" class="variationLine"></div>
+ <br clear="all"/>
+  <div id="varEval3" class="blockName"></div>
+  <div id="var3" class="variationLine"></div>
+ <br clear="all"/>
+</div>
 <br/>
-<div id="legend" style="width: 400px"><b>Legend</b><br/>
+<div id="legend" style="width: 500px"><b>Legend</b><br/>
 <b><span class='mark_Best'>Best move</span></b>: equal evaluation to the best line<br/>
 <b><span class='mark_Sound'>Sound move</span></b>: forced move, obvious recapture, single reasonable move, one of equal lines in drawish position<br/>
 </div>
+
+</div>
+
 </td><td valign=top>
-<div id="counters" style="width: 400px">Game details</div>
+
+  <div class="w3-bar">
+  <button class="side_button" id="whiteSide" onclick="updateCounters('White')">White</button>
+  <button class="side_button" id="blackSide" onclick="updateCounters('Black')">Black</button>
+  </div>
+
+  <div class="cheat-score" id="cheatScore">Cheat Score: 0</div>
+
+<div class="" style="width:300px;position:absolute;">
+
+<div id="accordionContainer" style="z-index:0; position:absolute;visibility:hidden;">
+
+  <button class="a-accordion active-accordion">Analysis queue</button>
+  <div class="a-panel" style="max-height: 250px;">
+    <p>All the games submitted for analysis are placed to the queue.
+    Due to the lack of resources the system analyzes games one by one.</p>
+    <p>It might take minutes, hours or even days before you game will be processed.
+    Please only submit the games you really want to analyze.</p>
+    <p>Check the current game place in the queue shown in the <b>#</b> column.</p>
+  </div>
+
+  <button class="a-accordion">What is a cheat score?</button>
+  <div class="a-panel">
+    <p>Cheat score is a calculated abstract value assigned to a particular sequence of
+    chess game moves for a given side, white or black.</p>
+    <p>The exact formula is quite complicated and take into account many different
+    criteria including some statistic values and probability coefficients.</p>
+    <p>The cheat score is normalized to a <abbr title="Elo rating system">ELO</abbr> scale so you can easily compare it
+    with actual player rating. Big delta is a sign of a suspected cheating.</p>
+  </div>
+
+  <button class="a-accordion">Item</button>
+  <div class="a-panel">
+    <p></p>
+  </div>
+
+
+  <button class="a-accordion">Request game analysis</button>
+  <div class="a-panel">
+
+    <p>You can request game analysis by
+    specifying side to analyze <b>White/Black</b>,
+    analysis depth <b>Fast/Deep</b> and clicking Submit.</p>
+    <p>The game will be placed in the analysis queue and you will receive an email
+    when the analysis is complete.</p>
+
+    <table>
+      <tr>
+        <td>
+          <label for="sideToAnalyze">Side to analyze</label>
+          <select style="float:left;" name="sideToAnalyze" id="sideToAnalyze">
+          <option value="">Both</option>
+          <option value="WhiteSide">White</option>
+          <option value="BlackSide">Black</option>
+          </select>
+        </td>
+        <td>
+          <label for="AnalysisDepth">Analysis type</label>
+          <select style="float:left;" name="AnalysisDepth" id="AnalysisDepth">
+          <option value="fast">Fast</option>
+          <option value="deep">Deep</option>
+          </select>
+        </td>
+        <td>
+          <div id="analysis_submit_group">
+               <button type="submit"
+                       class="input_submit"
+                       style="margin-right: 15px;"
+                       onClick="processGame()"
+          {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+          {% else %}
+          	disabled="disabled"
+          {% endif %}
+          >Submit
+               </button>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div id="processGameStatus"></div>
+
+    {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+    {% else %}
+    <br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can request analysis.</span>
+    {% endif %}
+
+  </div>
+
+  <button class="a-accordion">Contact support team</button>
+  <div class="a-panel">
+    <p>We are ready to answer all your questions.
+    Please <a href="mailto:support@chesscheat.com?subject=analysis">email us</a> and describe the issue in details.</p>
+  </div>
+
+</div>
+
+<div id="countersContainer" style="z-index:-1;position:absolute;visibility:hidden;">
+
+  <div id="counters" class="">Game details</div>
+
+  <button class="c-accordion active-accordion">Contact support team</button>
+  <div class="c-panel" style="max-height: 250px;">
+    <p>We are ready to answer all your questions.
+    Please <a href="mailto:support@chesscheat.com?subject=analysis">email us</a> and describe the issue in details.</p>
+  </div>
+
+</div>
+
+</div>
+
 </td></tr></table>
 
 </div>
@@ -392,7 +726,7 @@ Use the form below to upload your games.</p>
 {% endblock %}
 
 {% block javascripts %}
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> 
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js"></script>
@@ -405,4 +739,3 @@ Use the form below to upload your games.</p>
 <script src="js/queue.js"></script>
 {% endif %}
 {% endblock %}
-

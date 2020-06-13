@@ -62,6 +62,27 @@ class User implements UserInterface
      */
     private $createdDateTime;
 
+    /**
+     * @ORM\Column(type="boolean", options={"default":true})
+     */
+    private $canUpload;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $firstName;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $lastName;
+
+    public function __construct()
+    {
+        $this->createdDateTime = new \DateTime();
+        $this->canUpload = true;
+    }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -114,6 +135,7 @@ class User implements UserInterface
     public function getPassword()
     {
         // not needed for apps that do not check user passwords
+	return null;
     }
 
     /**
@@ -122,6 +144,7 @@ class User implements UserInterface
     public function getSalt()
     {
         // not needed for apps that do not check user passwords
+	return null;
     }
 
     /**
@@ -213,6 +236,42 @@ class User implements UserInterface
     public function setCreatedDateTime(\DateTimeInterface $createdDateTime): self
     {
         $this->createdDateTime = $createdDateTime;
+
+        return $this;
+    }
+
+    public function getCanUpload(): ?bool
+    {
+        return $this->canUpload;
+    }
+
+    public function setCanUpload(bool $canUpload): self
+    {
+        $this->canUpload = $canUpload;
+
+        return $this;
+    }
+
+    public function getFirstName(): ?string
+    {
+        return $this->firstName;
+    }
+
+    public function setFirstName(?string $firstName): self
+    {
+        $this->firstName = $firstName;
+
+        return $this;
+    }
+
+    public function getLastName(): ?string
+    {
+        return $this->lastName;
+    }
+
+    public function setLastName(?string $lastName): self
+    {
+        $this->lastName = $lastName;
 
         return $this;
     }
