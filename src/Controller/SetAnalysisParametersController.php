@@ -8,19 +8,20 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Stopwatch\Stopwatch;
 use App\Service\QueueManager;
+use App\Message\QueueManagerCommand;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class SetAnalysisParametersController extends AbstractController
 {
     // Neo4j client interface reference
     private $neo4j_client;
 
-    // StopWatch instance
-    private $stopwatch;
-
     // Logger reference
     private $logger;
+
+    // Message bus
+    private $bus;
 
     // Queue manager reference
     private $queueManager;
@@ -28,21 +29,12 @@ class SetAnalysisParametersController extends AbstractController
     private $gids = array();
 
     // Dependency injection of necessary services
-    public function __construct( Stopwatch $watch, LoggerInterface $logger,
-	QueueManager $qm)
+    public function __construct( LoggerInterface $logger,
+    	QueueManager $qm, MessageBusInterface $bus)
     {
-        $this->stopwatch = $watch;
-	$this->logger = $logger;
-	$this->queueManager = $qm;
-
-	// starts event named 'eventName'
-	$this->stopwatch->start('setAnalysisParameters');
-    }
-
-    public function __destruct()
-    {
-	// stops event named 'eventName'
-	$this->stopwatch->stop('setAnalysisParameters');
+      $this->logger = $logger;
+      $this->queueManager = $qm;
+      $this->bus = $bus;
     }
 
     /**
@@ -52,12 +44,12 @@ class SetAnalysisParametersController extends AbstractController
     public function setAnalysisParam()
     {
       // or add an optional message - seen by developers
-      $this->denyAccessUnlessGranted('ROLE_QUEUE_MANAGER', null, 
-	'User tried to access a page without having ROLE_QUEUE_MANAGER');
+      $this->denyAccessUnlessGranted('ROLE_QUEUE_MANAGER', null,
+        'User tried to access a page without having ROLE_QUEUE_MANAGER');
 
       // HTTP request
       $request = Request::createFromGlobals();
-	
+
       // Validate newly specified param type
       $param = $request->request->get( 'param');
 
@@ -67,36 +59,37 @@ class SetAnalysisParametersController extends AbstractController
       // get Analysis IDs from the query
       $aids = json_decode( $request->request->get( 'aids'));
 
-      $this->logger->debug( "Analysis ids to change " .$param. 
-	" to " . $value . " : ". implode( ",", $aids));
-	
+      $this->logger->debug( "Analysis ids to change " .$param.
+        " to " . $value . " : ". implode( ",", $aids));
+
       // Iterate through all the IDs
       $counter = 0;
       foreach( $aids as $aid) {
 
-	$this->stopwatch->lap('setAnalysisParameters');
+        $this->logger->debug( 'Changing analysis ' .$param.
+          ' (value: '.$value.') for Id: '.$aid);
 
-        $this->logger->debug( 'Changing analysis ' .$param. 
-		' (value: '.$value.') for Id: '.$aid);
+        // change depth for a particular analysis node
+        if( $param == "depth")
+          // will cause the QueueManagerCommandHandler to be called
+          $this->bus->dispatch(new QueueManagerCommand( 'set_depth',
+          ['analysis_id' => $aid, 'depth' => $value]));
 
-	// change depth for a particular analysis node
-	if( $param == "depth")
-	  if( $this->queueManager->setAnalysisDepth( $aid, $value))
-	    $counter++;
 
-	// change side for a particular analysis node
-	if( $param == "side")
-	  if( $this->queueManager->setAnalysisSide( $aid, $value))
-	    $counter++;
+	      // change side for a particular analysis node
+        else if( $param == "side")
+          // will cause the QueueManagerCommandHandler to be called
+          $this->bus->dispatch(new QueueManagerCommand( 'set_side',
+          ['analysis_id' => $aid, 'side_label' => $value]));
 
-	// change status label for a particular analysis node
-	if( $param == "status") {
-	  if( $this->queueManager->promoteAnalysis( $aid, $value))
-	    $counter++;
-	}
+        // change status label for a particular analysis node
+        else if( $param == "status")
+          // will cause the QueueManagerCommandHandler to be called
+          $this->bus->dispatch(new QueueManagerCommand( 'promote',
+            ['analysis_id' => $aid, 'status' => $value]));
       }
 
-      return new Response( $counter . " analysis nodes have been modified.");
+      return new Response( count( $aids) . " analysis nodes have been modified.");
     }
 }
 ?>

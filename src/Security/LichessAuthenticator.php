@@ -65,8 +65,13 @@ class LichessAuthenticator extends SocialAuthenticator
   $lichessUserLastName = $lichessUser->getLastName();
 
 	$this->provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
-        $lichessUserEmail = $this->provider->getResourceOwner($credentials)->getEmail();
-//        $lichessUserEmail = $lichessUser->getEmail();
+
+  /** @var LichessUser $lichessUser */
+  $lichessUser = $this->getLichessClient()
+      ->fetchUserFromToken($credentials);
+
+//        $lichessUserEmail = $this->provider->getResourceOwner($credentials)->getEmail();
+        $lichessUserEmail = $lichessUser->getEmail();
 
         // 1) have they logged in with Lichess before? Easy!
         $existingUser = $this->em->getRepository(User::class)

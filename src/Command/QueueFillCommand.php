@@ -10,12 +10,13 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\GameManager;
 use App\Service\QueueManager;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
 use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
+use App\Message\QueueManagerCommand;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class QueueFillCommand extends Command
 {
@@ -31,11 +32,11 @@ class QueueFillCommand extends Command
     private $queueManager;
     private $gameManager;
 
-    // Logger
-    private $logger;
-
     // Doctrine EntityManager
     private $em;
+
+    // Message bus
+    private $bus;
 
     // User repo
     private $userRepository;
@@ -44,17 +45,18 @@ class QueueFillCommand extends Command
     private $guardAuthenticatorHandler;
 
     // Dependency injection of the GameManager service
-    public function __construct( LoggerInterface $logger, GameManager $gm, QueueManager $qm,
-	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
+    public function __construct( GameManager $gm, QueueManager $qm,
+    EntityManagerInterface $em, GuardAuthenticatorHandler $gah,
+    MessageBusInterface $bus)
     {
-        $this->logger = $logger;
-
         parent::__construct();
 
         $this->gameManager = $gm;
         $this->queueManager = $qm;
 
         $this->em = $em;
+
+        $this->bus = $bus;
 
         // get the User repository
         $this->userRepository = $this->em->getRepository( User::class);
@@ -72,8 +74,8 @@ class QueueFillCommand extends Command
         // the "--help" option
         ->setHelp('This command allows you to add few games into the analysis queue.')
 
-	// option to confirm the graph deletion
-	->addOption(
+        // option to confirm the graph deletion
+        ->addOption(
         'threshold',
         null,
         InputOption::VALUE_OPTIONAL,
@@ -101,107 +103,104 @@ class QueueFillCommand extends Command
         'Please specify analysis side',
         ':WhiteSide:BlackSide' // Default
         )
-	;
+        ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-	// Parse the user specified queue length
-	$threshold = intval( $input->getOption('threshold'));
+      // Parse the user specified queue length
+      $threshold = intval( $input->getOption('threshold'));
 
-	// Cap the user input with reasonable max value
-	if( $threshold > $_ENV['PENDING_QUEUE_LIMIT']) 
-		$threshold = $_ENV['PENDING_QUEUE_LIMIT'];
+      // Cap the user input with reasonable max value
+      if( $threshold > $_ENV['PENDING_QUEUE_LIMIT'])
+        $threshold = $_ENV['PENDING_QUEUE_LIMIT'];
 
-	$output->writeln( 'We are going to fill the queue to '. $threshold. ' items...');
+      $output->writeln( 'We are going to fill the queue to '. $threshold. ' items...');
 
-	// Check if queue is already full
-	$length = $this->queueManager->countAnalysisNodes( 'Pending', true);
+      // Check if queue is already full
+      $length = $this->queueManager->countAnalysisNodes( 'Pending', true);
 
-	$output->writeln( 'Current analysis queue length = '. $length);
+      $output->writeln( 'Current analysis queue length = '. $length);
 
-	// Queue length negative, no graph exists
-	if( $length == -1) {
+      // Queue length negative, no graph exists
+      if( $length == -1) {
 
-	  $output->writeln( 'Analysis queue does not exist. Exiting...');
+        $output->writeln( 'Analysis queue does not exist. Exiting...');
 
-          return 1;
-	}
+        return 1;
+      }
 
-	// Current queue length is bigger than desired value.
-	if( $length >= $threshold) {
+      // Current queue length is bigger than desired value.
+      if( $length >= $threshold) {
 
-	  $output->writeln( 'Analysis queue already has '. $length. ' items. Exiting...');
+        $output->writeln( 'Analysis queue already has '. $length. ' items. Exiting...');
 
-          return 1;
-	}
+        return 1;
+      }
 
-        // Get specified option
-        $type = $input->getOption('type');
+      // Get specified option
+      $type = $input->getOption('type');
 
-        // Default analysis parameters
-        $sideLabel = ":WhiteSide:BlackSide";
-        $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
-        $userId = $_ENV['SYSTEM_WEB_USER_ID'];
+      // Default analysis parameters
+      $sideLabel = ":WhiteSide:BlackSide";
+      $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
 
-        // Get the user by email
-        $user = $this->userRepository->findOneBy(['id' => $userId]);
-/*
-        // Get all active users
-        $users = $this->userRepository->findAll();
+      // Get the user by email
+      $userId = $_ENV['SYSTEM_WEB_USER_ID'];
+      $user = $this->userRepository->findOneBy(['id' => $userId]);
 
-        // Get random user
-        $userId = rand( 0, count( $users)-1);
-        $user = $users[$userId];
-*/
-        $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+      // Let us only use system account for filling the Queue
+      // Otherwise users will get surprised to receive an analysis
+      // complete notification for the game they did not request
+      $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
             $user,
             new Request(),
             new TokenAuthenticator( $this->em),
             self::FIREWALL_MAIN
-        );
+      );
 
-        // Validate depth option
-        $depthOption = intval( $input->getOption('depth'));
-        if( $depthOption != 0) $depth = $depthOption;
+      // Validate depth option
+      $depthOption = intval( $input->getOption('depth'));
+      if( $depthOption != 0) $depth = $depthOption;
 
-        // Validate side option
-        $sideToAnalyze = $input->getOption('side');
-        if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
-          $sideLabel = ":".$sideToAnalyze;
+      // Validate side option
+      $sideToAnalyze = $input->getOption('side');
+      if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
+        $sideLabel = ":".$sideToAnalyze;
 
-        $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth.
-		' type: '.$type.' user: '.$user->getEmail());
+      $output->writeln( 'Side labels(s): '.$sideLabel.' depth: '.$depth.
+        ' type: '.$type.' user: '.$user->getEmail());
 
-	// Array of queued game ids
-	$gids = array();
+      // Array of queued game ids
+      $gids = array();
 
-	// Add yet another game
-	do {
-          // Get the game id
-          $gid = $this->gameManager->getRandomGameId( $type);
+      // Add yet another game
+      do {
+        // Get the game id
+        $gid = $this->gameManager->getRandomGameId( $type);
 
-          $output->writeln( 'Selected game id ' . $gid . ' depth: ' . 
-		$depth . ' label ' . $sideLabel);
+        $output->writeln( 'Selected game id ' . $gid . ' depth: ' .
+          $depth . ' label ' . $sideLabel);
 
-	  // Enqueue game analysis node
-	  if(( $aid = $this->queueManager->enqueueGameAnalysis(
-                $gid, $depth, $sideLabel)) != -1) {
+        $gids[] = $gid;
 
-            $output->writeln( 'New analysis id: '.$aid);
+        // will cause the QueueManagerCommandHandler to be called
+        $this->bus->dispatch(new QueueManagerCommand( 'enqueue',
+          ['game_id' => $gid, 'depth' => $depth, 'side_label' => $sideLabel]));
 
-	    $gids[] = $gid;	
-	  } else
-            $output->writeln( 'Error queueing the game!');
+        // There can be a situation where many enqueue requests are submitted
+        // while handler is still busy adding first request
+        // Let us add small delay
+        sleep(1);
 
-	} while( $this->queueManager->countAnalysisNodes( 'Pending', true) < $threshold);
+      } while( $this->queueManager->countAnalysisNodes( 'Pending', true) < $threshold);
 
-        $output->writeln( 'Loading :Game lines');
+      $output->writeln( 'Loading :Game lines');
 
-        // Request :Line load for the list of games
-        $this->gameManager->loadLines( $gids, $userId);
+      // Request :Line load for the list of games
+      $this->gameManager->loadLines( $gids, $userId);
 
-        return 0;
+      return 0;
     }
 }
 ?>

@@ -5,6 +5,7 @@
 namespace App\Service;
 
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use App\Service\PGNFetcher;
@@ -23,16 +24,17 @@ class GameManager
     private $fetcher;
     private $uploader;
 
-    // Game repo
-    private $userRepository;
+    // We need to check roles and get user id
+    private $security;
 
     public function __construct( ClientInterface $client, LoggerInterface $logger,
-	PGNFetcher $fetcher, PGNUploader $uploader)
+    	PGNFetcher $fetcher, PGNUploader $uploader, Security $security)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
         $this->fetcher = $fetcher;
         $this->uploader = $uploader;
+        $this->security = $security;
     }
 
     // Find :Game node in the database
@@ -364,15 +366,24 @@ RETURN length(path) AS length LIMIT 1';
 
 
     // Merge :Lines for the :Games into the DB
-    public function loadLines( $gids, $wuid)
+    public function loadLines( $gids)
     {
+      if( !$this->security->isGranted('ROLE_USER')) {
+    	  if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Access denied');
+    	  return false;
+    	}
+
+      // returns User object or null if not authenticated
+      $user = $this->security->getUser();
+
       // Game ids to load
       $gameIds = array();
 
       // Check if the game line has been already loaded
       foreach( $gids as $gid)
-	if( !$this->lineExists( $gid))
-	  $gameIds[] = $gid;
+        if( !$this->lineExists( $gid))
+          $gameIds[] = $gid;
 
       $this->logger->debug( "Game ids to fetch: ". implode( ",", $gameIds));
 
@@ -390,7 +401,7 @@ RETURN length(path) AS length LIMIT 1';
 
         // Filename SHOULD contain 'lines' prefix in order to make sure
         // the filename is never matches 'games' prefix, reserved for :Game-only db merge
-        $tmp_file = $filesystem->tempnam('/tmp', 'lines-'.$wuid.'-');
+        $tmp_file = $filesystem->tempnam('/tmp', 'lines-'.$user->getId().'-');
 
         // Save the PGNs into a local temp file
         file_put_contents( $tmp_file, $PGNstring);

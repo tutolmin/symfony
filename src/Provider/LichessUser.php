@@ -69,7 +69,7 @@ class LichessUser implements ResourceOwnerInterface
      */
     public function getName()
     {
-        return $this->getFirstName()." ".getLastName();
+        return $this->getFirstName()." ".$this->getLastName();
     }
 
     /**

@@ -10,7 +10,8 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Stopwatch\Stopwatch;
 use App\Service\GameManager;
-use App\Service\QueueManager;
+use App\Message\QueueManagerCommand;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class QueueGameAnalysisController extends AbstractController
 {
@@ -23,6 +24,9 @@ class QueueGameAnalysisController extends AbstractController
     // Logger reference
     private $logger;
 
+    // Message bus
+    private $bus;
+
     // Queue/Game manager reference
     private $queueManager;
     private $gameManager;
@@ -31,21 +35,21 @@ class QueueGameAnalysisController extends AbstractController
 
     // Dependency injection of necessary services
     public function __construct( Stopwatch $watch, LoggerInterface $logger,
-	QueueManager $qm, GameManager $gm)
+      MessageBusInterface $bus, GameManager $gm)
     {
-        $this->stopwatch = $watch;
-	$this->logger = $logger;
-	$this->queueManager = $qm;
-	$this->gameManager = $gm;
+      $this->stopwatch = $watch;
+      $this->logger = $logger;
+      $this->bus = $bus;
+      $this->gameManager = $gm;
 
-	// starts event named 'eventName'
-	$this->stopwatch->start('queueGameAnalysis');
+      // starts event named 'eventName'
+      $this->stopwatch->start('queueGameAnalysis');
     }
 
     public function __destruct()
     {
-	// stops event named 'eventName'
-	$this->stopwatch->stop('queueGameAnalysis');
+      // stops event named 'eventName'
+      $this->stopwatch->stop('queueGameAnalysis');
     }
 
     /**
@@ -55,8 +59,8 @@ class QueueGameAnalysisController extends AbstractController
     public function queueGameAnalysis()
     {
       // or add an optional message - seen by developers
-      $this->denyAccessUnlessGranted('ROLE_USER', null, 
-	'User tried to access a page without having ROLE_USER');
+      $this->denyAccessUnlessGranted('ROLE_USER', null,
+        'User tried to access a page without having ROLE_USER');
 
       // Default analysis parameters
       $sideLabel = ":WhiteSide:BlackSide";
@@ -64,24 +68,24 @@ class QueueGameAnalysisController extends AbstractController
 
       // HTTP request
       $request = Request::createFromGlobals();
-	
+
       // Get analysis depth
       $requestDepth = $request->request->get( 'depth');
-      if( $requestDepth == "deep" ) 
-	$depth = $_ENV['DEEP_ANALYSIS_DEPTH'];
+      if( $requestDepth == "deep" )
+        $depth = $_ENV['DEEP_ANALYSIS_DEPTH'];
 
       // Get side from a query parameter
       $sideToAnalyze = $request->request->get('side', "");
 
       // Prepare analyze addition to a query
       if( $sideToAnalyze == "WhiteSide" || $sideToAnalyze == "BlackSide")
-	$sideLabel = ":".$sideToAnalyze;
+        $sideLabel = ":".$sideToAnalyze;
 
       // get Game IDs from the query
       $gids = json_decode( $request->request->get( 'gids'));
 
       $this->logger->debug( "Game ids to queue: ". implode( ",", $gids));
-	
+
       // get Doctrine userId
       $userId = $this->getUser()->getId();
 
@@ -89,27 +93,22 @@ class QueueGameAnalysisController extends AbstractController
       $counter = 0;
       foreach( $gids as $gid) {
 
-	$this->stopwatch->lap('queueGameAnalysis');
-
         $this->logger->debug( 'Queueing game ID: '.$gid);
 
-	// Check if game id represents a valid game
-	if( !$this->gameManager->gameExists( $gid)) {
+        // Check if game id represents a valid game
+        if( !$this->gameManager->gameExists( $gid)) {
 
-            $this->logger->debug('The game is invalid.');
-	    continue;
-	}
+          $this->logger->debug('The game is invalid.');
+          continue;
+        }
 
-	// enqueue particular game 
-	if( $this->queueManager->enqueueGameAnalysis( 
-		$gid, $depth, $sideLabel, $userId) != -1) {
+        // will cause the QueueManagerCommandHandler to be called
+        $this->bus->dispatch(new QueueManagerCommand( 'enqueue',
+          ['game_id' => $gid, 'depth' => $depth,
+          'side_label' => $sideLabel, 'user_id' => $userId]));
 
-	  // Build the list of :Game ids to request :Line merge
-	  $this->gids[] = $gid;
-
-	  // Count successfull analysis additions
-	  $counter++;
-	}
+        // Build the list of :Game ids to request :Line merge
+        $this->gids[] = $gid;
       }
 
       $this->stopwatch->lap('queueGameAnalysis');
@@ -117,9 +116,9 @@ class QueueGameAnalysisController extends AbstractController
       $this->logger->debug( "Game ids to load: ". implode( ",", $this->gids));
 
       // Request :Line load for the list of games
-      $this->gameManager->loadLines( $this->gids, $userId);
+      $this->gameManager->loadLines( $this->gids);
 
-      return new Response( $counter . " game(s) have been queued for analysis.");
+      return new Response( count( $this->gids) . " game(s) have been queued for analysis.");
     }
 }
 ?>

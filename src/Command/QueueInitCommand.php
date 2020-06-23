@@ -17,7 +17,7 @@ use App\Entity\User;
 class QueueInitCommand extends Command
 {
     const FIREWALL_MAIN = "main";
-    
+
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:init';
 
@@ -35,7 +35,7 @@ class QueueInitCommand extends Command
 
     // Dependency injection of the Queue Manager service
     public function __construct( QueueManager $qm,
-	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
+      EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
@@ -51,37 +51,37 @@ class QueueInitCommand extends Command
 
     protected function configure()
     {
-	$this
+      $this
 
-        // the short description shown while running "php bin/console list"
-        ->setDescription('Initializes empty game analysis queue.')
+      // the short description shown while running "php bin/console list"
+      ->setDescription('Initializes empty game analysis queue.')
 
-        // the full command description shown when running the command with
-        // the "--help" option
-        ->setHelp('This command allows you to create a neccessary Neo4j nodes for the game analysis queue.')
-    ;
+      // the full command description shown when running the command with
+      // the "--help" option
+      ->setHelp('This command allows you to create a neccessary Neo4j nodes for the game analysis queue.')
+      ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        // Initialize security context
-        $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
-            $this->userRepository->findOneBy(['id' => $_ENV['SYSTEM_WEB_USER_ID']]),
-            new Request(),
-            new TokenAuthenticator( $this->em),
-            self::FIREWALL_MAIN
-        );
-	
-        // Init empty queue graph
-        if( $this->queueManager->initQueueGraph())
-    
-          $output->writeln( 'Empty analysis queue has been initialized successfully');
+      // Initialize security context
+      $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+        $this->userRepository->findOneBy(['id' => $_ENV['SYSTEM_WEB_USER_ID']]),
+        new Request(),
+        new TokenAuthenticator( $this->em),
+        self::FIREWALL_MAIN
+      );
 
-	else
+      // Init empty queue graph
+      if( $this->queueManager->initQueueGraph())
 
-          $output->writeln( 'Analysis queue already exists');
+        $output->writeln( 'Empty analysis queue has been initialized successfully');
 
-        return 0;
+	     else
+
+        $output->writeln( 'Analysis queue already exists');
+
+      return 0;
     }
 }
 ?>

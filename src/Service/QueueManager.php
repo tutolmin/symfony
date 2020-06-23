@@ -2397,7 +2397,7 @@ RETURN id(a) AS aid LIMIT 1';
 
 
     // Queue Game Analysis function
-    public function enqueueGameAnalysis( $gid, $depth, $sideLabel)
+    public function enqueueGameAnalysis( $gid, $depth, $sideLabel, $userId)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Staring game anaysis enqueueing process.');
@@ -2561,7 +2561,7 @@ RETURN average.milliseconds AS speed';
       if( $_ENV['APP_DEBUG'])
               $this->logger->debug( 'Fetched email: '.$user->getEmail());
 
-
+      $game = array();
 
 
               // Fetch game details

@@ -8,41 +8,25 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Stopwatch\Stopwatch;
-use App\Service\QueueManager;
+use App\Message\QueueManagerCommand;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class PromoteAnalysisController extends AbstractController
 {
     // Neo4j client interface reference
     private $neo4j_client;
 
-    // StopWatch instance
-    private $stopwatch;
+    // Message bus
+    private $bus;
 
     // Logger reference
     private $logger;
 
-    // Queue manager reference
-    private $queueManager;
-
-    private $gids = array();
-
     // Dependency injection of necessary services
-    public function __construct( Stopwatch $watch, LoggerInterface $logger,
-	QueueManager $qm)
+    public function __construct( LoggerInterface $logger, MessageBusInterface $bus)
     {
-        $this->stopwatch = $watch;
-	$this->logger = $logger;
-	$this->queueManager = $qm;
-
-	// starts event named 'eventName'
-	$this->stopwatch->start('promoteAnalysis');
-    }
-
-    public function __destruct()
-    {
-	// stops event named 'eventName'
-	$this->stopwatch->stop('promoteAnalysis');
+      $this->logger = $logger;
+      $this->bus = $bus;
     }
 
     /**
@@ -52,33 +36,27 @@ class PromoteAnalysisController extends AbstractController
     public function promoteAnalysisList()
     {
       // or add an optional message - seen by developers
-      $this->denyAccessUnlessGranted('ROLE_QUEUE_MANAGER', null, 
-	'User tried to access a page without having ROLE_QUEUE_MANAGER');
+      $this->denyAccessUnlessGranted('ROLE_QUEUE_MANAGER', null,
+        'User tried to access a page without having ROLE_QUEUE_MANAGER');
 
       // HTTP request
       $request = Request::createFromGlobals();
-	
+
       // get Analysis IDs from the query
       $aids = json_decode( $request->request->get( 'aids'));
 
       $this->logger->debug( "Analysis ids to promote: ". implode( ",", $aids));
-	
-      // Iterate through all the IDs
-      $counter = 0;
-      foreach( $aids as $aid) {
 
-	$this->stopwatch->lap('promoteAnalysis');
+      // Iterate through all the IDs
+      foreach( $aids as $aid) {
 
         $this->logger->debug( 'Promoting analysis ID: '.$aid);
 
-	// promote particular analysis
-	if( $this->queueManager->promoteAnalysis( $aid))
-
-	  // Count successfull analysis deletions
-	  $counter++;
+        // will cause the QueueManagerCommandHandler to be called
+        $this->bus->dispatch(new QueueManagerCommand( 'promote', ['analysis_id' => $aid]));
       }
 
-      return new Response( $counter . " analysis nodes have been promoted.");
+      return new Response( count( $aids) . " analysis nodes have been promoted.");
     }
 }
 ?>

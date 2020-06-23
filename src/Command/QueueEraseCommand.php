@@ -36,7 +36,7 @@ class QueueEraseCommand extends Command
 
     // Dependency injection of the Queue manager service
     public function __construct( QueueManager $qm,
-	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
+      EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
@@ -60,50 +60,51 @@ class QueueEraseCommand extends Command
         // the "--help" option
         ->setHelp('This command allows you to erase all the Neo4j nodes and relationship associated with the game analysis queue.')
 
-	// option to confirm the graph deletion
-	->addOption(
+        // option to confirm the graph deletion
+        ->addOption(
         'confirm',
         null,
         InputOption::VALUE_OPTIONAL,
         'Please confirm the graph deletion',
         false // this is the new default value, instead of null
-    )
-    ;
+        )
+        ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-	// Check if the user confirmed the graph deletion
-	$optionValue = $input->getOption('confirm');
-	$confirm = ($optionValue !== false);
+      // Check if the user confirmed the graph deletion
+      $optionValue = $input->getOption('confirm');
+      $confirm = ($optionValue !== false);
 
-	if( !$confirm) {
+      if( !$confirm) {
 
-	  $output->writeln( 'Please confirm graph deletion with --confirm option.');
+        $output->writeln( 'Please confirm graph deletion with --confirm option.');
+        return 1;
+      }
 
-          return 1;
-	}
+      // Initialize security context
+      $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+        $this->userRepository->findOneBy(['id' => $_ENV['SYSTEM_WEB_USER_ID']]),
+        new Request(),
+        new TokenAuthenticator( $this->em),
+        self::FIREWALL_MAIN
+      );
 
-        // Initialize security context
-        $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
-            $this->userRepository->findOneBy(['id' => $_ENV['SYSTEM_WEB_USER_ID']]),
-            new Request(),
-            new TokenAuthenticator( $this->em),
-            self::FIREWALL_MAIN
-        );
+      // Execute queue manager member function
+      // This won't work on a bigger graph
+      // It will run OOM
+      if( $this->queueManager->eraseQueueGraph()) {
 
-	// Execute queue manager member function	
-	if( $this->queueManager->eraseQueueGraph()) {
+        $output->writeln( 'Analysis queue nodes and relationships have been deleted successfully!');
 
-	  $output->writeln( 'Analysis queue nodes and relationships have been deleted successfully!');
+        // Init empty queue graph
+        if( $this->queueManager->initQueueGraph())
 
-          // Init empty queue graph
-          if( $this->queueManager->initQueueGraph()) 
+          $output->writeln( 'Empty analysis queue has been initialized successfully');
+      }
 
-            $output->writeln( 'Empty analysis queue has been initialized successfully');
-	}
-
-        return 0;
+      return 0;
     }
 }
 ?>

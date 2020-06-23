@@ -60,9 +60,9 @@ queue_promote () {
  php bin/console queue:promote:random
 }
 
-queue_erase () {
+queue_delete () {
 
- php bin/console queue:erase:random
+ php bin/console queue:delete:random
 }
 
 queue_fill () {
@@ -147,7 +147,7 @@ while [[ $queue_length -gt 15 ]]; do
 
  change_status "Processing"
  queue_add
- queue_erase
+ queue_delete
  change_status "Evaluated"
 
  get_queue_length "Pending"
@@ -170,7 +170,7 @@ php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=23
 php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=18
 
 php bin/console queue:promote:random
-php bin/console queue:erase:random
+php bin/console queue:delete:random
 
 php bin/console queue:add:random
 php bin/console queue:add:random --type=checkmate
@@ -185,4 +185,3 @@ php bin/console queue:change:random status Evaluated
 php bin/console queue:change:random status Pending
 
 MULTILINE-COMMENT
-
