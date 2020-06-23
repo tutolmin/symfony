@@ -10,12 +10,13 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\GameManager;
 use App\Service\QueueManager;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
 use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
+use App\Message\QueueManagerCommand;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class QueueChangeRandomCommand extends Command
 {
@@ -33,6 +34,9 @@ class QueueChangeRandomCommand extends Command
     // Doctrine EntityManager
     private $em;
 
+    // Message bus
+    private $bus;
+
     // User repo
     private $userRepository;
 
@@ -40,27 +44,27 @@ class QueueChangeRandomCommand extends Command
     private $guardAuthenticatorHandler;
 
     // Dependency injection of the GameManager service
-    public function __construct( LoggerInterface $logger, GameManager $gm, QueueManager $qm,
-	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
+    public function __construct( GameManager $gm, QueueManager $qm,
+      EntityManagerInterface $em, GuardAuthenticatorHandler $gah,
+      MessageBusInterface $bus)
     {
-        $this->logger = $logger;
-
         parent::__construct();
 
         $this->gameManager = $gm;
         $this->queueManager = $qm;
 
         $this->em = $em;
+        $this->bus = $bus;
 
         // get the User repository
         $this->userRepository = $this->em->getRepository( User::class);
 
-	$this->guardAuthenticatorHandler = $gah;
+        $this->guardAuthenticatorHandler = $gah;
     }
 
     protected function configure()
     {
-	$this
+        $this
 
         // the short description shown while running "php bin/console list"
         ->setDescription('Changes a random analysis in the the queue.')
@@ -85,88 +89,96 @@ class QueueChangeRandomCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-	// Get specified parameter name
-	$param = $input->getArgument('param');
+      // Get specified parameter name
+      $param = $input->getArgument('param');
 
-	// Valid parameter values
-	$params = ['side', 'status', 'type'];
-	if( !in_array( $param, $params)) {
+      // Valid parameter values
+      $params = ['side', 'status', 'type'];
+      if( !in_array( $param, $params)) {
 
-	  $output->writeln( 'Invalid parameter: '.$param);
-	  return -1;
-	}
+        $output->writeln( 'Invalid parameter: '.$param);
+        return -1;
+      }
 
-	// Get specified parameter value
-	$value = $input->getArgument('value');
+      // Get specified parameter value
+      $value = $input->getArgument('value');
 
-	// Valid parameters values
-	$statuses = ['Pending','Processing','Partially',
+      // Valid parameters values
+      $statuses = ['Pending','Processing','Partially',
 	        'Skipped','Evaluated','Exported','Complete'];
 
-	$sides = ['WhiteSide', 'BlackSide', 'Both'];
+      $sides = ['WhiteSide', 'BlackSide', 'Both'];
 
-	$types = ['fast', 'deep'];
+      $types = ['fast', 'deep'];
 
-	// Valid parameter values
-	if( ($param == 'status' && !in_array( $value, $statuses)) ||
-	    ($param == 'side' && !in_array( $value, $sides)) ||
-	    ($param == 'type' && !in_array( $value, $types))) {
+      // Valid parameter values
+      if( ($param == 'status' && !in_array( $value, $statuses)) ||
+	        ($param == 'side' && !in_array( $value, $sides)) ||
+	        ($param == 'type' && !in_array( $value, $types))) {
 
-	  $output->writeln( 'Invalid parameter name/value: '.$param.'/'.$value);
-	  return -1;
-	}
+        $output->writeln( 'Invalid parameter name/value: '.$param.'/'.$value);
+        return -1;
+      }
 
-        // Get the user by email
-        $userId = $_ENV['SYSTEM_WEB_USER_ID'];
-        $user = $this->userRepository->findOneBy(['id' => $userId]);
+      // Get the user by email
+      $userId = $_ENV['SYSTEM_WEB_USER_ID'];
+      $user = $this->userRepository->findOneBy(['id' => $userId]);
 
-	$this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+      $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
             $user,
             new Request(),
             new TokenAuthenticator( $this->em),
             self::FIREWALL_MAIN
-        );
+      );
 
-	// Get specific node for certain parameters
+      // Get specific node for certain parameters
 
-	// We change first Skipped for Pending
-	if( $param == 'status' && $value == 'Pending') {
-	  $aid = $this->queueManager->getStatusQueueNode( 'Skipped', 'first');
-	
-	  if( $aid == -1)
-	    $aid = $this->queueManager->getStatusQueueNode( 'Partially', 'first');
+      // We change first Skipped for Pending
+      if( $param == 'status' && $value == 'Pending') {
+        $aid = $this->queueManager->getStatusQueueNode( 'Skipped', 'first');
 
-	  if( $aid == -1)
-	    $aid = $this->queueManager->getStatusQueueNode( 'Evaluated', 'first');
-	}
+        // Then if there are no Skipped, try Partially
+        if( $aid == -1)
+          $aid = $this->queueManager->getStatusQueueNode( 'Partially', 'first');
 
-	// We fetch first Pending to change status for Processing
-	else if( $param == 'status' && $value == 'Processing')
-	  $aid = $this->queueManager->getStatusQueueNode( 'Pending', 'first');
+        // Finally if there are no Skipped and Partially, try Evaluated
+        if( $aid == -1)
+          $aid = $this->queueManager->getStatusQueueNode( 'Evaluated', 'first');
+      }
 
-	// We fetch first Processing to change status for Evaluated
-	else if( $param == 'status' && $value == 'Evaluated')
-	  $aid = $this->queueManager->getStatusQueueNode( 'Processing', 'first');
+      // We fetch first Pending to change status for Processing
+      else if( $param == 'status' && $value == 'Processing')
+        $aid = $this->queueManager->getStatusQueueNode( 'Pending', 'first');
 
-	else 
+      // We fetch first Processing to change status for Evaluated
+      else if( $param == 'status' && $value == 'Evaluated')
+        $aid = $this->queueManager->getStatusQueueNode( 'Processing', 'first');
 
-          // Get random analysis id
-          $aid = $this->queueManager->getRandomAnalysisNode();
+      else
+        // Get random analysis id
+        $aid = $this->queueManager->getRandomAnalysisNode();
 
-	$output->writeln( 'Changing '.$param.' to: '.$value.' for '. $aid);
+      $output->writeln( 'Changing '.$param.' to: '.$value.' for '. $aid);
 
-	$result = false;
-        if( $param == 'status')
-          $result = $this->queueManager->promoteAnalysis( $aid, $value);
-        else if( $param == 'side')
-	  $result = $this->queueManager->setAnalysisSide( $aid, $value);
-        else if( $param == 'type')
-	  $result = $this->queueManager->setAnalysisDepth( $aid, $value);
+      if( $param == 'status')
 
-	if( !$result)
-	  $output->writeln( 'Error changing parameters');
+        // will cause the QueueManagerCommandHandler to be called
+        $this->bus->dispatch(new QueueManagerCommand( 'promote',
+          ['analysis_id' => $aid, 'status' => $value]));
 
-        return 0;
+      else if( $param == 'side')
+
+        // will cause the QueueManagerCommandHandler to be called
+        $this->bus->dispatch(new QueueManagerCommand( 'set_side',
+          ['analysis_id' => $aid, 'side_label' => $value]));
+
+      else if( $param == 'type')
+
+        // will cause the QueueManagerCommandHandler to be called
+        $this->bus->dispatch(new QueueManagerCommand( 'set_depth',
+          ['analysis_id' => $aid, 'depth' => $value]));
+
+      return 0;
     }
 }
 ?>
