@@ -3,4 +3,7 @@ twig:
     debug: '%kernel.debug%'
     strict_variables: '%kernel.debug%'
     globals:
+        app_host: '%app_host%'
         oauth_google_cleant_id: '%env(OAUTH_GOOGLE_CLIENT_ID)%'
+        google_recaptcha_public_key: '%env(GOOGLE_RECAPTCHA_PUBLIC_KEY)%'
+

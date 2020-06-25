@@ -6,7 +6,9 @@
 parameters:
     PGNs_directory: '%kernel.project_dir%/public/uploads/PGNs'
     cache_directory: '%kernel.project_dir%/cache'
+    app_host: '%env(APP_HOST)%'
     upload_games_parent_directory: '%kernel.project_dir%/var/upload-games'
+    google_recaptcha_site_key: '%env(GOOGLE_RECAPTCHA_SITE_KEY)%'
 
 services:
     # default configuration for services in *this* file
@@ -14,7 +16,6 @@ services:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
-            $appHost: '%env(APP_HOST)%'
             $uploadGamesTaskFilesystem: '@oneup_flysystem.user_upload_games_fs_filesystem'
             $uploadGamesParentDirectory: '%upload_games_parent_directory%'
 

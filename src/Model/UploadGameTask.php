@@ -37,6 +37,13 @@ class UploadGameTask
      */
     private $file;
 
+    /**
+     * @var string
+     *
+     * @Assert\NotBlank()
+     */
+    private $recaptcha;
+
     public function __construct()
     {
         $this->hash = uuid_create();
@@ -86,6 +93,26 @@ class UploadGameTask
     public function setFile(?UploadedFile $file): self
     {
         $this->file = $file;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getRecaptcha(): string
+    {
+        return $this->recaptcha;
+    }
+
+    /**
+     * @param string $recaptcha
+     *
+     * @return $this
+     */
+    public function setRecaptcha(string $recaptcha): self
+    {
+        $this->recaptcha = $recaptcha;
 
         return $this;
     }

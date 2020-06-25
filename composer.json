@@ -7,6 +7,7 @@
         "php": "^7.1.3",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "google/recaptcha": "^1.2",
         "graphaware/neo4j-php-ogm": "@rc",
         "knpuniversity/oauth2-client-bundle": "^1.27",
         "league/oauth2-facebook": "^2.0",

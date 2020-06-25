@@ -39,14 +39,15 @@ class UploadGameType extends AbstractType
                 $file = $form->get('file');
 
                 if ($regular->isEmpty() && $file->isEmpty()) {
-                    // @todo: implements
                     $form->addError(new FormError('One of the fields should be sent'));
+                    return;
                 }
             })
         ;
     }
 
-    public function configureOptions(OptionsResolver $resolver)
+    /** {@inheritDoc} */
+    public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
             'data_class' => UploadGameTask::class,

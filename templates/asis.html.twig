@@ -9,6 +9,10 @@
 <link rel="stylesheet" href="css/chesscheat.css" />
 {% endblock %}
 
+{% block head %}
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endblock %}
+
 {% block body %}
 
 <div>
@@ -63,13 +67,18 @@ Use the form below to upload your games.</p>
 
     {{ form_row(form.regular) }}
     {{ form_row(form.file) }}
-
 <!--
 <p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
 -->
 
+    <div class="g-recaptcha"
+         data-sitekey="{{ google_recaptcha_public_key }}"
+         data-callback="onUploadGameSubmit"
+         data-size="invisible">
+    </div>
+
     <input type="button" value="Reset" name="reset" />
-    <input type="submit" value="Upload PGN" name="submit"
+    <input type="submit" value="Upload PGN" name="submit" onSubmit="onUploadGameSubmit"
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {% else %}
 	disabled="disabled"
@@ -451,6 +460,27 @@ Use the form below to upload your games.</p>
 <script src="js/jquery.tagsinput-revisited.min.js"></script>
 <script src="js/chesscheat.js"></script>
 <script src="js/upload_game.js"></script>
+<script>
+    let $uploadGameForm = $('form[name="upload_game"]');
+
+    $uploadGameForm.on('submit', function(e) {
+        e.preventDefault();
+
+        let $regular = $('#upload_game_regular').val().trim();
+        let $file = $('#upload_game_file').val().trim();
+
+        if (!regular && !file) {
+            uploadGameModule.showMessage('One of the fields should be sent');
+            return;
+        }
+
+        grecaptcha.execute();
+    });
+
+    function onUploadGameSubmit() {
+        uploadGameModule.handleSubmitEvent();
+    }
+</script>
 {% if is_granted('ROLE_QUEUE_MANAGER') %}
 <script src="js/queue_manager.js"></script>
 {% else %}
