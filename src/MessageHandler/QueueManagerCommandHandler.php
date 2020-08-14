@@ -8,12 +8,15 @@ use App\Message\QueueManagerCommand;
 use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 use App\Service\QueueManager;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
+use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
 
 class QueueManagerCommandHandler implements MessageHandlerInterface
 {
+  const FIREWALL_MAIN = "main";
 
   // Queue/Game manager reference
   private $queueManager;
