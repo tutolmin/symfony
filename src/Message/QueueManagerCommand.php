@@ -7,8 +7,8 @@ namespace App\Message;
 class QueueManagerCommand
 {
     private $command;
-    private $game_id;
     private $analysis_id;
+    private $game_id;
     private $depth;
     private $side_label;
     private $status;
@@ -62,6 +62,26 @@ class QueueManagerCommand
     public function getGameId(): int
     {
         return $this->game_id;
+    }
+
+    public function getDepth(): int
+    {
+        return $this->depth;
+    }
+
+    public function getSideLabel(): string
+    {
+      return $this->side_label;
+    }
+
+    public function getStatus(): string
+    {
+      return $this->side_label;
+    }
+
+    public function getUserId(): int
+    {
+        return $this->user_id;
     }
 }
 ?>
