@@ -76,7 +76,7 @@ class QueueManagerCommand
 
     public function getStatus(): string
     {
-      return $this->side_label;
+      return $this->status;
     }
 
     public function getUserId(): int

@@ -97,13 +97,13 @@ class QueueManagerCommandHandler implements MessageHandlerInterface
         case 'promote':
 
         // Promote analysis
-        if( $this->queueManager->promoteAnalysis( $command->getAnalysisId()))
+        if( $this->queueManager->promoteAnalysis( $command->getAnalysisId(), $command->getStatus()))
 
-          $this->logger->debug( "Analyis id: " . $command->getAnalysisId() . " has been promoted");
+          $this->logger->debug( "Analyis id: " . $command->getAnalysisId() . " has been promoted( " . $command->getStatus() . ")");
 
         else
 
-          $this->logger->debug( "Error promoting analysis id: " . $command->getAnalysisId());
+          $this->logger->debug( "Error promoting analysis id: " . $command->getAnalysisId() . " status: " . $command->getStatus());
 
           break;
 
