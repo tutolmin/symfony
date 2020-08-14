@@ -8,6 +8,9 @@ use App\Message\QueueManagerCommand;
 use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 use App\Service\QueueManager;
 use Psr\Log\LoggerInterface;
+use App\Security\TokenAuthenticator;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\User;
 
 class QueueManagerCommandHandler implements MessageHandlerInterface
 {
@@ -18,24 +21,47 @@ class QueueManagerCommandHandler implements MessageHandlerInterface
   // Logger reference
   private $logger;
 
+  // Doctrine EntityManager
+  private $em;
+
+  // User repo
+  private $userRepository;
+
+  // Guard
+  private $guardAuthenticatorHandler;
+
   // Dependency injection of the QueueManager service
-  public function __construct( QueueManager $qm, LoggerInterface $logger)
+  public function __construct( QueueManager $qm, LoggerInterface $logger,
+      EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
   {
-      parent::__construct();
+//      parent::__construct();
 
       $this->queueManager = $qm;
       $this->logger = $logger;
+      $this->em = $em;
+      // get the User repository
+      $this->userRepository = $this->em->getRepository( User::class);
+      $this->guardAuthenticatorHandler = $gah;
   }
 
     public function __invoke(QueueManagerCommand $command)
     {
+
+      $user = $this->userRepository->findOneBy(['id' => $command->getUserId()]);
+
+      $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+        $user,
+        new Request(),
+        new TokenAuthenticator( $this->em),
+        self::FIREWALL_MAIN
+      );
 
       switch ( $command->getCommand()) {
         case 'enqueue':
 
           // enqueue particular game
           $aid = $this->queueManager->enqueueGameAnalysis(
-            $command->getGameId(), $command->getDepth(), $command->getSideLabel(), $command->getUserId());
+            $command->getGameId(), $command->getDepth(), $command->getSideLabel());
 
           if( $aid == -1)
 

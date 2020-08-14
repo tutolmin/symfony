@@ -2397,7 +2397,7 @@ RETURN id(a) AS aid LIMIT 1';
 
 
     // Queue Game Analysis function
-    public function enqueueGameAnalysis( $gid, $depth, $sideLabel, $userId)
+    public function enqueueGameAnalysis( $gid, $depth, $sideLabel)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Staring game anaysis enqueueing process.');
