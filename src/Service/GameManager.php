@@ -102,28 +102,60 @@ RETURN id(g) AS gid LIMIT 1';
         $query = 'MATCH (:PlyCount{counter:{counter}})-[:LONGER*0..]->';
 
 	switch( $type) {
+
 	  case "checkmate":
-        	$query .= '(p:CheckMatePlyCount) WITH p LIMIT 1
+      $query .= '(p:CheckMatePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:CHECKMATE_HAS_LENGTH]-(:CheckMate)<-[:FINISHED_ON]-(g:Game)';
-		break;
+
+      // Check if there are ANY checkmates in the DB
+      if( $plycount == -1)
+        $query = 'MATCH (:CheckMate)<-[:FINISHED_ON]-(g:Game) WITH g LIMIT 1';
+
+		  break;
+
 	  case "stalemate":
-        	$query .= '(p:StaleMatePlyCount) WITH p LIMIT 1
+      $query .= '(p:StaleMatePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:STALEMATE_HAS_LENGTH]-(:StaleMate)<-[:FINISHED_ON]-(g:Game)';
-		break;
+
+      // Check if there are ANY stalemates in the DB
+      if( $plycount == -1)
+        $query = 'MATCH (:CheckMate)<-[:FINISHED_ON]-(g:Game) WITH g LIMIT 1';
+
+		  break;
+
 	  case "1-0":
-        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+      $query .= '(p:GamePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
-		break;
+
+      // Check if there are ANY 1-0 in the DB
+      if( $plycount == -1)
+        $query = 'MATCH (g:Game)-[:ENDED_WITH]->(r:Result:Win)
+MATCH (r)<-[:ACHIEVED]-(:Side:White) WITH g LIMIT 1';
+
+		  break;
+
 	  case "0-1":
-        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+      $query .= '(p:GamePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
-		break;
+
+      // Check if there are ANY 0-1 in the DB
+      if( $plycount == -1)
+        $query = 'MATCH (g:Game)-[:ENDED_WITH]->(r:Result:Win)
+MATCH (r)<-[:ACHIEVED]-(:Side:Black) WITH g LIMIT 1';
+
+		  break;
+
 	  default:
-        	$query .= '(p:GamePlyCount) WITH p LIMIT 1
+      $query .= '(p:GamePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
-		break;
+
+      // Check if there are ANY games in the DB
+      if( $plycount == -1)
+        $query = 'MATCH (g:Game) WITH g LIMIT 1';
+
+		  break;
 	}
 
 	$query .= ' RETURN count(g) AS ttl LIMIT 1';
@@ -275,8 +307,8 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 	$params["counter"] = 0;
 	do {
 
-	  // If there are ANY games of this type
-	  if( $this->getGamesNumber( $type, 0) == 0)
+	  // If there are NO games of this type, exit immediately
+	  if( $this->getGamesNumber( $type, -1) == 0)
 	    break;
 
 	  // Select a game plycount
@@ -285,7 +317,7 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 
           $this->logger->debug('Selected game plycount '.$params["counter"]);
 
-	// Get total games for a certain plycount
+	// Repeat if there are NO games of this type for certain plycount
 	} while( ($skip = $this->getGamesNumber( $type, $params["counter"])) == 0);
 
         // Use SKIP to get a pseudo random game
@@ -307,12 +339,12 @@ MATCH (p)<-[:STALEMATE_HAS_LENGTH]-(:StaleMate)<-[:FINISHED_ON]-(g:Game)';
 		break;
 	  case "1-0":
         	$query .= '(p:GamePlyCount)
-MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
 		break;
 	  case "0-1":
         	$query .= '(p:GamePlyCount)
-MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 		break;
 	  default:
