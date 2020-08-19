@@ -96,6 +96,7 @@ class GameDetailsController extends AbstractController
 	$this->game[$prefix.'std_dev']="";
 	$this->game[$prefix.'cheat_score']="";
 	$this->game[$prefix.'perp_len']="";
+  $this->game['hasEvaluation'] = 'false';
 	}
     }
 
@@ -205,6 +206,8 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 
 //	  $data = $response_eval->toArray();
 	  $content = json_decode( $response_eval->getContent(), true);
+
+    $this->game['hasEvaluation'] = 'true';
 
 	  // Parse each ply info (it can be simple SAN or huge array with alternative lines)
 	  foreach( $content as $key => $item) {
