@@ -2397,7 +2397,7 @@ RETURN id(a) AS aid LIMIT 1';
 
 
     // Queue Game Analysis function
-    public function enqueueGameAnalysis( $gid, $depth, $sideLabel)
+    public function enqueueGameAnalysis( $gid, $depth_param, $sideLabel)
     {
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Staring game anaysis enqueueing process.');
@@ -2407,6 +2407,11 @@ RETURN id(a) AS aid LIMIT 1';
             $this->logger->debug('Access denied');
 	  return -1;
 	}
+
+  // Depth paramaeter
+	$depth = $this->depth['fast'];
+	if( array_key_exists( $depth_param, $this->depth))
+	  $depth = $this->depth[$value];
 
 	// Match analysis for both sides
 	$sides = array_unique( array_slice( explode( ':', $sideLabel), 1));
