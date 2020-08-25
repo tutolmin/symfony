@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 // src/Form/PGNtype.php
 namespace App\Form;
@@ -6,6 +6,8 @@ namespace App\Form;
 use App\Entity\PGN;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
+use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\File;
@@ -16,7 +18,10 @@ class PGNType extends AbstractType
     {
         $builder
             // ...
-            ->add('pgn', FileType::class, [
+
+            /* File uploads will be implemented later
+
+            ->add('file', FileType::class, [
                 'label' => 'Game PGN file',
 
                 // unmapped means that this field is not associated to any entity property
@@ -40,6 +45,12 @@ class PGNType extends AbstractType
                     ])
                 ],
             ])
+            */
+            ->add('text', TextareaType::class, [
+                'attr' => ['class' => 'tinymce'],
+                'disabled' => true
+                ])
+            ->add('submit', SubmitType::class)
             // ...
         ;
     }
@@ -48,6 +59,7 @@ class PGNType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => PGN::class,
+            'disabled' => true,
         ]);
     }
 }

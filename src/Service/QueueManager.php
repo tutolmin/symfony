@@ -1037,7 +1037,7 @@ RETURN id(a) AS aid LIMIT 1';
 
         $user = $this->security->getUser();
 
-        // Maintenane operation
+        // Maintenance operation
         $this->updateCurrentQueueNode();
 
 	// Potentially slow
@@ -1482,6 +1482,9 @@ RETURN id(a) AS aid, a.status';
 	  return false;
 	}
 
+  if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Adjusting analysis status relationships');
+
 	// Status queue empty, add very first item
 	$query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})
@@ -1599,9 +1602,10 @@ DELETE r';
 
 	  }
 	}
+*/
 	if( $_ENV['APP_DEBUG'])
           $this->logger->debug( $query . ' ' . implode( ',', $params));
-*/
+
         $this->neo4j_client->run($query, $params);
 
 /*
@@ -1902,7 +1906,7 @@ OPTIONAL MATCH (q)-[:NEXT]->(n:Queue) RETURN id(n) AS qid LIMIT 2';
     public function getStatusQueueNode( $status = 'Pending', $type = 'first') {
 
 	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Fetching '.$type.' '.$status.' node');
+          $this->logger->debug('Fetching '.$type.' '.$status.' queue node');
 
 	// Check if the status is valid
 	if( !in_array( $status, Analysis::STATUS)) return -1;
@@ -2090,7 +2094,7 @@ RETURN u.id AS uid';
 	}
 
 	// Check if there is already analysis graph present
-	if( !$this->updateCurrentQueueNode()) return false;
+	if( !$this->updateCurrentQueueNode( true)) return false;
 
 	// Disconnect analysis node from it's current place
 	if( !$this->detachAnalysisNode( $aid)) return false;
