@@ -8,43 +8,71 @@ use App\Message\QueueManagerCommand;
 use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 use App\Service\QueueManager;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
+use Symfony\Component\HttpFoundation\Request;
+use App\Security\TokenAuthenticator;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\User;
 
 class QueueManagerCommandHandler implements MessageHandlerInterface
 {
-/*
+  const FIREWALL_MAIN = "main";
+
   // Queue/Game manager reference
   private $queueManager;
 
   // Logger reference
   private $logger;
 
-  // Dependency injection of the QueueManager service
-  public function __construct( QueueManager $qm, LoggerInterface $logger)
-  {
-      parent::__construct();
+  // Doctrine EntityManager
+  private $em;
 
-      $queueManager = $qm;
-      $logger = $logger;
+  // User repo
+  private $userRepository;
+
+  // Guard
+  private $guardAuthenticatorHandler;
+
+  // Dependency injection of the QueueManager service
+  public function __construct( QueueManager $qm, LoggerInterface $logger,
+      EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
+  {
+//      parent::__construct();
+
+      $this->queueManager = $qm;
+      $this->logger = $logger;
+      $this->em = $em;
+      // get the User repository
+      $this->userRepository = $this->em->getRepository( User::class);
+      $this->guardAuthenticatorHandler = $gah;
   }
-*/
-    public function __invoke(QueueManagerCommand $command, $params,
-      QueueManager $queueManager, LoggerInterface $logger)
+
+    public function __invoke(QueueManagerCommand $command)
     {
 
-      switch ( $command) {
+      $user = $this->userRepository->findOneBy(['id' => $command->getUserId()]);
+
+      $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+        $user,
+        new Request(),
+        new TokenAuthenticator( $this->em),
+        self::FIREWALL_MAIN
+      );
+
+      switch ( $command->getCommand()) {
         case 'enqueue':
 
           // enqueue particular game
-          $aid = $queueManager->enqueueGameAnalysis(
-            $params['gid'], $params['depth'], $params['side_label'], $params['user_id']);
+          $aid = $this->queueManager->enqueueGameAnalysis(
+            $command->getGameId(), $command->getDepth(), $command->getSideLabel());
 
           if( $aid == -1)
 
-            $logger->debug( "Error queueing game id: " . $params['gid'] . " for analysis");
+            $this->logger->debug( "Error queueing game id: " . $command->getGameId() . " for analysis");
 
           else {
 
-            $logger->debug( "Game id: " . $params['gid'] . " has been queued for analysis");
+            $this->logger->debug( "Game id: " . $command->getGameId() . " has been queued for analysis");
 
           // Request :Line load for the list of games
           // Alternatively I cal load lines for successful analysises here
@@ -56,52 +84,52 @@ class QueueManagerCommandHandler implements MessageHandlerInterface
         case 'delete':
 
           // Erase analysis
-          if( $queueManager->eraseAnalysisNode( $params['analysis_id']))
+          if( $this->queueManager->eraseAnalysisNode( $command->getAnalysisId()))
 
-            $logger->debug( "Analyis id: " . $params['analysis_id'] . " has been deleted");
+            $this->logger->debug( "Analyis id: " . $command->getAnalysisId() . " has been deleted");
 
           else
 
-            $logger->debug( "Error deleting analysis id: " . $params['analysis_id']);
+            $this->logger->debug( "Error deleting analysis id: " . $command->getAnalysisId());
 
           break;
 
         case 'promote':
 
         // Promote analysis
-        if( $queueManager->promoteAnalysis( $params['analysis_id']))
+        if( $this->queueManager->promoteAnalysis( $command->getAnalysisId(), $command->getStatus()))
 
-          $logger->debug( "Analyis id: " . $params['analysis_id'] . " has been promoted");
+          $this->logger->debug( "Analyis id: " . $command->getAnalysisId() . " has been promoted( " . $command->getStatus() . ")");
 
         else
 
-          $logger->debug( "Error promoting analysis id: " . $params['analysis_id']);
+          $this->logger->debug( "Error promoting analysis id: " . $command->getAnalysisId() . " status: " . $command->getStatus());
 
           break;
 
         case 'set_side':
 
           // Set analysis side
-          if( $queueManager->setAnalysisSide( $params['analysis_id'], $params['side_label']))
+          if( $this->queueManager->setAnalysisSide( $command->getAnalysisId(), $command->getSideLabel()))
 
-            $logger->debug( "Analyis id: " . $params['analysis_id'] . " new side: " . $params['side_label']);
+            $this->logger->debug( "Analyis id: " . $command->getAnalysisId() . " new side: " . $command->getSideLabel());
 
           else
 
-            $logger->debug( "Error setting side for analysis id: " . $params['analysis_id']);
+            $this->logger->debug( "Error setting side for analysis id: " . $command->getAnalysisId());
 
           break;
 
         case 'set_depth':
 
           // Set analysis depth
-          if( $queueManager->setAnalysisDepth( $params['analysis_id'], $params['depth']))
+          if( $this->queueManager->setAnalysisDepth( $command->getAnalysisId(), $command->getDepth()))
 
-            $logger->debug( "Analyis id: " . $params['analysis_id'] . " new side: " . $params['side_label']);
+            $this->logger->debug( "Analyis id: " . $command->getAnalysisId() . " new side: " . $command->getSideLabel());
 
           else
 
-            $logger->debug( "Error setting side for analysis id: " . $params['analysis_id']);
+            $this->logger->debug( "Error setting side for analysis id: " . $command->getAnalysisId());
 
           break;
 

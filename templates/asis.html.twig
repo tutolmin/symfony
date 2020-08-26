@@ -62,7 +62,7 @@ Use the form below to upload your games.</p>
 -->
 </p>
 
-    {{ form_row(form.pgn) }}
+    {{ form_row(form.text) }}
 
 <!--
 <p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
@@ -78,6 +78,8 @@ Use the form below to upload your games.</p>
 {% else %}
     <br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can upload your games.</span>
 {% endif %}
+
+{{ form_row(form.submit) }}
 
 {{ form_end(form) }}
 

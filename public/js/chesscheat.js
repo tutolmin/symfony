@@ -1,5 +1,5 @@
 function pageLoad( gid) {
-  
+
   // Show particular game
   showGameDetails( gid);
 
@@ -33,6 +33,7 @@ URI_arr.pop();
 var Positions;
 var W_baselines, B_baselines;
 var W_analysis_depth, B_analysis_depth;
+var hasEvaluation;
 
 var TimeOut;
 var timerIsOn = false;
@@ -206,6 +207,7 @@ function showGameDetails( gid) {
   B_baselines = Game["B_baselines"];
   W_analysis_depth = Game["W_analysis_depth"];
   B_analysis_depth = Game["B_analysis_depth"];
+  hasEvaluation = Game["hasEvaluation"];
 
   // Replay game moves and display new game data
   init();
@@ -792,9 +794,9 @@ document.getElementById("cheatScore").innerHTML =
   "Cheat Score: " + Game[prefix+'cheat_score'];
 
 
-// Bring analysis data to the front and make it visible
-// Hide FAQ accordion
-if( W_analysis_depth == 0 && B_analysis_depth == 0) {
+// Hide intro text
+if( hasEvaluation == "false" ) {
+//&& W_analysis_depth == 0 && B_analysis_depth == 0) {
 
   document.getElementById("evaluationContainer").style.visibility = "hidden";
 
@@ -806,6 +808,7 @@ if( W_analysis_depth == 0 && B_analysis_depth == 0) {
   document.getElementById("accordionContainer").style.zIndex = "1";
   document.getElementById("accordionContainer").style.visibility = "visible";
 
+// Bring analysis data to the front and make it visible
 } else {
 
   document.getElementById("mainContainer").style.visibility = "hidden";
@@ -813,6 +816,7 @@ if( W_analysis_depth == 0 && B_analysis_depth == 0) {
   document.getElementById("evaluationContainer").style.zIndex = "1";
   document.getElementById("evaluationContainer").style.visibility = "visible";
 
+// show counters for specific side
 if( (side == "White" && W_analysis_depth > 0)
   || (side == "Black" && B_analysis_depth > 0)) {
 
