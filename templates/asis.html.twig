@@ -53,11 +53,15 @@
 
 {{ form_start(form) }}
 
-<p>You can upload your own games into our database. Then you will be able to submit your games for processing. Once it is complete you can analyze your games.<br/>
-Use the form below to upload your games.</p>
-<p>Maximum file size is 1M</p>
-<p>Allowed file types are .pgn and .txt
+<p>You can upload your own game(s) into our database.
+Then you will be able to submit your games for analysis.
+Once the processing is complete you can analyze your games.</p>
+<p>
+Use the form below to upload your game(s).
+Paste your game(s) in PGN format below and press Import button.
+Maximum file size is 1M</p>
 <!--
+<p>Allowed file types are .pgn and .txt
  or archives .zip .gz
 -->
 </p>
@@ -66,7 +70,7 @@ Use the form below to upload your games.</p>
 
 <!--
 <p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
--->
+
 
     <input type="submit" value="Upload PGN" name="submit"
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
@@ -74,6 +78,8 @@ Use the form below to upload your games.</p>
 	disabled="disabled"
 {% endif %}
 >
+-->
+
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {% else %}
     <br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can upload your games.</span>

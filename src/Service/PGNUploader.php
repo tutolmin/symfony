@@ -5,6 +5,7 @@
 namespace App\Service;
 
 use App\Entity\User;
+use App\Entity\PGN;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Security\Core\Security;
@@ -96,6 +97,34 @@ class PGNUploader
 
         return $fileName;
     }
+
+    public function uploadPGN( PGN $PGN)
+    {
+      $user = $this->security->getUser();
+
+// Filename SHOULD contain 'games' prefix in order to make sure
+// the filename is never matches 'lines' prefix, reserved for :Line-only db merge
+      $fileName = 'games-'.$user->getID().'-'.uniqid().'.pgn';
+
+      $this->logger->debug( $this->getTargetDirectory());
+      $this->logger->debug( $fileName);
+
+      $filesystem = new Filesystem();
+      try {
+
+        $filesystem->appendToFile( $this->getTargetDirectory() . '/' . $fileName, $PGN->getText());
+//          $file->move($this->getTargetDirectory(), $fileName);
+
+      } catch (FileException $e) {
+
+          $this->logger->debug( $e->getMessage());
+          // ... handle exception if something happens during file upload
+      }
+
+      return $fileName;
+    }
+
+
 
     public function getTargetDirectory()
     {

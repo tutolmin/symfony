@@ -48,19 +48,40 @@ class AsIsController extends AbstractController
 
 	// Build a form
         $PGN = new PGN();
+
         $form = $this->createForm(PGNType::class, $PGN, [
             'disabled' => !$isActive,
         ]);
+
         $form->handleRequest($request);
 
 	if ($form->isSubmitted() && $form->isValid()) {
 
           /** @var UploadedFile $PGNFile */
+/*
           $PGNFile = $form['file']->getData();
           if ($PGNFile) {
             $PGNFileName = $fileUploader->uploadGames( $PGNFile);
             $PGN->setPGNFilename($PGNFileName);
           }
+*/
+
+          // $form->getData() holds the submitted values
+          // but, the original `$task` variable has also been updated
+          $PGN = $form->getData();
+
+//          $this->logger->debug( $user->getId());
+//          $this->logger->debug( $PGN->getText());
+
+          $fileUploader->uploadPGN( $PGN);
+
+          // ... perform some action, such as saving the task to the database
+          // for example, if Task is a Doctrine entity, save it!
+          // $entityManager = $this->getDoctrine()->getManager();
+          // $entityManager->persist($task);
+          // $entityManager->flush();
+
+          return $this->redirectToRoute('index');
 
           // ...
 	}

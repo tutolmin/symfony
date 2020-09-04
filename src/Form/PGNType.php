@@ -47,10 +47,15 @@ class PGNType extends AbstractType
             ])
             */
             ->add('text', TextareaType::class, [
-                'attr' => ['class' => 'tinymce'],
-                'disabled' => true
+                    'attr' => ['class' => 'tinymce'],
+                    'required'   => true,
+                    'label' => false,
+                    'data' => 'Paste your PGN here',
+//                'disabled' => true
                 ])
-            ->add('submit', SubmitType::class)
+            ->add('submit', SubmitType::class, [
+              'label' => 'Import PGN',
+            ])
             // ...
         ;
     }
