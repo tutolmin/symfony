@@ -112,7 +112,7 @@ class PGNUploader
       $filesystem = new Filesystem();
       try {
 
-        $filesystem->appendToFile( $fileName, $PGN->getText());
+        $filesystem->appendToFile( $this->getTargetDirectory() . '/' . $fileName, $PGN->getText());
 //          $file->move($this->getTargetDirectory(), $fileName);
 
       } catch (FileException $e) {
