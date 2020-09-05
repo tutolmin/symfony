@@ -14,6 +14,8 @@ use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Analysis;
 use App\Entity\User;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\RouterInterface;
 
 class QueueManager
 {
@@ -61,9 +63,11 @@ class QueueManager
     private $analysisNodeExistsFlag;
     private $updateCurrentFlag;
 
+    private $router;
+
     public function __construct( ClientInterface $client,
     EntityManagerInterface $em, MailerInterface $mailer,
-	LoggerInterface $logger, Security $security)
+	LoggerInterface $logger, Security $security, RouterInterface $router)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
@@ -74,6 +78,8 @@ class QueueManager
 
   // get the User repository
   $this->userRepository = $this->em->getRepository( User::class);
+
+  $this->router = $router;
 
 	$this->queueGraphExistsFlag=false;
 	$this->analysisNodeExistsFlag=false;
@@ -2624,9 +2630,9 @@ RETURN average.milliseconds AS speed';
                 }
 
 
-
-
-
+      // generated URLs are "absolute paths" by default. Pass a third optional
+      // argument to generate different URLs (e.g. an "absolute URL")
+      $gamePage = $this->router->generate('index', ['gid' => $gid], UrlGeneratorInterface::ABSOLUTE_URL);
 
 
       $email = (new TemplatedEmail())
@@ -2644,7 +2650,7 @@ RETURN average.milliseconds AS speed';
 
           // pass variables (name => value) to the template
           ->context([
-              'gid' => $gid,
+              'link' => $gamePage,
               'game' => $game,
               'expiration_date' => new \DateTime('+7 days'),
               'firstName' => (strlen( $user->getFirstName())>0)?$user->getFirstName():"User",
