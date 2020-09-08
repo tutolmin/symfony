@@ -4,11 +4,11 @@ RewriteEngine On
 RewriteCond %{SERVER_PORT} !^443$
 RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
 
-#<Files "*">
-#AuthName "Restricted Area"
-#AuthType Basic
-#AuthUserFile /home/chesscheat/.htpasswd
-#require valid-user
+<Files "*">
+AuthName "Restricted Area"
+AuthType Basic
+AuthUserFile /home/chesscheat/.htpasswd
+require valid-user
 #Order allow,deny
 # Static MGTS Kryl16
 #Allow from 91.77.166.89
@@ -17,7 +17,7 @@ RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
 # Clinton
 #Allow from 96.43.128.210
 #satisfy any
-#</Files>
+</Files>
 
 # Use the front controller as index file. It serves as a fallback solution when
 # every other rewrite/redirect fails (e.g. in an aliased environment without
