@@ -8,15 +8,12 @@ RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
 AuthName "Restricted Area"
 AuthType Basic
 AuthUserFile /home/chesscheat/.htpasswd
-require valid-user
-Order allow,deny
-Allow from 127.0.0.1
-# Static MGTS Kryl16
-#Allow from 91.77.166.89
-# Local
-#Allow from 172.96.11.210
-# Clinton
-#Allow from 96.43.128.210
+<RequireAny>
+   Require valid-user
+   Require ip 127.0.0.1
+   # Static MGTS Kryl16
+   Require ip 91.77.166.89
+</RequireAny>
 satisfy any
 </Files>
 
