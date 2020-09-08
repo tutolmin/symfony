@@ -11,6 +11,8 @@ AuthUserFile /home/chesscheat/.htpasswd
 <RequireAny>
    Require valid-user
    Require ip 127.0.0.1
+   # Docker
+   Require ip 172
    # Static MGTS Kryl16
    Require ip 91.77.166.89
 </RequireAny>
