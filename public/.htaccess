@@ -14,7 +14,6 @@ AuthUserFile /home/chesscheat/.htpasswd
    # Static MGTS Kryl16
    Require ip 91.77.166.89
 </RequireAny>
-satisfy any
 </Files>
 
 # Use the front controller as index file. It serves as a fallback solution when
