@@ -9,14 +9,15 @@ AuthName "Restricted Area"
 AuthType Basic
 AuthUserFile /home/chesscheat/.htpasswd
 require valid-user
-#Order allow,deny
+Order allow,deny
+Allow from 127.0.0.1
 # Static MGTS Kryl16
 #Allow from 91.77.166.89
 # Local
 #Allow from 172.96.11.210
 # Clinton
 #Allow from 96.43.128.210
-#satisfy any
+satisfy any
 </Files>
 
 # Use the front controller as index file. It serves as a fallback solution when
