@@ -31,7 +31,7 @@ class PGN
 
     public function getUserId()
     {
-        return $this->$userId;
+        return $this->userId;
     }
 
     public function setUserId($userId)

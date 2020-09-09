@@ -21,19 +21,23 @@ use App\Provider\LichessUser;
 class LichessAuthenticator extends SocialAuthenticator
 {
     private $clientRegistry;
+
+    /** @var EntityManagerInterface */
     private $em;
+
+    /** @var UserManager */
     private $userManager;
 
     /** @var Lichess */
     protected $provider;
 
     public function __construct(ClientRegistry $clientRegistry,
-	EntityManagerInterface $em, Lichess $provider, UserManager $um)
+  	EntityManagerInterface $em, Lichess $provider, UserManager $um)
     {
         $this->clientRegistry = $clientRegistry;
         $this->em = $em;
         $this->userManager = $um;
-	$this->provider = $provider;
+	      $this->provider = $provider;
     }
 
     public function supports(Request $request)
@@ -59,18 +63,15 @@ class LichessAuthenticator extends SocialAuthenticator
         $lichessUser = $this->getLichessClient()
             ->fetchUserFromToken($credentials);
 
-	$lichessUserId = $lichessUser->getId();
+	      $lichessUserId = $lichessUser->getId();
 
-  $lichessUserFirstName = $lichessUser->getFirstName();
-  $lichessUserLastName = $lichessUser->getLastName();
+        $lichessUserFirstName = $lichessUser->getFirstName();
+        $lichessUserLastName = $lichessUser->getLastName();
 
-	$this->provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
+        $this->provider->setResourceOwnerDetailsUrl( "https://lichess.org/api/account/email");
 
-  /** @var LichessUser $lichessUser */
-  $lichessUser = $this->getLichessClient()
-      ->fetchUserFromToken($credentials);
-
-//        $lichessUserEmail = $this->provider->getResourceOwner($credentials)->getEmail();
+        /** @var LichessUser $lichessUser */
+        $lichessUser = $this->provider->getResourceOwner($credentials);
         $lichessUserEmail = $lichessUser->getEmail();
 
         // 1) have they logged in with Lichess before? Easy!

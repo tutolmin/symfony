@@ -26,7 +26,7 @@ class Lichess extends AbstractProvider
 
     public function getResourceOwnerDetailsUrl(AccessToken $token)
     {
-	return $this->resourceOwnerDetailsURL;
+      	return $this->resourceOwnerDetailsURL;
     }
 
     public function setResourceOwnerDetailsUrl( $url)
@@ -37,9 +37,9 @@ class Lichess extends AbstractProvider
     protected function getDefaultScopes()
     {
         return [
-	    'preference:read',
-            'email:read',
-	    'game:read',
+	        'preference:read',
+          'email:read',
+	        'game:read',
         ];
     }
 

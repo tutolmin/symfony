@@ -57,15 +57,6 @@ class AsIsController extends AbstractController
 
 	if ($form->isSubmitted() && $form->isValid()) {
 
-          /** @var UploadedFile $PGNFile */
-/*
-          $PGNFile = $form['file']->getData();
-          if ($PGNFile) {
-            $PGNFileName = $fileUploader->uploadGames( $PGNFile);
-            $PGN->setPGNFilename($PGNFileName);
-          }
-*/
-
           // $form->getData() holds the submitted values
           // but, the original `$task` variable has also been updated
           $PGN = $form->getData();
