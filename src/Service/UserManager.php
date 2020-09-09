@@ -27,13 +27,13 @@ class UserManager
     // Security
     private $security;
 
-    public function __construct( ClientInterface $client, 
-	EntityManagerInterface $em, LoggerInterface $logger, Security $security)
+    public function __construct( ClientInterface $client,
+	  EntityManagerInterface $em, LoggerInterface $logger, Security $security)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
         $this->em = $em;
-	$this->security = $security;
+	      $this->security = $security;
 
         // get the User repository
         $this->userRepository = $this->em->getRepository( User::class);
@@ -45,7 +45,7 @@ class UserManager
     public function mergeUser( $uid)
     {
 /*
-	Can be called from Social authenticator for regular user	
+	Can be called from Social authenticator for regular user
 
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
           $this->logger->debug('Access denied');
@@ -68,25 +68,25 @@ class UserManager
     {
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
           $this->logger->debug('Access denied');
-          return false;
+          return 0;
         }
 
-	// Get all the users from repository
+      	// Get all the users from repository
         $users = $this->userRepository->findAll();
 
-	// User counter
-	$counter = 0;
+	      // User counter
+	      $counter = 0;
 
-	// Iterate through all the users
-	foreach( $users as $user) {
-	
-	  $this->mergeUser( $user->getId());
-	  $counter++;
-	}
+	      // Iterate through all the users
+        foreach( $users as $user) {
+
+          $this->mergeUser( $user->getId());
+          $counter++;
+        }
 
         $this->logger->debug('Merged '.$counter.' users');
 
-	return $counter;
+        return $counter;
     }
 
 
@@ -125,7 +125,7 @@ class UserManager
 	// Get the user by email
         $user = $this->userRepository->findOneBy(['email' => $email]);
 
-	// Get the roles, add a new role and save	
+	// Get the roles, add a new role and save
 	if( $user != null) {
 
           $this->logger->debug('User id '.$user->getId());
