@@ -17,7 +17,7 @@ class SearchHintController extends AbstractController
       */
     public function searchHint(
         \Symfony\Component\Stopwatch\Stopwatch $stopwatch,
-        \GraphAware\Neo4j\Client\ClientInterface $neo4j_client)
+        \GraphAware\Neo4j\Client\ClientInterface $neo4j_client): JsonResponse
     {
         // starts event named 'eventName'
         $stopwatch->start('searchHint');
@@ -52,7 +52,7 @@ class SearchHintController extends AbstractController
 	  if( strpos( "0-1", $term) !== false)
 	    $hints[] = "0-1";
 
-	  if( strpos( "1/2-1/2", $term) !== false 
+	  if( strpos( "1/2-1/2", $term) !== false
 	    || strpos( "draw", $term) !== false)
 	    $hints[] = "1/2-1/2";
 
@@ -77,13 +77,13 @@ class SearchHintController extends AbstractController
 	  }
 
 	  $params["term"] = $term;
-	  $query = "MATCH (player:Player) WHERE player.name CONTAINS {term} 
+	  $query = "MATCH (player:Player) WHERE player.name CONTAINS {term}
 RETURN player.name LIMIT ".self::RECORDS_PER_PAGE;
 
           $result = $neo4j_client->run($query, $params);
 
           foreach ($result->records() as $record) {
-	    $hints[] = $record->value('player.name');  
+	    $hints[] = $record->value('player.name');
 	    $hints[] = $record->value('player.name'). "_as_white";
 	    $hints[] = $record->value('player.name'). "_as_black";
 /*

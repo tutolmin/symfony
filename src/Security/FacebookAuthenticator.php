@@ -13,27 +13,25 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
-use GraphAware\Neo4j\Client\ClientInterface;
-use Psr\Log\LoggerInterface;
 use App\Service\UserManager;
 use League\OAuth2\Client\Provider\FacebookUser;
 
 class FacebookAuthenticator extends SocialAuthenticator
 {
     private $clientRegistry;
-    private $em;
-    private $userManager;
-    private $neo4j_client;
-    private $logger;
 
-    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em,
-	ClientInterface $client, LoggerInterface $logger, UserManager $um)
+    /** @var EntityManagerInterface */
+    private $em;
+
+    /** @var UserManager */
+    private $userManager;
+
+    public function __construct(ClientRegistry $clientRegistry,
+    EntityManagerInterface $em, UserManager $um)
     {
         $this->clientRegistry = $clientRegistry;
         $this->em = $em;
         $this->userManager = $um;
-        $this->neo4j_client = $client;
-	$this->logger = $logger;
     }
 /*
     public function mergeNeo4jUserEntity( int $id)

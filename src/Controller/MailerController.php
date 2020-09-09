@@ -16,7 +16,7 @@ class MailerController extends AbstractController
     /**
      * @Route("/email")
      */
-    public function sendEmail(MailerInterface $mailer, QueueManager $qm)
+    public function sendEmail(MailerInterface $mailer, QueueManager $qm): Response
     {
         $email = (new TemplatedEmail())
             ->from(new Address('support@chesscheat.com', 'ChessCheat Support'))
