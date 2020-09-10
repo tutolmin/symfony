@@ -397,6 +397,56 @@ RETURN length(path) AS length LIMIT 1';
 
 
 
+    // Check if there are any :Analysis nodes attached to the :game
+    private function gameAnalysisExists( $gid)
+    {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
+        // Checks if game exists
+        if( !$this->gameExists( $gid))
+	        return false;
+
+        $this->logger->debug( "Checking :Analysis existance");
+
+        $query = 'MATCH (g:Game) WHERE id(g) = {gid}
+OPTIONAL MATCH (g)<-[:REQUESTED_FOR]-(a:Analysis)
+RETURN count(a) AS ttl';
+
+        $params = ["gid" => intval( $gid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('ttl') > 0)
+            return true;
+
+	      return false;
+    }
+
+
+    // delete Game by id
+    public function deleteGame( $gid)
+    {
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
+        // Checks if game exists
+        if( !$this->gameExists( $gid))
+	        return false;
+
+        // Check for analysis existance
+        if( $this->gameAnalysisExists( $gid))
+          return false;
+
+        $this->logger->debug( "Deleting :Game node");
+
+        $query = 'MATCH (g:Game) WHERE id(g) = {gid} DETACH DELETE g';
+
+        $params = ["gid" => intval( $gid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+	      return true;
+    }
+
+
     // Merge :Lines for the :Games into the DB
     public function loadLines( $gids)
     {

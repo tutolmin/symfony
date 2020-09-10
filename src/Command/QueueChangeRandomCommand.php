@@ -8,8 +8,6 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Output\OutputInterface;
-use App\Service\GameManager;
-use App\Service\QueueManager;
 use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
 use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
@@ -44,14 +42,10 @@ class QueueChangeRandomCommand extends Command
     private $guardAuthenticatorHandler;
 
     // Dependency injection of the GameManager service
-    public function __construct( GameManager $gm, QueueManager $qm,
-      EntityManagerInterface $em, GuardAuthenticatorHandler $gah,
-      MessageBusInterface $bus)
+    public function __construct( EntityManagerInterface $em,
+    GuardAuthenticatorHandler $gah, MessageBusInterface $bus)
     {
         parent::__construct();
-
-        $this->gameManager = $gm;
-        $this->queueManager = $qm;
 
         $this->em = $em;
         $this->bus = $bus;

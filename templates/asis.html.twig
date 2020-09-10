@@ -233,12 +233,30 @@ Maximum file size is 1M</p>
      </button>
 </div>
 </td>
+
+{% if is_granted('ROLE_QUEUE_MANAGER') %}
+<td>
+<div id="delete_games_submit_group">
+     <button type="submit"
+             class="input_submit"
+             style="margin-right: 15px;"
+             onClick="deleteGamesList()"
+>Delete
+     </button>
+</div>
+</td>
+{% endif %}
+
+</td>
 <td style="float:right;">
 	<table><tr>
         <td><button onclick="setCookie('gl_page',0,1);loadGames();">First</button></td>
         <td><button onclick="setCookie('gl_page','prev',1);loadGames();">Prev</button></td>
         <td><button onclick="setCookie('gl_page','next',1);loadGames();">Next</button></td></tr>
 	</table>
+</td></tr>
+<tr><td>
+<div id="gamesActionStatus"></div>
 </td></tr></table>
 
 </td>
@@ -741,9 +759,17 @@ this score with other players, grandmasters and computers.</p>
 <script src="js/chessboard-0.3.0.min.js"></script>
 <script src="js/jquery.tagsinput-revisited.min.js"></script>
 <script src="js/chesscheat.js"></script>
+
 {% if is_granted('ROLE_QUEUE_MANAGER') %}
 <script src="js/queue_manager.js"></script>
 {% else %}
 <script src="js/queue.js"></script>
 {% endif %}
+
+{% if is_granted('ROLE_GAMES_MANAGER') %}
+<script src="js/games_manager.js"></script>
+{% else %}
+<script src="js/games.js"></script>
+{% endif %}
+
 {% endblock %}

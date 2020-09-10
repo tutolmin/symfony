@@ -45,3 +45,8 @@ security:
         # the 'ips' option supports IP addresses and subnet masks
         - { path: '^/internal', roles: IS_AUTHENTICATED_ANONYMOUSLY, ips: [127.0.0.1, ::1, 192.168.0.1/24, 172.96.11.210] }
         - { path: '^/internal', roles: ROLE_NO_ACCESS }
+    role_hierarchy:
+        ROLE_QUEUE_MANAGER: ROLE_USER
+        ROLE_USER_MANAGER:  ROLE_USER
+        ROLE_GAMES_MANAGER: ROLE_QUEUE_MANAGER
+        ROLE_ADMIN:         [ROLE_GAMES_MANAGER, ROLE_USER_MANAGER]
