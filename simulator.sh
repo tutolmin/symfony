@@ -2,8 +2,7 @@
 
 types=(checkmate stalemate 1-0 0-1)
 sides=(BlackSide WhiteSide)
-depths=(18 23)
-atypes=(fast deep)
+depths=(fast deep)
 statuses=(Pending Processing Skipped Partially Evaluated Complete)
 
 random_side () {
@@ -28,14 +27,6 @@ random_type () {
   key=$((RANDOM % $size))
 
   type=${types[$key]}
-}
-
-random_atype () {
-
-  size=${#atypes[*]}
-  key=$((RANDOM % $size))
-
-  atype=${atypes[$key]}
 }
 
 random_status () {
@@ -103,9 +94,9 @@ change_side () {
 
 change_type () {
 
- random_atype
+ random_depth
 
- php bin/console queue:change:random type $atype
+ php bin/console queue:change:random type $depth
 }
 
 get_queue_length () {

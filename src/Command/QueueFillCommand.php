@@ -94,7 +94,7 @@ class QueueFillCommand extends Command
         null,
         InputOption::VALUE_OPTIONAL,
         'Please specify analysis depth',
-        $_ENV['FAST_ANALYSIS_DEPTH'] // Default
+        'fast' // Default
         )
         ->addOption(
         'side',
@@ -143,10 +143,10 @@ class QueueFillCommand extends Command
 
       // Default analysis parameters
       $sideLabel = ":WhiteSide:BlackSide";
-      $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
+      $depth = 'fast';
 
       // Get the user by email
-      $userId = $_ENV['SYSTEM_WEB_USER_ID'];
+      $userId = 'fast';
       $user = $this->userRepository->findOneBy(['id' => $userId]);
 
       // Let us only use system account for filling the Queue
@@ -160,8 +160,9 @@ class QueueFillCommand extends Command
       );
 
       // Validate depth option
-      $depthOption = intval( $input->getOption('depth'));
-      if( $depthOption != 0) $depth = $depthOption;
+      $depthOption = $input->getOption('depth');
+      if( $depthOption == "deep")
+        $depth = $depthOption;
 
       // Validate side option
       $sideToAnalyze = $input->getOption('side');

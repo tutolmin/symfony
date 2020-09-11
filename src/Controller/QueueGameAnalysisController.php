@@ -64,7 +64,7 @@ class QueueGameAnalysisController extends AbstractController
 
       // Default analysis parameters
       $sideLabel = ":WhiteSide:BlackSide";
-      $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
+      $depth = 'fast';
 
       // HTTP request
       $request = Request::createFromGlobals();
@@ -72,7 +72,7 @@ class QueueGameAnalysisController extends AbstractController
       // Get analysis depth
       $requestDepth = $request->request->get( 'depth');
       if( $requestDepth == "deep" )
-        $depth = $_ENV['DEEP_ANALYSIS_DEPTH'];
+        $depth = $requestDepth;
 
       // Get side from a query parameter
       $sideToAnalyze = $request->request->get('side', "");

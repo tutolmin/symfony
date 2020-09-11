@@ -86,7 +86,7 @@ class QueueAddRandomCommand extends Command
         null,
         InputOption::VALUE_REQUIRED,
         'Please specify analysis depth',
-      	$_ENV['FAST_ANALYSIS_DEPTH'] // Default
+      	'fast' // Default
         )
         ->addOption(
         'side',
@@ -116,7 +116,7 @@ class QueueAddRandomCommand extends Command
 
         // Default analysis parameters
         $sideLabel = ":WhiteSide:BlackSide";
-        $depth = $_ENV['FAST_ANALYSIS_DEPTH'];
+        $depth = 'fast';
         $userId = $_ENV['SYSTEM_WEB_USER_ID'];
         $user = null;
 
@@ -145,8 +145,9 @@ class QueueAddRandomCommand extends Command
         );
 
         // Validate depth option
-        $depthOption = intval( $input->getOption('depth'));
-        if( $depthOption != 0) $depth = $depthOption;
+        $depthOption = $input->getOption('depth');
+        if( $depthOption == "deep")
+          $depth = $depthOption;
 
         // Validate side option
         $sideToAnalyze = $input->getOption('side');

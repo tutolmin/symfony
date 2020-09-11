@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 types=(1-0 0-1)
-depths=(18 23)
+depths=(fast deep)
 
 random_side () {
 
@@ -42,4 +42,3 @@ queue_fill () {
 
 # Fill the queue with some items
 queue_fill
-
