@@ -155,10 +155,10 @@ done
 
 << 'MULTILINE-COMMENT'
 
-php bin/console queue:fill --threshold=50 --side=BlackSide --type=0-1 --depth=23
-php bin/console queue:fill --threshold=50 --side=BlackSide --type=0-1 --depth=18
-php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=23
-php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=18
+php bin/console queue:fill --threshold=50 --side=BlackSide --type=0-1 --depth=deep
+php bin/console queue:fill --threshold=50 --side=BlackSide --type=0-1 --depth=fast
+php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=deep
+php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=fast
 
 php bin/console queue:promote:random
 php bin/console queue:delete:random
@@ -166,8 +166,8 @@ php bin/console queue:delete:random
 php bin/console queue:add:random
 php bin/console queue:add:random --type=checkmate
 php bin/console queue:add:random --type=stalemate
-php bin/console queue:add:random --depth=18
-php bin/console queue:add:random --depth=23
+php bin/console queue:add:random --depth=fast
+php bin/console queue:add:random --depth=deep
 php bin/console queue:add:random --side=BlackSide
 php bin/console queue:add:random --side=WhiteSide
 

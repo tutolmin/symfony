@@ -2,8 +2,7 @@
 
 types=(checkmate stalemate 1-0 0-1)
 sides=(BlackSide WhiteSide)
-depths=(18 23)
-atypes=(fast deep)
+depths=(fast deep)
 statuses=(Pending Processing Skipped Partially Evaluated Complete)
 
 random_side () {
@@ -28,14 +27,6 @@ random_type () {
   key=$((RANDOM % $size))
 
   type=${types[$key]}
-}
-
-random_atype () {
-
-  size=${#atypes[*]}
-  key=$((RANDOM % $size))
-
-  atype=${atypes[$key]}
 }
 
 random_status () {
@@ -103,9 +94,9 @@ change_side () {
 
 change_type () {
 
- random_atype
+ depth
 
- php bin/console queue:change:random type $atype
+ php bin/console queue:change:random type $depth
 }
 
 get_queue_length () {
@@ -198,22 +189,6 @@ sleep 6
 done
 
 << 'MULTILINE-COMMENT'
-
-php bin/console queue:fill --threshold=50 --side=BlackSide --type=0-1 --depth=23
-php bin/console queue:fill --threshold=50 --side=BlackSide --type=0-1 --depth=18
-php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=23
-php bin/console queue:fill --threshold=50 --side=WhiteSide --type=1-0 --depth=18
-
-php bin/console queue:promote:random
-php bin/console queue:delete:random
-
-php bin/console queue:add:random
-php bin/console queue:add:random --type=checkmate
-php bin/console queue:add:random --type=stalemate
-php bin/console queue:add:random --depth=18
-php bin/console queue:add:random --depth=23
-php bin/console queue:add:random --side=BlackSide
-php bin/console queue:add:random --side=WhiteSide
 
 php bin/console queue:change:random status Processing
 php bin/console queue:change:random status Evaluated

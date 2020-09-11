@@ -346,9 +346,8 @@ Maximum file size is 1M</p>
         </div>
       </td>
     </tr>
+    <tr><td><div id="processGameStatus"></div></td></tr>
   </table>
-
-  <div id="processGameStatusGroup"></div>
 
   {% if is_granted('IS_AUTHENTICATED_FULLY') %}
   {% else %}
@@ -530,47 +529,6 @@ Maximum file size is 1M</p>
  </div>
 </div>
 
-<!--
-<div>
-
-<select style="float:left;" name="sideToAnalyze" id="sideToAnalyze">
-<option value="">Both sides</option>
-<option value="WhiteSide">White Only</option>
-<option value="BlackSide">Black Only</option>
-</select>
-<select style="float:left;" name="AnalysisDepth" id="AnalysisDepth">
-<option value="fast">fast</option>
-<option value="deep">deep</option>
-</select>
-<div id="analysis_submit">
-     <button type="submit"
-             class="input_submit"
-             style="margin-right: 15px;"
-             onClick="processGame()"
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-{% else %}
-	     disabled="disabled"
-{% endif %}
-     >Submit for analysis
-     </button>
-</div>
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-{% else %}
-<br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can request analysis.</span>
-{% endif %}
-
-<div id="export_submit" style="float:right;">
-     <button type="submit"
-             class="input_submit"
-             style="margin-right: 15px;"
-             onClick="exportGame()"
->Export PGN
-     </button>
-</div>
-<br/>
-<div id="processGameStatus"></div>
--->
-
 </td><td valign=top>
 <div id="moveList" class="moveList"></div>
 <div class="moveListButtons">
@@ -698,7 +656,7 @@ this score with other players, grandmasters and computers.</p>
           </select>
         </td>
         <td>
-          <div id="analysis_submit_group">
+          <div id="analysis_submit">
                <button type="submit"
                        class="input_submit"
                        style="margin-right: 15px;"
@@ -712,9 +670,8 @@ this score with other players, grandmasters and computers.</p>
           </div>
         </td>
       </tr>
+      <tr><td><div id="processGameStatus"></div></td></tr>
     </table>
-
-    <div id="processGameStatus"></div>
 
     {% if is_granted('IS_AUTHENTICATED_FULLY') %}
     {% else %}
