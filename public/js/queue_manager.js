@@ -21,7 +21,7 @@ function loadQueue() {
         '<a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'PlaceDesc\',1);loadQueue();" style="text-decoration: none;">&#x2193;</a></td>'+
         '<td>H</td><td>Status' +
-'<br/><select name="AnalysisStatus" id="AnalysisStatus" onchange="setAnalysisParamList(this, \'status\')">' +
+'<br/><select name="AnalysisStatusManager" id="AnalysisStatusManager" onchange="setAnalysisParamList(this, \'status\')">' +
 '<option value="">Select</option>' +
 '<option value="Pending">Pending</option>' +
 '<option value="Evaluated">Evaluated</option>' +
@@ -30,13 +30,13 @@ function loadQueue() {
 '<option value="Exported">Exported</option>' +
 '<option value="Complete">Complete</option>' +
 '</select></td><td>Game</td><td style="text-align:center">Side' +
-'<br/><select name="AnalysisSide" id="AnalysisSide" onchange="setAnalysisParamList(this, \'side\')">' +
+'<br/><select name="AnalysisSideManager" id="AnalysisSideManager" onchange="setAnalysisParamList(this, \'side\')">' +
 '<option value="">Select</option>' +
 '<option value="">Both sides</option>' +
 '<option value="WhiteSide">White Only</option>' +
 '<option value="BlackSide">Black Only</option>' +
 '</select></td><td>Type' +
-'<br/><select name="AnalysisDepth" id="AnalysisDepth" onchange="setAnalysisParamList(this, \'depth\')">' +
+'<br/><select name="AnalysisDepthManager" id="AnalysisDepthManager" onchange="setAnalysisParamList(this, \'depth\')">' +
 '<option value="">Select</option>' +
 '<option value="fast">Fast</option>' +
 '<option value="deep">Deep</option>' +
@@ -99,9 +99,9 @@ function loadQueue() {
         '</td><td style="text-align:center"><div class="tooltip"><img src="img/actions.png"/>' +
 	'<span class="tooltiptext"><table>' + action_rows + '</table></span></div>' +
         '</td><td style="text-align:center"><img src="img/' + status_image + '.png" title="' + status_descr + '"/>' +
-        '</td><td>' + val["White"] + white_elo + ' vs. ' + val["Black"] + black_elo + 
+        '</td><td>' + val["White"] + white_elo + ' vs. ' + val["Black"] + black_elo +
 	' - ' + val["Result"] + ', ' + val["ECO"] + ', ' + val["Date"] +
-        '</td><td>' + 
+        '</td><td>' +
 '<select name="AnalysisSide" id="AnalysisSide" onchange="setAnalysisParam(this, \'side\', ' + val["AId"] + ')">' +
 '<option value=""' + ((val["Side"]=="Both")?'selected="selected"':'') + '>Both sides</option>' +
 '<option value="WhiteSide"' + ((val["Side"]=="White")?'selected="selected"':'') + '>White Only</option>' +
@@ -145,7 +145,7 @@ function setAnalysisParamList( selectObject, param) {
 function setAnalysisParam( selectObject, param, aid) {
 
   var aids = [aid];
-  var value = selectObject.value;  
+  var value = selectObject.value;
 
   console.log( "New " + param + ": " + value + " for analysis id: " + JSON.stringify( aids));
 
