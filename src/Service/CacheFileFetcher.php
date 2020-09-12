@@ -21,25 +21,38 @@ class CacheFileFetcher
         $this->logger = $logger;
     }
 
+    // invalidate local cache file
+    public function invalidateLocalCache( $filename)
+    {
+      // Init cache store dir
+      $store = new Store( $this->getCacheDirectory());
+      
+      $URL = $_ENV['SQUID_CACHE_URL'].$filename;
+      $this->logger->debug('URL '.$URL);
+
+      // Make sure local copy of the file is invalidated locally
+      $store->invalidate( Request::create( $URL));
+    }
+
     // get a file from cache
     public function getFile( $filename, $reload = false)
     {
-	// Init cache store dir
+	      // Init cache store dir
         $store = new Store( $this->getCacheDirectory());
         $client = HttpClient::create();
-        $cache_client = new CachingHttpClient($client, $store, 
-		["debug" => true, 
+        $cache_client = new CachingHttpClient($client, $store,
+        ["debug" => true,
 //		 "allow_reload" => true,
-		]);
+        ]);
 
-	// Fetch the file from the cache
+	      // Fetch the file from the cache
         $URL = $_ENV['SQUID_CACHE_URL'].$filename;
         $this->logger->debug('URL '.$URL);
 
-	// Invalidate local cache entry to make sure
-	// The URL is requested from remote cache
-	if( $reload)
-	  $store->invalidate( Request::create( $URL));
+      	// Invalidate local cache entry to make sure
+        // The URL is requested from remote cache
+        if( $reload)
+          $store->invalidate( Request::create( $URL));
 
         $response = $cache_client->request('GET', $URL, []);
 
@@ -47,13 +60,13 @@ class CacheFileFetcher
         // $statusCode = 200
         $this->logger->debug('Status code '.$statusCode);
 
-	if( $statusCode != 200) return null;
+        if( $statusCode != 200) return null;
 /*
         try {
 */
-            $contentType = $response->getHeaders()['content-type'][0];
-            $this->logger->debug('Content type '.$contentType);
-	
+        $contentType = $response->getHeaders()['content-type'][0];
+        $this->logger->debug('Content type '.$contentType);
+
 /*
         } catch (FileException $e) {
 
@@ -73,7 +86,7 @@ class CacheFileFetcher
         // $content = ['id' => 521583, 'name' => 'symfony-docs', ...]
 //        $this->logger->debug('Moves '.$this->moves);
 
-	return $response;
+        return $response;
     }
 
     public function getCacheDirectory()

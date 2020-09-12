@@ -810,11 +810,15 @@ RETURN ply.san, id(node) AS node_id';
 
         $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
 
-	return false;
+	      return false;
       }
 
       // Put the file into special uploads directory
       $this->uploader->uploadEvals( $tmp_file, $record->value('l.hash'));
+
+      // Invalidate local cached
+      $this->fetcher->invalidateLocalCache(
+        'evals-'.$record->value('l.hash').'.json');
 
       return true;
     }
