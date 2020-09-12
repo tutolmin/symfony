@@ -8,6 +8,7 @@ use Symfony\Component\HttpClient\CachingHttpClient;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpKernel\HttpCache\Store;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 class CacheFileFetcher
 {
@@ -21,17 +22,26 @@ class CacheFileFetcher
     }
 
     // get a file from cache
-    public function getFile( $filename)
+    public function getFile( $filename, $reload = false)
     {
 	// Init cache store dir
         $store = new Store( $this->getCacheDirectory());
         $client = HttpClient::create();
-        $cache_client = new CachingHttpClient($client, $store, ["debug" => true]);
+        $cache_client = new CachingHttpClient($client, $store, 
+		["debug" => true, 
+//		 "allow_reload" => true,
+		]);
 
 	// Fetch the file from the cache
         $URL = $_ENV['SQUID_CACHE_URL'].$filename;
         $this->logger->debug('URL '.$URL);
-        $response = $cache_client->request('GET', $URL);
+
+	// Invalidate local cache entry to make sure
+	// The URL is requested from remote cache
+	if( $reload)
+	  $store->invalidate( Request::create( $URL));
+
+        $response = $cache_client->request('GET', $URL, []);
 
         $statusCode = $response->getStatusCode();
         // $statusCode = 200
@@ -42,7 +52,8 @@ class CacheFileFetcher
         try {
 */
             $contentType = $response->getHeaders()['content-type'][0];
-            $this->logger->debug('Content type '.$contentType);
+//            $this->logger->debug('Content type '.$contentType);
+	
 /*
         } catch (FileException $e) {
 
