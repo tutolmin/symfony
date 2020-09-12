@@ -32,6 +32,14 @@ class PGNFetcher
         $this->gameRepository = $this->manager->getRepository( Game::class);
     }
 
+    // invalidate local cache file
+    public function invalidateLocalCache( $filename)
+    {
+
+      // Make sure local copy of the file is invalidated locally
+      $this->fetcher->invalidateLocalCache( $filename);
+    }
+
     // Fetches single PGN file
     public function getPGN( $gid)
     {

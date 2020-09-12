@@ -813,8 +813,12 @@ RETURN ply.san, id(node) AS node_id';
 	      return false;
       }
 
+      $this->logger->debug( "Saving file into uploads dir.");
+
       // Put the file into special uploads directory
       $this->uploader->uploadEvals( $tmp_file, $record->value('l.hash'));
+
+      $this->logger->debug( "Requesting local cache invalidation.");
 
       // Invalidate local cached
       $this->fetcher->invalidateLocalCache(

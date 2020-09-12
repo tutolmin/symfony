@@ -26,9 +26,9 @@ class CacheFileFetcher
     {
       // Init cache store dir
       $store = new Store( $this->getCacheDirectory());
-      
+
       $URL = $_ENV['SQUID_CACHE_URL'].$filename;
-      $this->logger->debug('URL '.$URL);
+      $this->logger->debug('Invalidating URL '.$URL);
 
       // Make sure local copy of the file is invalidated locally
       $store->invalidate( Request::create( $URL));
