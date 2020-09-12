@@ -52,7 +52,7 @@ class CacheFileFetcher
         try {
 */
             $contentType = $response->getHeaders()['content-type'][0];
-//            $this->logger->debug('Content type '.$contentType);
+            $this->logger->debug('Content type '.$contentType);
 	
 /*
         } catch (FileException $e) {
