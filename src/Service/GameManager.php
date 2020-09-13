@@ -882,7 +882,7 @@ RETURN ply.san, id(node) AS node_id';
         $Totals[$side]['deltas'] = count( $Deltas[$side]);
         $Totals[$side]['mean'] = $this->findMean( $Deltas[$side]);
         $Totals[$side]['median'] = $this->findMedian( $Deltas[$side]);
-        $Totals[$side]['stddev'] = $this->findStdDev( $Deltas[$side]);
+        $Totals[$side]['std_dev'] = $this->findStdDev( $Deltas[$side]);
 
 	$Totals[$side]['forced_rate'] = 0;
 	if( $Totals[$side]['plies'] > 0)
@@ -919,10 +919,16 @@ RETURN ply.san, id(node) AS node_id';
 
 
 $Totals[$side]['perp_len'] = 0;
-$Totals[$side]['cheat_score'] = $_ENV['ELO_START'];
+$Totals[$side]['cheat_score'] = (int)$_ENV['ELO_START'];
 
     // Do not even attempt to calculate elo for erroneous games
     // We should have at least one delta
+//plies=34&t1=23&t2=2&t3=2&ecos=7&forced=0&best=13&sound=11&analyzed=16&deltas=3&mean=22.7&median=16&std_dev=10.9&forced_rate=0&t1_rate=85.2&t2_rate
+//=92.6&t3_rate=100&sound_rate=40.7&eco_rate=20.6&et3=34&et3_rate=100&best_rate=81.3&perp_len=6&cheat_score=500 [] []
+
+//Plies: 16	ECOs: 7	Best: 13	Sound: 11	Forced: 0	Median: 16.00	Mean: 22.67
+//W: PerpLen,	DB:   0.00	   6.00
+
     if( ($Totals[$side]['median'] > 0 || $Totals[$side]['best_rate'] > 0)
   	   && $Totals[$side]['median'] < 50 && $Totals[$side]['mean'] < 100) {
 
@@ -934,22 +940,30 @@ $Totals[$side]['cheat_score'] = $_ENV['ELO_START'];
       $y1 = 50 * $t;
       $z1 = 100 * $t;
 
+        $this->logger->debug( "Calculating CS/Perp t:". $t . " x1:" . $x1 . " y1:" .$y1. " z1:".$z1 );
+//[2020-09-13 08:50:21] app.DEBUG: Calculating CS/Perp t:0.21955555555556 x1 78.044444444444 y1:10.977777777778 z1:21.955555555556 [] []
+//bestp: 81, t: 0.22, x1: 77.93, y1: 11.04, z1: 22.07
+
+//    perpendicularLength = sqrt( pow( bestp - x1, 2) + pow( median - y1, 2) + pow( avg_diff - z1, 2));
+
+//    return ELO_START + round( sqrt( pow( x1, 2) + pow( 50 - median, 2) + pow( 100 - avg_diff, 2)) * (ELO_END - ELO_START) / 150);
+
       $Totals[$side]['perp_len'] = round( sqrt(
         pow( $Totals[$side]['best_rate'] - $x1, 2) +
         pow( $Totals[$side]['median'] - $y1, 2) +
         pow( $Totals[$side]['mean'] - $z1, 2)
       ), 1);
 
-      $Totals[$side]['cheat_score'] + round(
+      $Totals[$side]['cheat_score'] = $_ENV['ELO_START'] + (int)round(
         sqrt(
           pow( $x1, 2) +
           pow( 50 - $Totals[$side]['median'], 2) +
           pow( 100 - $Totals[$side]['mean'], 2)
-        ) * ($_ENV['ELO_END'] - $_ENV['ELO_START']) / 150);
+        ) * ($_ENV['ELO_END'] - $_ENV['ELO_START']) / 150, 0);
     }
 
 
-        $this->logger->debug( $side.": ".implode(',', $Totals[$side]));
+        $this->logger->debug( $side.": ".http_build_query( $Totals[$side]));
 
         $query = 'MATCH (game:Game)-[:FINISHED_ON]->(line:Line) WHERE id(game) = $gid
 MATCH (game)-[:ENDED_WITH]->(wr)<-[:ACHIEVED]-(:White)
@@ -963,7 +977,7 @@ s.t1 = $t1, s.t2 = $t2, s.t3 = $t3,
 s.et3 = $et3, s.ecos = $ecos, s.sound = $sound, s.best = $best, s.forced = $forced,
 s.eco_rate = $eco_rate, s.et3_rate = $et3_rate, s.t1_rate = $t1_rate, s.t2_rate = $t2_rate, s.t3_rate = $t3_rate,
 s.sound_rate = $sound_rate, s.best_rate = $best_rate, s.forced_rate = $forced_rate,
-s.mean = $mean, s.median = $median, s.stddev = $stddev,
+s.mean = $mean, s.median = $median, s.std_dev = $std_dev,
 s.perp_len = $perp_len, s.cheat_score = $cheat_score';
 
         $params = $Totals[$side];
