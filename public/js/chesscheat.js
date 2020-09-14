@@ -1007,8 +1007,8 @@ var getEvalString = function( game, posIndex, altIndex, varIndex) {
   var evalStr = evalColor;
 
   // Eval string
-  if( game.in_checkmate())	evalStr += "Checkmate!";
-  else if( game.in_stalemate())	evalStr += "Stalemate!";
+  if( game.in_checkmate() && altIndex == -1) evalStr += "Checkmate!";
+  else if( game.in_stalemate() && altIndex == -1)	evalStr += "Stalemate!";
   else if( mateLine)		evalStr += "Mate in " + Math.abs( p_eval);
   else if( pawnLine)		evalStr += p_eval + "+";
   else if( p_eval !== "")	evalStr += (p_eval/100).toFixed(2);

@@ -54,7 +54,7 @@ function loadGames() {
 	'<td class="centered">' + B_analysis_icon + '</td>' +
 	'<td>' + val["Black"] + '</td><td class="centered">' + val["ELO_B"] + '</td>' +
 	'<td class="centered">' + val["Result"] + '</td><td class="centered">' + val["ECO"] +
-	"</td><td>" + val["Event"] + "</td><td>" + val["Date"] +
+	"</td><td style='width:175px;'>" + val["Event"] + "</td><td>" + val["Date"] +
         '<td class="centered">' + val["Moves"] +
         '</td><!--<td class="centered">' + val["W_cheat_score"] +
         '</td><td class="centered">' + colorScore( val["W_cheat_score"]-val["White_ELO"]) +
