@@ -1,3 +1,10 @@
+function toggleGames(source) {
+  checkboxes = document.getElementsByName('items[]');
+  for(var i=0, n=checkboxes.length;i<n;i++) {
+    checkboxes[i].checked = source.checked;
+  }
+}
+
 function loadGames() {
 
   // Get the cookies
@@ -15,7 +22,7 @@ function loadGames() {
 
     // Build a table, start with header
     var items = [];
-    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll"/></td>' +
+    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll" onClick="toggleGames(this)"/></td>' +
         '<td><abbr title="Avaliable analysis for White">A</abbr></td><td>White</td><td>ELO</td>' +
 	'<td><abbr title="Avaliable analysis for Black">A</abbr></td><td>Black</td><td>ELO</td>' +
 	'<td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +

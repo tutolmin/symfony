@@ -74,13 +74,13 @@ function show_accordion_item( btn, ac) {
 
 
 
-
-// Doe NOT work!!!
+/*
+// Does NOT work!!!
 $("#checkAll").click(function(){
     console.log("Check all games");
     $("input[name='items[]']").not(this).prop('checked', this.checked);
 });
-
+*/
 
 // Send file to a user
 function downloadPGN(filename, text) {
@@ -789,6 +789,26 @@ $('#boardFlip').on('click', function() {
   onMoveEnd();
 });
 
+$('#tagsDelete').on('click', function() {
+  $('.tagsinput#form-tags').importTags( '');
+  loadGames();
+});
+
+$('#tagsReload').on('click', function() {
+  setCookie('gl_page',0,1);
+  loadGames();
+});
+
+$('#tagsDeleteQueue').on('click', function() {
+  $('.tagsinput#queue-form-tags').importTags( '');
+  loadQueue();
+});
+
+$('#tagsReloadQueue').on('click', function() {
+  setCookie('qa_page',0,1);
+  loadQueue();
+});
+
 $('#setStartBtn').on('click', function() {
   positionIndex=0;
   alternativeIndex=-1;
@@ -1016,8 +1036,8 @@ var updatePosition = function() {
   var positionStr = '';
   if( p_depth && p_time)
     positionStr = evalStr + evalMark +
-    '&nbsp;<span style="font-size: 80%">(depth: ' + p_depth +
-    "plies, time: " + p_time + "ms)</span>";
+    '&nbsp;<span style="font-size: 80%">(' + p_depth +
+    "&nbsp;plies,&nbsp;" + p_time + "&nbsp;ms)</span>";
 
   document.getElementById('evaluationInfo').innerHTML = positionStr;
   document.getElementById('gameFEN').innerHTML = FEN;

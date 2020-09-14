@@ -34,46 +34,62 @@ class SearchHintController extends AbstractController
 //        if( $term = $request->query->getAlpha('term', 0)) {
         if( $term = urldecode( $request->query->get('term'))) {
 
-	  if( strpos( "fast", $term) !== false)
+	  if( stripos( "fast", $term) !== false)
 	    $hints[] = "fast";
 
-	  if( strpos( "deep", $term) !== false)
+	  if( stripos( "deep", $term) !== false)
 	    $hints[] = "deep";
 
-	  if( strpos( "white", $term) !== false)
+	  if( stripos( "white", $term) !== false)
 	    $hints[] = "white";
 
-	  if( strpos( "black", $term) !== false)
+	  if( stripos( "black", $term) !== false)
 	    $hints[] = "black";
 
-	  if( strpos( "1-0", $term) !== false)
+	  if( stripos( "1-0", $term) !== false)
 	    $hints[] = "1-0";
 
-	  if( strpos( "0-1", $term) !== false)
+	  if( stripos( "0-1", $term) !== false)
 	    $hints[] = "0-1";
 
-	  if( strpos( "1/2-1/2", $term) !== false
-	    || strpos( "draw", $term) !== false)
+	  if( stripos( "1/2-1/2", $term) !== false
+	    || stripos( "draw", $term) !== false)
 	    $hints[] = "1/2-1/2";
 
-	  if( strpos( "checkmate", $term) !== false) {
+    if( stripos( "Pending", $term) !== false)
+	    $hints[] = "pending";
+
+    if( stripos( "Processing", $term) !== false)
+	    $hints[] = "processing";
+
+    if( stripos( "Skipped", $term) !== false)
+	    $hints[] = "skipped";
+
+    if( stripos( "Complete", $term) !== false)
+	    $hints[] = "complete";
+
+	  if( stripos( "checkmate", $term) !== false) {
 	    $hints[] = "checkmate";
+/*
 	    $hints[] = "checkmate by queen";
 	    $hints[] = "checkmate by rook";
 	    $hints[] = "checkmate by bishop";
 	    $hints[] = "checkmate by knight";
 	    $hints[] = "checkmate by pawn";
 	    $hints[] = "checkmate by king";
+*/
 	  }
 
-	  if( strpos( "stalemate", $term) !== false) {
+	  if( stripos( "stalemate", $term) !== false) {
 	    $hints[] = "stalemate";
+/*
 	    $hints[] = "stalemate by king";
 	    $hints[] = "stalemate by pawn";
 	    $hints[] = "stalemate by rook";
 	    $hints[] = "stalemate by queen";
 	    $hints[] = "stalemate by bishop";
 	    $hints[] = "stalemate by knight";
+*/
 	  }
 
 	  $params["term"] = $term;

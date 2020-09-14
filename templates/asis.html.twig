@@ -35,12 +35,14 @@
 <img src="img/analysis.png" style="float:left"/>&nbsp;&nbsp;Analyze</button>
 </div>
 </div>
-<div style="float:right;">
+<div style="float:right;height:59px;display: table; width:275px;">
+<span style="font-size: 16pt;vertical-align:middle;display: table-cell; ">
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {{ app.user.email }}&nbsp;<a href="/logout">Logout</a>
 {% else %}
 <a href="/connect">Login</a>
 {% endif %}
+</span>
 </div>
 
 </div>
@@ -119,7 +121,7 @@ Maximum file size is 1M</p>
 <button class="u-accordion">Contact support team</button>
 <div class="u-panel">
   <p>We are ready to answer all your questions.
-  Please <a href="mailto:support@chesscheat.com?subject=upload">email us</a> and describe the issue in details.</p>
+  Please <a href="mailto:support@chesscheat.com?subject=upload" target="_blank">email us</a> and describe the issue in details.</p>
 </div>
 
 </td>
@@ -200,13 +202,34 @@ Maximum file size is 1M</p>
 </div>
 </td>
 <td style="vertical-align:top">
--->
-  <p>Enter player name, result or start typing to select tag from the dropdown list. You can also use predefined tags on the left.</p>
-  <span style="font-size:22pt;float:left;">Tags:&nbsp;
-  <button style="float:right;" onclick="$('.tagsinput#form-tags').importTags( '');">Delete all tags</button>
-  </span><form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text"></form>
-<br/>
-  <span style="font-size:18pt;float:left;">Predefined tags:&nbsp;</span>
+  <p>In order to find a particular game in the database enter player name,
+  game result or start typing to select relevant tag from the dropdown list.
+  <br/>You can also use some example tags shown below.
+  Browse the game list with navigation buttons and sort it by date or # of game moves.</p>
+  -->
+  <table border=0 cellpadding=0 cellspacing=0><tr><td>
+  <span style="font-size:22pt;float:left;">Tags:</span>
+  </td>
+  <td style="width:850px;">
+  <form id="form"><input id="form-tags" name="tags" class="tagsinput" type="text"></form>
+  </td>
+  <td>
+  <div id="tagsReload"	class="boardReload">
+   <a href="#" title='Reload games'>
+    <img src="img/reload.png" style="padding-left:5px;"/>
+   </a>
+  </div>
+  </td>
+  <td>
+  <div id="tagsDelete"	class="boardFlip">
+   <a href="#" title='Delete all tags'>
+    <img src="img/delete.png" style="padding-left:5px;"/>
+   </a>
+  </div>
+  </td>
+  </tr>
+  </table>
+<span style="font-size:12pt;float:left;padding-top:5px;">or use some of those:&nbsp;</span>
 <span>
 <button onclick="$('.tagsinput#form-tags').addTag( '1-0');">1-0</button>
 <button onclick="$('.tagsinput#form-tags').addTag( '0-1');">0-1</button>
@@ -263,11 +286,12 @@ Maximum file size is 1M</p>
 <td valign="top">
 
 <button class="s-accordion active-accordion">Game search interface</button>
-<div class="s-panel" style="max-height: 200px;">
+<div class="s-panel" style="max-height: 300px;">
   <p>Before you can submit your games for analysis you will need to find them in the database.
   You can do so by using the game search interface.</p>
   <p>When you enter some tag it narrows the search and shows only the games matching the criteria.
   You can enter several tags to only show the games that match all of them.</p>
+  <p>Browse the game list with navigation buttons and sort it by date or total number of game moves.</p>
 </div>
 
 <button class="s-accordion">Available tags</button>
@@ -359,7 +383,7 @@ Maximum file size is 1M</p>
 <button class="s-accordion">Contact support team</button>
 <div class="s-panel">
   <p>We are ready to answer all your questions.
-  Please <a href="mailto:support@chesscheat.com?subject=search">email us</a> and describe the issue in details.</p>
+  Please <a href="mailto:support@chesscheat.com?subject=search" target="_blank">email us</a> and describe the issue in details.</p>
 </div>
 
 </td>
@@ -370,12 +394,37 @@ Maximum file size is 1M</p>
 
 <div id="Queue" class="tabcontent">
 <table><tr><td style="vertical-align:top">
+<!--
   <p>Tags for analysis requests selection are a little bit different. Please use predefined tags below</p>
   <span style="font-size:22pt;float:left;">Tags:&nbsp;
   <button style="float:right;" onclick="$('.tagsinput#queue-form-tags').importTags( '');loadQueue();">Delete all tags</button>
   </span><form id="queue_form"><input id="queue-form-tags" name="tags" class="tagsinput" type="text"></form>
 <br/>
   <span style="font-size:18pt;float:left;">Predefined tags:&nbsp;</span>
+-->
+<table border=0 cellpadding=0 cellspacing=0><tr><td>
+<span style="font-size:22pt;float:left;">Tags:</span>
+</td>
+<td style="width:850px;">
+<form id="queue_form"><input id="queue-form-tags" name="tags" class="tagsinput" type="text"></form>
+</td>
+<td>
+<div id="tagsReloadQueue"	class="boardReload">
+ <a href="#" title='Reload queue'>
+  <img src="img/reload.png" style="padding-left:5px;"/>
+ </a>
+</div>
+</td>
+<td>
+<div id="tagsDeleteQueue"	class="boardFlip">
+ <a href="#" title='Delete all tags'>
+  <img src="img/delete.png" style="padding-left:5px;"/>
+ </a>
+</div>
+</td>
+</tr>
+</table>
+<span style="font-size:12pt;float:left;padding-top:5px;">or use some of those:&nbsp;</span>
 <span>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black</button>
@@ -441,18 +490,18 @@ Maximum file size is 1M</p>
 
 <button class="q-accordion active-accordion">Analysis queue</button>
 <div class="q-panel" style="max-height: 250px;">
-  <p>All the games submitted for analysis are placed to the queue.
-  Due to the lack of resources the system analyzes games one by one.</p>
+  <p>All the games submitted for analysis are placed into the queue.
+  Due to the lack of computing resources the system analyzes games one by one.</p>
   <p>It might take minutes, hours or even days before you game will be processed.
   Please only submit the games you really want to analyze.</p>
-  <p>Check the current game place in the queue shown in the <b>#</b> column.</p>
+  <p>You can view current game place in the analysis queue in the <b>#</b> column.</p>
 </div>
 
 <button class="q-accordion">Fair queueing policy</button>
 <div class="q-panel">
-  <p>The system uses a <b>fair queueing policy</b> for new analysis requests.
-  This means that the first game you submitted will be placed relatively close to the queue head.
-  Each subsequent analysis will be placed closer to the queue tail.</p>
+  <p>The system uses a <b>fair queueing policy</b> for new analysis requests.</p>
+  <p>It means that the first game you submit is placed relatively close to the queue head.
+  Each subsequent analysis request will be placed closer to the queue tail.</p>
   <p>This is done to prevent a single user from occupying the analysis queue with their only games.</p>
 </div>
 
@@ -482,7 +531,7 @@ Maximum file size is 1M</p>
 <button class="q-accordion">Contact support team</button>
 <div class="q-panel">
   <p>We are ready to answer all your questions.
-  Please <a href="mailto:support@chesscheat.com?subject=queue">email us</a> and describe the issue in details.</p>
+  Please <a href="mailto:support@chesscheat.com?subject=queue" target="_blank">email us</a> and describe the issue in details.</p>
 </div>
 
 </td>
@@ -594,8 +643,12 @@ this score with other players, grandmasters and computers.</p>
 </td><td valign=top>
 
   <div class="w3-bar">
-  <button class="side_button" id="whiteSide" onclick="updateCounters('White')">White</button>
-  <button class="side_button" id="blackSide" onclick="updateCounters('Black')">Black</button>
+  <button class="side_button" id="whiteSide" onclick="updateCounters('White')">
+  <img src="img/chesspieces/wikipedia/wK.png" width="48" alt="White" title="White"/>
+  </button>
+  <button class="side_button" id="blackSide" onclick="updateCounters('Black')">
+  <img src="img/chesspieces/wikipedia/bK.png" width="48" alt="Black" title="Black"/>
+  </button>
   </div>
 
   <div class="cheat-score" id="cheatScore">Cheat Score: 0</div>
@@ -683,7 +736,7 @@ this score with other players, grandmasters and computers.</p>
   <button class="a-accordion">Contact support team</button>
   <div class="a-panel">
     <p>We are ready to answer all your questions.
-    Please <a href="mailto:support@chesscheat.com?subject=analysis">email us</a> and describe the issue in details.</p>
+    Please <a href="mailto:support@chesscheat.com?subject=analysis" target="_blank">email us</a> and describe the issue in details.</p>
   </div>
 
 </div>
@@ -695,7 +748,7 @@ this score with other players, grandmasters and computers.</p>
   <button class="c-accordion active-accordion">Contact support team</button>
   <div class="c-panel" style="max-height: 250px;">
     <p>We are ready to answer all your questions.
-    Please <a href="mailto:support@chesscheat.com?subject=analysis">email us</a> and describe the issue in details.</p>
+    Please <a href="mailto:support@chesscheat.com?subject=analysis" target="_blank">email us</a> and describe the issue in details.</p>
   </div>
 
 </div>

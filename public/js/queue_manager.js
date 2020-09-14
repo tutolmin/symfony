@@ -1,3 +1,10 @@
+function toggleQueue(source) {
+  checkboxes = document.getElementsByName('queue_items[]');
+  for(var i=0, n=checkboxes.length;i<n;i++) {
+    checkboxes[i].checked = source.checked;
+  }
+}
+
 function loadQueue() {
 
   // Get the cookies
@@ -15,7 +22,7 @@ function loadQueue() {
 
     // Build a table, start with header
     var items = [];
-    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll"/></td>' +
+    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll" onClick="toggleQueue(this)/></td>' +
         '<td style="text-align:center"><a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +

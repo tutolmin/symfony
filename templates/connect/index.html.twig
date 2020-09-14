@@ -17,7 +17,8 @@
 </style>
 
 <div class="example-wrapper">
-    <h1>Login requred!</h1>
+    <h1>Login</h1>
+    <h3>Choose the account you want to login with:</h3>
 
 <!--
 <div class="fb-login-button" data-size="large" data-button-type="login_with" data-auto-logout-link="true" data-use-continue-as="true"></div>
@@ -53,9 +54,25 @@ function pageLoad() {
 
   <script src="https://apis.google.com/js/platform.js?onload=renderButton" async defer></script>
 
-<a href="/connect/facebook"><img src="img/facebook_icon.png"/> Log in with Facebook</a>
-<a href="/connect/google"><img src="img/google_icon.png"/> Log in with Google</a>
-<a href="/connect/lichess"><img src="img/lichess_icon.svg"/> Log in with Lichess</a>
+<table cellspacing=3 cellpadding=5><tr>
+<td>
+<a href="/connect/facebook"><img src="img/facebook_icon.png"/></a>
+</td>
+<td><a href="/connect/facebook">Log in with Facebook</a></td>
+</tr>
+<tr>
+<td>
+<a href="/connect/google"><img src="img/google_icon.png"/></a>
+</td>
+<td><a href="/connect/google">Log in with Google</a></td>
+</tr>
+<tr>
+<td>
+<a href="/connect/lichess"><img src="img/lichesslogo.svg" height="32"/></a>
+</td>
+<td><a href="/connect/lichess">Log in with Lichess</a></td>
+</tr>
+</table>
 
 </div>
 {% endblock %}

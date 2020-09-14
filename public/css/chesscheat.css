@@ -41,7 +41,7 @@ a {text-decoration: none;}
     border: none;
     outline: none;
     cursor: pointer;
-    padding: 0px 30px;
+    padding: 0px 25px;
     transition: 0.3s;
 }
 
@@ -63,8 +63,8 @@ a {text-decoration: none;}
     border-top: none;
 }
 .tablinks {
-    height: 48px;
-    font-size: 18pt;
+    height: 57px;
+    font-size: 22pt;
 }
 table.my-new-table {
     padding: 10px 2px;
@@ -275,11 +275,11 @@ div.mainContainer
 div.variationLine
 {
   float:right;
-  width:500px;
+  width:450px;
   white-space: nowrap;
   overflow-x: auto;
-  font-size:80%;
-  padding:3px 0 3px 0;
+  font-size:75%;
+  padding:5px 0 0 0;
 }
 div.evaluationInfo
 {
@@ -291,6 +291,7 @@ div.evaluationInfo
 div.varEval
 {
   float:left;
+//  width: 75px;
   padding:3px 0 3px 0;
 }
 
@@ -338,15 +339,20 @@ div.varEval
 .w3-bar:before,.w3-bar:after{content:"";display:table;clear:both}
 
 .side_button {
+cursor: pointer;
 background-color: #aaaaaa;
 border: none;
 color: black;
 width: 150px;
-padding: 15px 32px;
+padding: 3px 32px;
 text-align: center;
 text-decoration: none;
 display: inline-block;
 font-size: 16px;
+}
+
+.side_button:hover {
+  background-color: #cccccc;
 }
 
 .cheat-score {
