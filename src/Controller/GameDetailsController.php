@@ -422,7 +422,7 @@ RETURN summary LIMIT 2';
 	if($summaryObj->hasValue('median'))
 		$this->game[$prefix.'median'] = $summaryObj->value('median');
 	if($summaryObj->hasValue('stddev'))
-		$this->game[$prefix.'std_dev'] = $summaryObj->value('stddev');
+		$this->game[$prefix.'std_dev'] = $summaryObj->value('std_dev');
 	if($summaryObj->hasValue('cheat_score'))
 		$this->game[$prefix.'cheat_score'] = $summaryObj->value('cheat_score');
 	if($summaryObj->hasValue('perp_len'))

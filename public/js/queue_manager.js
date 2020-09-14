@@ -22,7 +22,7 @@ function loadQueue() {
 
     // Build a table, start with header
     var items = [];
-    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll" onClick="toggleQueue(this)/></td>' +
+    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll" onClick="toggleQueue(this)"/></td>' +
         '<td style="text-align:center"><a href="' + window.location.pathname +
         '#" onclick="setCookie(\'qa_sort\',\'Place\',1);loadQueue();" style="text-decoration: none;">&#x2191;</a>&nbsp;#&nbsp;' +
         '<a href="' + window.location.pathname +
