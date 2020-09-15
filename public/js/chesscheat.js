@@ -723,8 +723,12 @@ countersTable += "<td>" +
 
 countersTable += "</tr>";
 
-document.getElementById("cheatScore").innerHTML =
-  "Cheat Score: " + Game[prefix+'cheat_score'];
+if( Game[prefix+'cheat_score'] <= 500)
+  document.getElementById("cheatScore").innerHTML =
+    "Cheat Score: <abbr title='To be determined'>TBD</abbr>";
+else
+  document.getElementById("cheatScore").innerHTML =
+    "Cheat Score: " + Game[prefix+'cheat_score'];
 
 
 // Hide intro text
