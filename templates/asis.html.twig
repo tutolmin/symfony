@@ -57,10 +57,11 @@
 
 <p>You can upload your own game(s) into our database.
 Then you will be able to submit your games for analysis.
-Once the processing is complete you can analyze your games.</p>
+Once the processing is complete you will receive an email notification.</p>
 <p>
 Use the form below to upload your game(s).
-Paste your game(s) in PGN format below and press Import button.
+Paste your game(s) in <abbr title='Portable Game Notation'>PGN</abbr>
+format below and press <b>Import PGN</b> button.
 Maximum file size is 1M</p>
 <!--
 <p>Allowed file types are .pgn and .txt
@@ -95,18 +96,21 @@ Maximum file size is 1M</p>
 
 <td valign="top" style='width:300px'>
 
-<button class="u-accordion active-accordion">Supported file formats</button>
+<button class="u-accordion active-accordion">Supported file format</button>
 <div class="u-panel" style="max-height: 200px;">
   <p><abbr title='Portable Game Notation'>PGN</abbr> is the standard text format for chess games.
   You can upload multiple games stored in single PGN file.</p>
+  <p>All popular chess web sites support games export in PGN format.</p>
+<!--
   <p>In order to save bandwidth you can compress your PGN file uzing ZIP or Gzip.</p>
   <p>Supported file formats are <b>.pgn .txt .zip .gz</b>
+-->
 </div>
 
 <button class="u-accordion">Database insertion speed</button>
 <div class="u-panel">
-  <p>If you only pasted a single game or uploaded a PGN file with a dozen of
-  chess games your games will appear in the database instantly.</p>
+  <p>If you upload a PGN with a single game or a dozen of
+  records, your games will appear in the database instantly.</p>
   <p>But if your submission contains hundreds of games it might take a few minutes
   before you can find them in the Search tab.</p>
 </div>
@@ -304,31 +308,6 @@ Maximum file size is 1M</p>
   such as <b>checkmate</b> or <b>stalemate</b> can also be used.</p>
 </div>
 
-<button class="s-accordion">Analysis types</button>
-<div class="s-panel">
-  <p>There are two types of analysis: <b>Fast</b> and <b>Deep</b>.
-   The main purpose for the Fast analysis is to get fast evaluation of the game, check for blunders, etc.</p>
-  <p>It is a good idea to only request Deep analysis for a game if Fast analysis did not show any errors
-  and you suspect one of the players cheated.</p>
-  <p>Deep analysis takes 3-5 times longer to complete.
-  Deep analysis include calculation of the anti-cheat score.</p>
-</div>
-
-<button class="s-accordion">Analysis side</button>
-<div class="s-panel">
-  <p>When you submit a game for analysis you can select to only analyze the moves of a particular side,
-  <b>White</b> or <b>Black</b>.</p>
-  <p>For example: you have played White and suspect your opponent have cheated.
-  You should select to only analyze Black moves in the game.</p>
-</div>
-
-<button class="s-accordion">Submission limit</button>
-<div class="s-panel">
-  <p>In order to provide quality service to all our users there is a submission limit for each user.
-  If there are <b>more than 30</b> pending games you submitted in the analysis queue the system
-  will not allow to add more until previous are processed.</p>
-</div>
-
 <button class="s-accordion">Request game analysis</button>
 <div class="s-panel">
 
@@ -378,6 +357,32 @@ Maximum file size is 1M</p>
   <br/><span style="font-style:italic">You must <a href="/connect">login</a> before you can request analysis.</span>
   {% endif %}
 
+</div>
+
+
+<button class="s-accordion">Analysis types</button>
+<div class="s-panel">
+  <p>There are two types of analysis: <b>Fast</b> and <b>Deep</b>.
+   The main purpose of the Fast analysis is to get quick evaluation of the game, check for blunders, etc.</p>
+  <p>It is a good idea to only request Deep analysis for a game if Fast analysis did not show any errors
+  and you suspect cheating by one of the players.</p>
+  <p>Deep analysis takes 3-5 times longer to complete.
+  Deep analysis include calculation of the anti-cheat score.</p>
+</div>
+
+<button class="s-accordion">Analysis side</button>
+<div class="s-panel">
+  <p>When you submit a game for analysis you can select to only analyze the moves of a particular side,
+  <b>White</b> or <b>Black</b>.</p>
+  <p>For example: you have played White and suspect your opponent have cheated.
+  You should select to only analyze Black moves in the game.</p>
+</div>
+
+<button class="s-accordion">Submission limit</button>
+<div class="s-panel">
+  <p>In order to provide quality service to all of our users there is a submission limit for each user.</p>
+  <p>The system will only allow you to insert <b>up to 30</b> games into analysis queue.</p>
+  <p>Subsequent submissions will only succeed if there will be vacant slots in the analysis queue.</p>
 </div>
 
 <button class="s-accordion">Contact support team</button>
@@ -510,13 +515,14 @@ Maximum file size is 1M</p>
   <p>The system gives you an estimation on when a particular game in the queue will be analyzed.
   Check the <b>Estimated</b> column.</p>
   <p>This estimate is based on the current analysis speed and available system resources.</p>
-  <p>You will receive an email notification when a particular game has been analyzed.</p>
+  <p>You will receive an email notification when a particular game will be analyzed.</p>
 </div>
 
 <button class="q-accordion">Analysis selection tags</button>
 <div class="q-panel">
-  <p>There are a lot of tags you can use to show only certain games in the queue.</p>
-  <p>These are analysis status, analysis side, etc. Also you can only show the games you submitted for analysis.</p>
+  <p>There are some tags you can use to show only certain games in the queue.</p>
+  <p>These are analysis status, analysis side, etc.
+  Also you can only show the games you submitted for analysis.</p>
 </div>
 
 <button class="q-accordion">Promote game analysis</button>
@@ -593,16 +599,16 @@ Maximum file size is 1M</p>
 
   <p>ChessCheat was created as an attempt to fight growing problem
 of cheating in online chess and <abbr title='Over the Board'>OTB</abbr> games.
-More and more players are using different aplliances and gadgets
-seeking for forbidden computer assistance.</p>
+More and more players are using different appliances and gadgets
+in order to get a forbidden computer assistance.</p>
 
-<p>If you feel the opponent was not following rules of fair play
-you can upload your game to Chess Cheat and let us our
+<p>If you feel the opponent was not following the rules of fair play
+you can upload your game to our database and let us our
 comprehensive system analyze it for you.</p>
 
-<p>Once the game is analyzed it will assign a special Cheat score
-for both White and Black player moves. Then you can compare
-this score with other players, grandmasters and computers.</p>
+<p>After analysis is complete a special <b>Cheat Score</b> value
+will be calculated for both White and Black player moves. Then you can compare
+this score with other players, GMs and computers.</p>
 
 <p>This analysis and evaluation can serve as a basis for official appeal.</p>
 
@@ -635,7 +641,8 @@ this score with other players, grandmasters and computers.</p>
 <br/>
 <div id="legend" style="width: 500px"><b>Legend</b><br/>
 <b><span class='mark_Best'>Best move</span></b>: equal evaluation to the best line<br/>
-<b><span class='mark_Sound'>Sound move</span></b>: forced move, obvious recapture, single reasonable move, one of equal lines in drawish position<br/>
+<b><span class='mark_Sound'>Sound move</span></b>: forced move, obvious recapture,
+single reasonable move, one of equal lines in drawish position, etc.<br/>
 </div>
 
 </div>
@@ -657,17 +664,8 @@ this score with other players, grandmasters and computers.</p>
 
 <div id="accordionContainer" style="z-index:0; position:absolute;visibility:hidden;">
 
-  <button class="a-accordion active-accordion">Analysis queue</button>
-  <div class="a-panel" style="max-height: 250px;">
-    <p>All the games submitted for analysis are placed to the queue.
-    Due to the lack of resources the system analyzes games one by one.</p>
-    <p>It might take minutes, hours or even days before you game will be processed.
-    Please only submit the games you really want to analyze.</p>
-    <p>Check the current game place in the queue shown in the <b>#</b> column.</p>
-  </div>
-
-  <button class="a-accordion">What is a cheat score?</button>
-  <div class="a-panel">
+  <button class="a-accordion active-accordion">What is a cheat score?</button>
+  <div class="a-panel" style="max-height: 300px;">
     <p>Cheat score is a calculated abstract value assigned to a particular sequence of
     chess game moves for a given side, white or black.</p>
     <p>The exact formula is quite complicated and take into account many different
@@ -676,15 +674,8 @@ this score with other players, grandmasters and computers.</p>
     with actual player rating. Big delta is a sign of a suspected cheating.</p>
   </div>
 
-  <button class="a-accordion">Item</button>
-  <div class="a-panel">
-    <p></p>
-  </div>
-
-
   <button class="a-accordion">Request game analysis</button>
   <div class="a-panel">
-
     <p>You can request game analysis by
     specifying side to analyze <b>White/Black</b>,
     analysis depth <b>Fast/Deep</b> and clicking Submit.</p>
@@ -732,7 +723,21 @@ this score with other players, grandmasters and computers.</p>
     {% endif %}
 
   </div>
+<!--
+  <button class="a-accordion">Analysis queue</button>
+  <div class="a-panel">
+    <p>All the games submitted for analysis are placed to the queue.
+    Due to the lack of resources the system analyzes games one by one.</p>
+    <p>It might take minutes, hours or even days before you game will be processed.
+    Please only submit the games you really want to analyze.</p>
+    <p>Check the current game place in the queue shown in the <b>#</b> column.</p>
+  </div>
 
+  <button class="a-accordion">Item</button>
+  <div class="a-panel">
+    <p></p>
+  </div>
+-->
   <button class="a-accordion">Contact support team</button>
   <div class="a-panel">
     <p>We are ready to answer all your questions.
