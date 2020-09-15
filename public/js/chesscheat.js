@@ -656,18 +656,18 @@ countersTable += "<tr><td>" +
 "<tr><td><abbr title='Total number of moves per game'>Plies</abbr></td></tr>" +
 "<tr><td><abbr title='Number of analyzed moves'>Analyzed</abbr></td></tr>" +
 "<tr><td><abbr title='Encyclopedia of Chess Openings'>ECO</abbr>, %</td></tr>" +
-"<tr><td><abbr title='Top 1 moves'>T1</abbr>, %</td></tr>" +
-"<tr><td><abbr title='Top 2 moves'>T2</abbr>, %</td></tr>" +
-"<tr><td><abbr title='Top 3 moves'>T3</abbr>, %</td></tr>" +
-"<tr><td><abbr title='ECO+T3 moves'>ET3</abbr>, %</td></tr>" +
-"<tr><td><abbr title='Best moves'>Best</abbr>, %</td></tr>" +
-"<tr><td><abbr title='Sound moves'>Sound</abbr>, %</td></tr>" +
-"<tr><td><abbr title='Forced moves'>Forced</abbr>, %</td></tr>" +
-"<tr><td><abbr title='Total number of move with evaluation differences with T1'>Deltas</abbr></td></tr>" +
-"<tr><td><abbr title='Average Difference'>A.&nbsp;D.</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
-"<tr><td><abbr title='Median Error'>Median</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
+"<tr><td><abbr title='Percentage of first line moves'>T1</abbr>, %</td></tr>" +
+"<tr><td><abbr title='Percentage of first and second line moves'>T2</abbr>, %</td></tr>" +
+"<tr><td><abbr title='Percentage of top three line moves'>T3</abbr>, %</td></tr>" +
+"<tr><td><abbr title='Percentage of top three line moves, including ECOs'>ET3</abbr>, %</td></tr>" +
+"<tr><td><abbr title='Percentage of best moves'>Best</abbr>, %</td></tr>" +
+"<tr><td><abbr title='Percentage of sound moves'>Sound</abbr>, %</td></tr>" +
+"<tr><td><abbr title='Percentage of forced moves'>Forced</abbr>, %</td></tr>" +
+"<tr><td><abbr title='Total number of moves with evaluation differences with the first line'>Deltas</abbr></td></tr>" +
+"<tr><td><abbr title='Average Difference of the error'>A.&nbsp;D.</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
+"<tr><td><abbr title='Median error'>Median</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
 "<tr><td><abbr title='Standard Deviation'>S.&nbsp;D.</abbr>,&nbsp;<abbr title='Centipawns (100 cp = 1 pawn)'>cp</abbr></td></tr>" +
-"<tr><td><abbr title='Distance to baseline'>bDist</abbr></td></tr>" +
+"<tr><td><abbr title='Distance to a baseline'>bDist</abbr></td></tr>" +
 "</table>" +
 "</td>";
 
