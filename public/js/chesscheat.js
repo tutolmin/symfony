@@ -723,7 +723,7 @@ countersTable += "<td>" +
 
 countersTable += "</tr>";
 
-if( Game[prefix+'cheat_score'] <= 500)
+if( Game[prefix+'cheat_score'] < 500)
   document.getElementById("cheatScore").innerHTML =
     "Cheat Score: <abbr title='To be determined'>TBD</abbr>";
 else
