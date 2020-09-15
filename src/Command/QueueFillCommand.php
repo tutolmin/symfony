@@ -145,8 +145,8 @@ class QueueFillCommand extends Command
       $sideLabel = ":WhiteSide:BlackSide";
       $depth = 'fast';
 
-      // Get the user by email
-      $userId = 'fast';
+      // Get the user by id
+      $userId = $_ENV['SYSTEM_WEB_USER_ID'];
       $user = $this->userRepository->findOneBy(['id' => $userId]);
 
       // Let us only use system account for filling the Queue
