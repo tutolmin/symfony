@@ -63,25 +63,8 @@ Use the form below to upload your game(s).
 Paste your game(s) in <abbr title='Portable Game Notation'>PGN</abbr>
 format below and press <b>Import PGN</b> button.
 Maximum file size is 1M</p>
-<!--
-<p>Allowed file types are .pgn and .txt
- or archives .zip .gz
--->
-</p>
 
     {{ form_row(form.text) }}
-
-<!--
-<p>Now, solve simple chess captcha in order to prevent automated uploads.</p>
-
-
-    <input type="submit" value="Upload PGN" name="submit"
-{% if is_granted('IS_AUTHENTICATED_FULLY') %}
-{% else %}
-	disabled="disabled"
-{% endif %}
->
--->
 
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {% else %}
@@ -93,7 +76,6 @@ Maximum file size is 1M</p>
 {{ form_end(form) }}
 
 </td>
-
 <td valign="top" style='width:300px'>
 
 <button class="u-accordion active-accordion">Supported file format</button>
@@ -101,10 +83,6 @@ Maximum file size is 1M</p>
   <p><abbr title='Portable Game Notation'>PGN</abbr> is the standard text format for chess games.
   You can upload multiple games stored in single PGN file.</p>
   <p>All popular chess web sites support games export in PGN format.</p>
-<!--
-  <p>In order to save bandwidth you can compress your PGN file uzing ZIP or Gzip.</p>
-  <p>Supported file formats are <b>.pgn .txt .zip .gz</b>
--->
 </div>
 
 <button class="u-accordion">Database insertion speed</button>
@@ -138,79 +116,6 @@ Maximum file size is 1M</p>
 <!-- Tab content -->
 <div id="Search" class="tabcontent">
 <table><tr><td style="vertical-align:top">
-<!--
-  <h3>Predefined Tags</h3>
-<div class="predefinedTags">
-<b>Game result</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1-0');" checked="checked">White wins<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '0-1');">Black wins<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1/2-1/2');">Draw<br/>
-<b>Final position</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'checkmate');" checked="checked">Checkmate<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'checkmate by king');">Checkmate by King<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'checkmate by pawn');">Checkmate by Pawn<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'checkmate by rook');">Checkmate by Rook<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'checkmate by queen');">Checkmate by Queen<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'checkmate by bishop');">Checkmate by Bishop<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'checkmate by knight');">Checkmate by Knight<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate');">Stalemate<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate by king');">Stalemate by King<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate by pawn');">Stalemate by Pawn<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate by rook');">Stalemate by Rook<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate by queen');">Stalemate by Queen<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate by bishop');">Stalemate by Bishop<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'stalemate by knight');">Stalemate by Knight<br/>
-<b>Analysis</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'pending');">Pending<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'processing');">Processing<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'complete');" checked="checked">Complete<br/>
-<b><abbr title='Encyclopedia of Chess Openings'>ECO</abbr> codes</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'D44');">D44<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'E99');">E99<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'A41');">A41<br/>
-<b>Special tags</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'effectiveResult');">effective result<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'resultMismatch');">result mismatch<br/>
-<b>Engines</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Stockfish 051117');">Stockfish 051117<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Houdini 6.02');">Houdini 6.02<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Deep Fritz 10');">Deep Fritz 10<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Comp Deep Blue');">Comp Deep Blue<br/>
-<b>Players</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Anand, Viswanathan');">Anand, Viswanathan<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Kramnik, Vladimir');">Kramnik, Vladimir<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Kasparov, Gary');">Kasparov, Gary<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'lemon79');">lemon79<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Tutolmin,A');">Tutolmin,A<br/>
-<b>Cheaters</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'lnechessm');">lnechessm<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Daldrup');">Daldrup<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Fili1981');">Fili1981<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'bss180');">bss180<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'snukerok');">snukerok<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'DNISTER62');">DNISTER62<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( 'Magic2240');">Magic2240<br/>
-<b># of moves</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 moves');">10 moves<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '20 moves');">20 moves<br/>
-<b># of deltas</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '5 deltas');">5 deltas<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 deltas');">10 deltas<br/>
-<b># of analyzed plies</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 qplies');">10 qplies<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '10 qplies');">20 qplies<br/>
-<b>ELO range</b><br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1000+');">1000+<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '2000+');">2000+<br/>
-<input type="checkbox" onclick="$('.tagsinput#form-tags').addTag( '1500-');">1500-<br/>
-</div>
-</td>
-<td style="vertical-align:top">
-  <p>In order to find a particular game in the database enter player name,
-  game result or start typing to select relevant tag from the dropdown list.
-  <br/>You can also use some example tags shown below.
-  Browse the game list with navigation buttons and sort it by date or # of game moves.</p>
-  -->
   <table border=0 cellpadding=0 cellspacing=0><tr><td>
   <span style="font-size:22pt;float:left;">Tags:</span>
   </td>
@@ -240,9 +145,9 @@ Maximum file size is 1M</p>
 <button onclick="$('.tagsinput#form-tags').addTag( '1/2-1/2');">1/2-1/2</button>
 <button onclick="$('.tagsinput#form-tags').addTag( 'checkmate');">checkmate</button>
 <button onclick="$('.tagsinput#form-tags').addTag( 'stalemate');">stalemate</button>
-<button onclick="$('.tagsinput#form-tags').addTag( 'C98');">C98</button>
-<button onclick="$('.tagsinput#form-tags').addTag( 'E45');">E45</button>
-<button onclick="$('.tagsinput#form-tags').addTag( 'A02');">A02</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'D45');">D45</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'B30');">B30</button>
+<button onclick="$('.tagsinput#form-tags').addTag( 'A04');">A04</button>
 <button onclick="$('.tagsinput#form-tags').addTag( 'Kramnik, Vladimir');">Kramnik</button>
 <button onclick="$('.tagsinput#form-tags').addTag( 'Carlsen,M');">Carlsen</button>
 </span>
@@ -274,7 +179,6 @@ Maximum file size is 1M</p>
 </td>
 {% endif %}
 
-</td>
 <td style="float:right;">
 	<table><tr>
         <td><button onclick="setCookie('gl_page',0,1);loadGames();">First</button></td>
@@ -399,14 +303,6 @@ Maximum file size is 1M</p>
 
 <div id="Queue" class="tabcontent">
 <table><tr><td style="vertical-align:top">
-<!--
-  <p>Tags for analysis requests selection are a little bit different. Please use predefined tags below</p>
-  <span style="font-size:22pt;float:left;">Tags:&nbsp;
-  <button style="float:right;" onclick="$('.tagsinput#queue-form-tags').importTags( '');loadQueue();">Delete all tags</button>
-  </span><form id="queue_form"><input id="queue-form-tags" name="tags" class="tagsinput" type="text"></form>
-<br/>
-  <span style="font-size:18pt;float:left;">Predefined tags:&nbsp;</span>
--->
 <table border=0 cellpadding=0 cellspacing=0><tr><td>
 <span style="font-size:22pt;float:left;">Tags:</span>
 </td>
@@ -433,10 +329,6 @@ Maximum file size is 1M</p>
 <span>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'white');">White</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'black');">Black</button>
-<!--
-<button onclick="$('.tagsinput#queue-form-tags').addTag( 'fast');">Fast</button>
-<button onclick="$('.tagsinput#queue-form-tags').addTag( 'deep');">Deep</button>
--->
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'pending');">Pending</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'processing');">Processing</button>
 <button onclick="$('.tagsinput#queue-form-tags').addTag( 'skipped');">Skipped</button>
@@ -621,13 +513,6 @@ are provided for educational purposes only and can NOT serve as a basis for offi
 <div id="evaluationInfo" class="evaluationInfo"></div>
 <div class="moveVariationsContainer">
 
-<!-- Do I actually need to show current move proposed line?
- <div>
-  <div class="blockName">Move:</div>
-  <div id="var0" class="variationLine"></div>
- </div>
--->
-
  <br/>
   <div id="varEval1" class="blockName"></div>
   <div id="var1" class="variationLine"></div>
@@ -648,7 +533,10 @@ single reasonable move, one of equal lines in drawish position, etc.<br/>
 
 </div>
 
-</td><td valign=top>
+</div>
+
+</td>
+<td valign=top>
 
   <div class="w3-bar">
   <button class="side_button" id="whiteSide" onclick="updateCounters('White')">
@@ -724,21 +612,7 @@ single reasonable move, one of equal lines in drawish position, etc.<br/>
     {% endif %}
 
   </div>
-<!--
-  <button class="a-accordion">Analysis queue</button>
-  <div class="a-panel">
-    <p>All the games submitted for analysis are placed to the queue.
-    Due to the lack of resources the system analyzes games one by one.</p>
-    <p>It might take minutes, hours or even days before you game will be processed.
-    Please only submit the games you really want to analyze.</p>
-    <p>Check the current game place in the queue shown in the <b>#</b> column.</p>
-  </div>
 
-  <button class="a-accordion">Item</button>
-  <div class="a-panel">
-    <p></p>
-  </div>
--->
   <button class="a-accordion">Contact support team</button>
   <div class="a-panel">
     <p>We are ready to answer all your questions.

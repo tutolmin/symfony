@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
+use App\Service\QueueManager;
 use App\Message\QueueManagerCommand;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -26,7 +27,6 @@ class QueueChangeRandomCommand extends Command
     private $logger;
 
     // Service references
-    private $gameManager;
     private $queueManager;
 
     // Doctrine EntityManager
@@ -42,10 +42,13 @@ class QueueChangeRandomCommand extends Command
     private $guardAuthenticatorHandler;
 
     // Dependency injection of the GameManager service
-    public function __construct( EntityManagerInterface $em,
+    public function __construct( QueueManager $qm,
+    EntityManagerInterface $em,
     GuardAuthenticatorHandler $gah, MessageBusInterface $bus)
     {
         parent::__construct();
+
+        $this->queueManager = $qm;
 
         $this->em = $em;
         $this->bus = $bus;
