@@ -24,6 +24,7 @@ class QueueFillCommand extends Command
 
     // Default desired queue length
     const THRESHOLD = 20;
+    const ATTEMPTS = 30;
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:fill';
@@ -176,6 +177,7 @@ class QueueFillCommand extends Command
       $gids = array();
 
       // Add yet another game
+      $retries = 0;
       do {
         // Get the game id
         $gid = $this->gameManager->getRandomGameId( $type);
@@ -194,7 +196,8 @@ class QueueFillCommand extends Command
         // Let us add small delay
         sleep(1);
 
-      } while( $this->queueManager->countAnalysisNodes( 'Pending', true) < $threshold);
+      } while( $this->queueManager->countAnalysisNodes( 'Pending', true) < $threshold
+        && $retries++ < self::ATTEMPTS);
 
       $output->writeln( 'Loading :Game lines');
 
