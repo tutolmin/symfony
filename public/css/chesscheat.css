@@ -69,11 +69,11 @@ a {text-decoration: none;}
 table.my-new-table {
     padding: 10px 2px;
     width:1050px;
-    border 1px solid #ddd;
+    border: 1px solid #ddd;
 }
 tr.tableHeader td{padding:5px 7px;background-color:#CCC;font-weight:bold;}
-tr.tableRow {background-color:#EEE;font-color:#333;}
-tr.tableRow:hover{background-color:#6c6c6c;font-color:#CCC;}
+tr.tableRow {background-color:#EEE;color:#333;}
+tr.tableRow:hover{background-color:#6c6c6c;color:#CCC;}
 td.checkboxCell {
   padding:3px;
 }
@@ -102,11 +102,11 @@ td.odd {
 td.fastAnalysisCell {
   background-color:#CCC;
 }
-td.fastAnalysisCell:hover { background-color:#6c6c6c;font-color:#CCC;}
+td.fastAnalysisCell:hover { background-color:#6c6c6c;color:#CCC;}
 td.deepAnalysisCell {
   background-color:#AAA;
 }
-td.deepAnalysisCell:hover { background-color:#6a6a6a;font-color:#AAA;}
+td.deepAnalysisCell:hover { background-color:#6a6a6a;color:#AAA;}
 .centered {
 	text-align: center;
 }
@@ -256,7 +256,6 @@ div.moveList
   height:175px;
   overflow:auto;
   text-align: justify;
-//  font-size:80%;
 }
 div.moveListButtons
 {
@@ -294,7 +293,6 @@ div.evaluationInfo
 div.varEval
 {
   float:left;
-//  width: 75px;
   padding:3px 0 3px 0;
 }
 
