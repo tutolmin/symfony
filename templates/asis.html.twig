@@ -12,19 +12,22 @@
 {% block body %}
 
 <div>
-<div style="float:left;">
+<!--
+  <div style="float:left;">
+  <button onclick="openTab(event, 'Analyze')">
+-->
+<table style="margin:0;padding:0;border: 1px solid #ccc;border-spacing:0;width:1350px;">
+<tr>
+<td style="margin:0;padding:0;"><img src="img/chesspieces/wikipedia/bK.png" width="48" alt="Black King" title="Black King"/></td>
+<td style="margin:0;padding:0;"><img src="img/chesspieces/wikipedia/wQ.png" width="48" alt="White Queen" title="White Queen"/></td>
+<td style="padding: 0 10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+<td style="margin:0;padding:0;"><img src="img/beta1.png" width="30" alt="Beta" title="Beta testing is still in progress"/></td>
+<td style="margin:0;padding:0;">
+<!--
+  </button>
+-->
 <!-- Tab links -->
 <div class="tab">
-  <button onclick="openTab(event, 'Analyze')">
-<table style="border:1px;margin:0;padding:0;">
-<tr>
-<td><img src="img/chesspieces/wikipedia/bK.png" width="48" alt="Black King" title="Black King"/></td>
-<td><img src="img/chesspieces/wikipedia/wQ.png" width="48" alt="White Queen" title="White Queen"/></td>
-<td style="padding: 0 10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
-<td><img src="img/beta1.png" width="30" alt="Beta" title="Beta testing is still in progress"/></td>
-</tr>
-</table>
-  </button>
   <button class="tablinks" onclick="openTab(event, 'Upload')" id="uploadTab">
 <img src="img/upload.png" alt="Upload" style="float:left"/>&nbsp;&nbsp;Upload</button>
   <button class="tablinks" onclick="openTab(event, 'Search')" id="searchTab">
@@ -34,8 +37,9 @@
   <button class="tablinks" onclick="openTab(event, 'Analyze')" id="analysisTab">
 <img src="img/analysis.png" alt="Analysis" style="float:left"/>&nbsp;&nbsp;Analyze</button>
 </div>
-</div>
-<div style="float:right;height:59px;display: table; width:275px;">
+</td>
+<td>
+<div style="float:right;height:50px;display: table; width:275px;">
 <span style="font-size: 16pt;vertical-align:middle;display: table-cell; ">
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {{ app.user.email }}&nbsp;<a href="/logout">Logout</a>
@@ -44,27 +48,36 @@
 {% endif %}
 </span>
 </div>
+</td>
+</tr>
+</table>
 
 </div>
 
 <!-- Tab content -->
 <div id="Upload" class="tabcontent">
 
-<table style='width:100%'><tr><td style="vertical-align:top">
-  <h3>Upload Game(s)</h3>
+<table style='width:100%'><tr><td style="vertical-align:top;width:1050px;">
 
-{{ form_start(form) }}
+<table border=0 cellpadding=0 cellspacing=0><tr>
+
+<td style="width:400px;vertical-align:top;">
+
+<span style="font-size:22pt;padding:0 0 20px; 0">Upload Game(s)</span><br/>
 
 <p>You can upload your own game(s) into our database.
 Then you will be able to submit your games for analysis.
 Once the processing is complete you will receive an email notification.</p>
 <p>
-Use the form below to upload your game(s).
 Paste your game(s) in <abbr title='Portable Game Notation'>PGN</abbr>
-format below and press <b>Import PGN</b> button.
-Maximum file size is 1M</p>
+format in the text area and press <b>Import PGN</b> button.
+Maximum file size is 1MB</p>
 
-    {{ form_row(form.text) }}
+</td><td style="padding:0 20px;">
+
+{{ form_start(form) }}
+
+{{ form_row(form.text) }}
 
 {% if is_granted('IS_AUTHENTICATED_FULLY') %}
 {% else %}
@@ -75,8 +88,10 @@ Maximum file size is 1M</p>
 
 {{ form_end(form) }}
 
+</td></tr></table>
+
 </td>
-<td valign="top" style='width:300px'>
+<td style="vertical-align:top;">
 
 <button class="u-accordion active-accordion">Supported file format</button>
 <div class="u-panel" style="max-height: 200px;">
@@ -115,7 +130,7 @@ Maximum file size is 1M</p>
 
 <!-- Tab content -->
 <div id="Search" class="tabcontent">
-<table><tr><td style="vertical-align:top">
+<table><tr><td style="vertical-align:top;">
   <table border=0 cellpadding=0 cellspacing=0><tr><td>
   <span style="font-size:22pt;float:left;">Tags:</span>
   </td>
@@ -190,7 +205,7 @@ Maximum file size is 1M</p>
 <div id="gamesActionStatus"></div>
 
 </td>
-<td valign="top">
+<td style="vertical-align:top;">
 
 <button class="s-accordion active-accordion">Game search interface</button>
 <div class="s-panel" style="max-height: 300px;">
@@ -237,7 +252,8 @@ Maximum file size is 1M</p>
         <option value="deep">Deep</option>
         </select>
       </td>
-      <td>
+      </tr><tr>
+      <td colspan="2">
         <div id="analysis_submit_group">
              <button type="submit"
                      class="input_submit"
@@ -247,7 +263,7 @@ Maximum file size is 1M</p>
         {% else %}
         	disabled="disabled"
         {% endif %}
-        >Submit
+        >Submit for analysis
              </button>
         </div>
       </td>
@@ -379,7 +395,7 @@ Maximum file size is 1M</p>
 
 </td>
 
-<td valign="top">
+<td style="vertical-align:top;">
 
 
 <button class="q-accordion active-accordion">Analysis queue</button>
@@ -438,7 +454,7 @@ Maximum file size is 1M</p>
 <!-- Tab content -->
 <div id="Analyze" class="tabcontent">
 
-<table border=0><tr><td valign=top>
+<table border=0><tr><td style="vertical-align:top;width:420px;">
 <div class="gameHeaderContainer">
  <div id="gamePlayers"	class="gamePlayers"></div>
  <div>
@@ -473,7 +489,7 @@ Maximum file size is 1M</p>
  </div>
 </div>
 
-</td><td valign=top>
+</td><td style="vertical-align:top;width:630px;">
 <div id="moveList" class="moveList"></div>
 <div class="moveListButtons">
 <input type="button" id="setStartBtn" value="Start Position" />
@@ -533,9 +549,9 @@ single reasonable move, one of equal lines in drawish position, etc.<br/>
 </div>
 
 </td>
-<td valign=top>
+<td style="vertical-align:top;">
 
-  <div class="w3-bar">
+  <div>
   <button class="side_button" id="whiteSide" onclick="updateCounters('White')">
   <img src="img/chesspieces/wikipedia/wK.png" width="48" alt="White" title="White"/>
   </button>
@@ -546,9 +562,9 @@ single reasonable move, one of equal lines in drawish position, etc.<br/>
 
   <div class="cheat-score" id="cheatScore">Cheat Score: <abbr title="To be determined">TBD</abbr></div>
 
-<div class="" style="width:300px;position:absolute;">
+<div class="" style="position:absolute;">
 
-<div id="accordionContainer" style="z-index:0; position:absolute;visibility:hidden;">
+<div id="accordionContainer" style="width:270px;z-index:0; position:absolute;visibility:hidden;">
 
   <button class="a-accordion active-accordion">What is a cheat score?</button>
   <div class="a-panel" style="max-height: 300px;">
@@ -585,7 +601,8 @@ single reasonable move, one of equal lines in drawish position, etc.<br/>
           <option value="deep">Deep</option>
           </select>
         </td>
-        <td>
+        </tr><tr>
+        <td colspan="2">
           <div id="analysis_submit">
                <button type="submit"
                        class="input_submit"
@@ -595,7 +612,7 @@ single reasonable move, one of equal lines in drawish position, etc.<br/>
           {% else %}
           	disabled="disabled"
           {% endif %}
-          >Submit
+          >Submit for analysis
                </button>
           </div>
         </td>

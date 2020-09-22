@@ -30,7 +30,7 @@ a {text-decoration: none;}
 /* Style the tab */
 .tab {
     overflow: hidden;
-    border: 1px solid #ccc;
+/*    border: 1px solid #ccc; */
     background-color: #f1f1f1;
 }
 
@@ -41,7 +41,7 @@ a {text-decoration: none;}
     border: none;
     outline: none;
     cursor: pointer;
-    padding: 0px 25px;
+    padding: 0px 35px;
     transition: 0.3s;
 }
 
@@ -58,7 +58,7 @@ a {text-decoration: none;}
 /* Style the tab content */
 .tabcontent {
     display: none;
-    padding: 6px 12px;
+    padding: 0px 10px;
     border: 1px solid #ccc;
     border-top: none;
 }
@@ -71,9 +71,12 @@ table.my-new-table {
     width:1050px;
     border 1px solid #ddd;
 }
-tr.tableHeader td{padding:5px 10px;background-color:#CCC;font-weight:bold;}
+tr.tableHeader td{padding:5px 7px;background-color:#CCC;font-weight:bold;}
 tr.tableRow {background-color:#EEE;font-color:#333;}
 tr.tableRow:hover{background-color:#6c6c6c;font-color:#CCC;}
+td.checkboxCell {
+  padding:3px;
+}
 table.mlTable {
   background-color:#ccc;
 }
@@ -249,7 +252,7 @@ div.moveListContainer
 }
 div.moveList
 {
-  width: 550px;
+  width: 600px;
   height:175px;
   overflow:auto;
   text-align: justify;
@@ -257,25 +260,25 @@ div.moveList
 }
 div.moveListButtons
 {
-  width: 550px;
+  width: 600px;
   text-align:center;
   padding:10px;
 }
 div.moveVariationsContainer
 {
-  width: 550px;
+  width: 600px;
   height: 100px;
   padding:1px;
 }
 div.mainContainer
 {
-  width: 550px;
+  width: 600px;
   padding:1px;
 }
 div.variationLine
 {
   float:right;
-  width:450px;
+  width:500px;
   white-space: nowrap;
   overflow-x: auto;
   font-size:75%;
@@ -283,7 +286,7 @@ div.variationLine
 }
 div.evaluationInfo
 {
-  width: 550px;
+  width: 600px;
   height: 30px;
   padding:5px 0 5px 0;
   font-size:175%;
@@ -343,8 +346,8 @@ cursor: pointer;
 background-color: #aaaaaa;
 border: none;
 color: black;
-width: 150px;
-padding: 3px 32px;
+width: 132px;
+padding: 0px 30px;
 text-align: center;
 text-decoration: none;
 display: inline-block;
@@ -359,8 +362,8 @@ font-size: 16px;
   text-align: center;
   font-size: 150%;
   font-weight: bold;
-  padding: 15px;
-  width: 300px;
+  padding: 10px;
+  width: 250px;
 }
 .tinymce {
   width: 600px;

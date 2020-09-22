@@ -22,7 +22,7 @@ function loadGames() {
 
     // Build a table, start with header
     var items = [];
-    items.push('<tr class="tableHeader"><td><input type="checkbox" id="checkAll" onClick="toggleGames(this)"/></td>' +
+    items.push('<tr class="tableHeader"><td style="padding:3px;"><input type="checkbox" id="checkAll" onClick="toggleGames(this)"/></td>' +
         '<td><abbr title="Avaliable analysis for White">A</abbr></td><td>White</td><td>ELO</td>' +
 	'<td><abbr title="Avaliable analysis for Black">A</abbr></td><td>Black</td><td>ELO</td>' +
 	'<td style="text-align:center">Result</td><td>ECO</td><td>Event</td>' +
@@ -48,7 +48,7 @@ function loadGames() {
 	B_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["ID"] + ')"><img src="img/' +
 	val["Analysis_B"] + '.png" title="' + val["Analysis_B"] + ' analysis present"/></a>';
 
-      items.push('<tr class="tableRow"><td class="centered"><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
+      items.push('<tr class="tableRow"><td class="checkboxCell"><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
 	'<td class="centered">' + W_analysis_icon + '</td>' +
 	'<td>' + val["White"] + '</td><td class="centered">' + val["ELO_W"] + '</td>' +
 	'<td class="centered">' + B_analysis_icon + '</td>' +
