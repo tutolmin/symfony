@@ -60,6 +60,9 @@ class GameDetailsController extends AbstractController
 */
     private $sides = ["White" => "W_", "Black" => "B_"];
 
+    // Fetch evals only if there is :summary
+    private $hasSummary;
+
     // Dependency injection of the Neo4j ClientInterface
     public function __construct( ClientInterface $client, Stopwatch $watch,
 	LoggerInterface $logger, CacheFileFetcher $fetcher, GameManager $gm, QueueManager $qm)
@@ -98,6 +101,7 @@ class GameDetailsController extends AbstractController
 	$this->game[$prefix.'perp_len']="";
   $this->game['hasEvaluation'] = 'false';
 	}
+      $this->hasSummary = false;
     }
 
     /**
@@ -200,9 +204,13 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
     // Get move list
     private function getMoveList( )
     {
-	$response = $this->fetcher->getFile( $this->game["MoveListHash"].'.json');
-	$response_eval = $this->fetcher->getFile( 'evals-'.$this->game["MoveListHash"].'.json');
-	if( $response_eval != null) {
+      $response = $this->fetcher->getFile( $this->game["MoveListHash"].'.json');
+
+      $response_eval = null;
+      if( $this->hasSummary)
+        $response_eval = $this->fetcher->getFile( 'evals-'.$this->game["MoveListHash"].'.json');
+
+	    if( $response_eval != null) {
 
 //	  $data = $response_eval->toArray();
 	  $content = json_decode( $response_eval->getContent(), true);
@@ -370,8 +378,11 @@ RETURN summary LIMIT 2';
 //	  $this->game['White']  = $record->value('player_w.name');
 
 	  // If summary is null, get next
-          $summaryObj = $record->get('summary');
-          if( $record->value('summary') == null) continue;
+    $summaryObj = $record->get('summary');
+    if( $record->value('summary') == null) continue;
+
+    // There is a non empty :Summary node
+    $this->hasSummary = true;
 
 	  // Which side summary is this?
           $labelsArray = $summaryObj->labels();
