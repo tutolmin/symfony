@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>{% block title %}Welcome!{% endblock %}</title>
+        <link rel="stylesheet" href="css/chesscheat.css" />
+        {% block head %}{% endblock %}
+        <script type="text/javascript">
+          function pageLoad( gid) {};
+        </script>
+    </head>
+    <body onload="pageLoad({{ gid }});">
+
+        <div>
+
+        <table style="margin:0;padding:0;border: 1px solid #ccc;border-spacing:0;width:1350px;">
+        <tr>
+        <td style="margin:0;padding:0;height:57px;"><img src="img/chesspieces/wikipedia/bK.png" width="48" alt="Black King" title="Black King"/></td>
+        <td style="margin:0;padding:0;"><img src="img/chesspieces/wikipedia/wQ.png" width="48" alt="White Queen" title="White Queen"/></td>
+        <td style="padding: 0 10px;"><span style="font-size:13pt;font-weight:bold;">CHESS<br/>CHEAT</span></td>
+        <td style="margin:0;padding:0;"><img src="img/beta1.png" width="30" alt="Beta" title="Beta testing is still in progress"/></td>
+        <td width="100%"></td>
+        </tr>
+        </table>
+
+        </div>
+
+        <div class="tabcontent" style="display: block;">
+
+        <table style='width:100%'><tr><td style="vertical-align:top;width:1050px;">
+
+          {% block body %}{% endblock %}
+
+        </td>
+
+        <td style="vertical-align:top;">
+
+        <button class="a-accordion active-accordion">Contact support team</button>
+        <div class="a-panel" style="max-height: 200px;">
+          <p>We are ready to answer all your questions.
+          Please <a href="mailto:support@chesscheat.com" target="_blank">email us</a> and describe the issue in details.</p>
+        </div>
+
+        </td>
+
+        </tr>
+        </table>
+
+        </div>
+
+        {% block javascripts %}{% endblock %}
+        <div class="footer">
+          <p>
+          &copy;&nbsp;2020&nbsp;Chess Cheat, LLC.
+          &nbsp;
+          <a href="/terms" title="Terms of Service">Terms</a>
+          &nbsp;
+          <a href="/privacy" title="Privacy Policy">Privacy</a>
+          &nbsp;
+          <a href="/about" title="About">About</a>
+          </p>
+        </div>
+    </body>
+</html>

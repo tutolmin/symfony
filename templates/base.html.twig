@@ -7,7 +7,20 @@
         {% block head %}{% endblock %}
     </head>
     <body onload="pageLoad({{ gid }});">
+
         {% block body %}{% endblock %}
         {% block javascripts %}{% endblock %}
+        
+        <div class="footer">
+          <p>
+          &copy;&nbsp;2020&nbsp;Chess Cheat, LLC.
+          &nbsp;
+          <a href="/terms" title="Terms of Service">Terms</a>
+          &nbsp;
+          <a href="/privacy" title="Privacy Policy">Privacy</a>
+          &nbsp;
+          <a href="/about" title="About">About</a>
+          </p>
+        </div>
     </body>
 </html>

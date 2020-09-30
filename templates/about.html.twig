@@ -1,0 +1,76 @@
+{% extends 'base_no_tabs.html.twig' %}
+
+{% block title %}ChessCheat: About{% endblock %}
+
+{% block body %}
+
+<span style="font-size:22pt;padding:0 0 20px; 0">About</span><br/>
+
+<p>ChessCheat project initially started in 2017. There was a simple idea that it was possible to match
+a sequence of any chess game moves to a baseline which represent certain player strength.</p>
+
+<p>The system would analyze the game for both sides, White and Black, and calculate a certain value
+which correlates to an Elo rating system. Then it would be possible to compare the calculated value
+with the actual Elo rating of the player and check the delta. Big delta would indicate a suspected cheating.</p>
+
+<p>Since then the idea evolved and many significant changes were introduced.
+We asked for advise from statisticians and mathematicians,
+utilized experience of computer scientists,
+discussed our work with chess experts.</p>
+
+<p>Today, by the end of 2020, we are still in beta testing.
+Luckily, we can already make our system available for public
+and ask all the users to give their feedback.</p>
+
+<h3>System Components</h3>
+
+<p>The major part of our system is <a href="https://neo4j.com/">Neo4j</a>.
+It is a native graph database, built from the ground up to leverage not only data
+but also data relationships. It was quite natural to store chess games in a graph tree,
+since all the games are starting from the same position - root node of the graph.
+Each move is represented as a relationship between nodes.</p>
+
+<p>We started our chess graph with the beautiful <a href="https://neo4j.com/graphgist/chess-board">Chess board graphgist</a>
+and inserted few thousand of master games into it. All the games have been processed, sanitized and checked for duplicates
+using a modified version of <a href="https://www.cs.kent.ac.uk/people/staff/djb/pgn-extract/">pgn-extract</a>
+ - a PGN manipulator for chess games. </p>
+
+<p>Later we discovered an unbelievable archive of
+chess games, <a href="https://database.lichess.org/">Lichess database</a>,
+which contained more than a <strong>billion</strong> of records (as of 2020).
+We have taken games of players with different rating ranges
+and stored them in a huge connected tree for analysis and baseline calculation.</p>
+
+<p>Our current system runs on a powerful servers,
+which are capable to analyze dozens of chess games per hour.
+We are using strong open source chess engine <a href="https://stockfishchess.org/">Stockfish</a>
+to analyze all the games. The latest version of Stockfish plays significantly stronger than any
+human being. Apart from it, Stockfish has won numerous computer chess competitions,
+such as <a href="https://en.wikipedia.org/wiki/Top_Chess_Engine_Championship">TCEC</a>.
+</p>
+
+<p>Frontend is built on <a href="https://symfony.com/">Symfony</a>
+- a set of reusable PHP components and a PHP framework to build web applications,
+APIs, microservices and web services. We use <a href="https://chessboardjs.com/">chessboard.js</a>
+to embed a chess board on our website. It works brilliantly with <a href="https://github.com/jhlywa/chess.js">chess.js</a>
+chess library for chess move generation/validation, piece placement/movement, and check/checkmate/draw detection.</p>
+
+<h3>The Future</h3>
+
+<p>Few decades computer chess programs have been dominating humans
+but people continue to play chess and <strong>the Game</strong>
+has never been so popular. Unfortunately people are not ideal.
+There will always be cheaters seeking for
+assistance from chess computer programs,
+which are becoming even stronger with the use of a neural networks.</p>
+
+<p>We are still in the beginning of the long journey.
+We will continue to develop our system, make it more precise and reliable.
+We will try to eliminate as much false positives as only possible.
+At the same time we will be introducing new cheat patterns and metrics.</p>
+
+<p>It is hardly possible any chess anti-cheating system will become a de facto industry standard,
+but we can create a simple to use service that will help users check their games quickly
+and decide whether to proceed with any legal complain or objection.</p>
+
+{% endblock %}
