@@ -4,6 +4,16 @@ body {
     width:1350px;
 }
 a {text-decoration: none;}
+.footer {
+  width: 100%;
+  position: relative
+}
+.footer p {
+  position: absolute;
+  left: 50%;
+  margin-right: -50%;
+  transform: translate(-50%, -50%);
+}
 .FEN {
  font-size: 75%; /* Размер шрифта в процентах */
  font-family: serif; /* Шрифт с засечками */
@@ -296,7 +306,7 @@ div.varEval
   padding:3px 0 3px 0;
 }
 
-.s-accordion, .q-accordion, .u-accordion, .a-accordion, .c-accordion {
+.s-accordion, .q-accordion, .u-accordion, .a-accordion, .c-accordion, .l-accordion {
   background-color: #eee;
   color: #444;
   cursor: pointer;
@@ -309,7 +319,7 @@ div.varEval
   transition: 0.4s;
 }
 
-.s-accordion:after, .q-accordion:after, .u-accordion:after, .a-accordion:after, .c-accordion:after {
+.s-accordion:after, .q-accordion:after, .u-accordion:after, .a-accordion:after, .c-accordion, .l-accordion:after {
   content: '\002B';
   color: #777;
   font-weight: bold;
@@ -317,7 +327,7 @@ div.varEval
   margin-left: 5px;
 }
 
-.s-panel, .q-panel, .u-panel, .a-panel, .c-panel {
+.s-panel, .q-panel, .u-panel, .a-panel, .c-panel, .l-panel {
   padding: 0 10px;
   background-color: white;
   max-height: 0;
@@ -326,7 +336,7 @@ div.varEval
   font-size:90%;
 }
 
-.active-accordion, .s-accordion:hover, .q-accordion:hover, .u-accordion:hover, .a-accordion:hover, .c-accordion:hover {
+.active-accordion, .s-accordion:hover, .q-accordion:hover, .u-accordion:hover, .a-accordion:hover, .c-accordion, .l-accordion:hover {
   background-color: #ccc;
 }
 

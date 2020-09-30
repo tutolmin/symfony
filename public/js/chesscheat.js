@@ -42,7 +42,7 @@ var timerIsOn = false;
 
 
 // Array of accordions
-var accordions = ['u-accordion','q-accordion','s-accordion', 'a-accordion'];
+var accordions = ['u-accordion','q-accordion','s-accordion', 'a-accordion', 'l-accordion'];
 var a;
 for (a = 0; a < accordions.length; a++) {
 
