@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -77,10 +79,22 @@ class User implements UserInterface
      */
     private $lastName;
 
+    /**
+     * @ORM\Column(type="string", length=127, options={"default":"instant"})
+     */
+    private $notification_type;
+
+    /**
+     * @ORM\OneToMany(targetEntity=CompleteAnalysis::class, mappedBy="user", orphanRemoval=true)
+     */
+    private $complete_analyses;
+
     public function __construct()
     {
         $this->createdDateTime = new \DateTime();
         $this->canUpload = true;
+        $this->notification_type = 'instant';
+        $this->complete_analyses = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -272,6 +286,49 @@ class User implements UserInterface
     public function setLastName(?string $lastName): self
     {
         $this->lastName = $lastName;
+
+        return $this;
+    }
+
+    public function getNotificationType(): ?string
+    {
+        return $this->notification_type;
+    }
+
+    public function setNotificationType(string $notification_type): self
+    {
+        $this->notification_type = $notification_type;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|CompleteAnalysis[]
+     */
+    public function getCompleteAnalyses(): Collection
+    {
+        return $this->complete_analyses;
+    }
+
+    public function addCompleteAnalysis(CompleteAnalysis $completeAnalysis): self
+    {
+        if (!$this->complete_analyses->contains($completeAnalysis)) {
+            $this->complete_analyses[] = $completeAnalysis;
+            $completeAnalysis->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCompleteAnalysis(CompleteAnalysis $completeAnalysis): self
+    {
+        if ($this->complete_analyses->contains($completeAnalysis)) {
+            $this->complete_analyses->removeElement($completeAnalysis);
+            // set the owning side to null (unless already changed)
+            if ($completeAnalysis->getUser() === $this) {
+                $completeAnalysis->setUser(null);
+            }
+        }
 
         return $this;
     }

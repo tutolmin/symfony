@@ -13,6 +13,7 @@ use Symfony\Component\Mime\Address;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Analysis;
+use App\Entity\CompleteAnalysis;
 use App\Entity\User;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RouterInterface;
@@ -66,27 +67,28 @@ class QueueManager
     private $router;
 
     public function __construct( ClientInterface $client,
-    EntityManagerInterface $em, MailerInterface $mailer,
-	LoggerInterface $logger, Security $security, RouterInterface $router)
+      EntityManagerInterface $em, MailerInterface $mailer,
+	    LoggerInterface $logger, Security $security, RouterInterface $router)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
-	$this->security = $security;
+      	$this->security = $security;
 
-  $this->em = $em;
-  $this->mailer = $mailer;
+        $this->em = $em;
 
-  // get the User repository
-  $this->userRepository = $this->em->getRepository( User::class);
+        $this->mailer = $mailer;
 
-  $this->router = $router;
+        // get the User repository
+        $this->userRepository = $this->em->getRepository( User::class);
 
-	$this->queueGraphExistsFlag=false;
-	$this->analysisNodeExistsFlag=false;
-	$this->updateCurrentFlag=false;
+        $this->router = $router;
 
-	$this->depth['fast'] = $_ENV['FAST_ANALYSIS_DEPTH'];
-	$this->depth['deep'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
+      	$this->queueGraphExistsFlag=false;
+      	$this->analysisNodeExistsFlag=false;
+      	$this->updateCurrentFlag=false;
+
+      	$this->depth['fast'] = $_ENV['FAST_ANALYSIS_DEPTH'];
+      	$this->depth['deep'] = $_ENV['DEEP_ANALYSIS_DEPTH'];
     }
 
     // Getter/setter for the flags
@@ -2565,7 +2567,6 @@ RETURN average.milliseconds AS speed';
     public function notifyUser( $aid) {
 
 //      $depth = $this->getAnalysisDepth( $aid);
-      $gid = $this->getAnalysisGameId( $aid);
       $uid = $this->getAnalysisUserId( $aid);
 
       if( $_ENV['APP_DEBUG'])
@@ -2576,64 +2577,103 @@ RETURN average.milliseconds AS speed';
       if( $_ENV['APP_DEBUG'])
               $this->logger->debug( 'Fetched email: '.$user->getEmail());
 
-      $game = array();
+      if( $user->getNotificationType() == "digest") {
 
+        // Add a record into CompleteAnalysis table
+        $ca = new CompleteAnalysis();
 
-              // Fetch game details
-            	$params = ["gid" => $gid];
-            	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
-            MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
-            WITH game,
-             CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
-             CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
-             CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str
-             MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
-              MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
-              MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
-              MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
-              MATCH (game)-[:WAS_PART_OF]->(event:Event)
-              MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
-              MATCH (game)-[:FINISHED_ON]->(line:Line)
-              MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
-             RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
-            	eco.code, opening.opening, opening.variation LIMIT 1";
-            	$result = $this->neo4j_client->run( $query, $params);
+        // relates this product to the user
+        $ca->setUser($user);
+        $ca->setAnalysisId($aid);
 
-            	foreach ($result->records() as $record) {
+        $this->em->persist($ca);
+        $this->em->flush();
 
-            	  // Fetch game object
-            	  $gameObj = $record->get('game');
-            //	  $this->game['ID']	= $gameObj->identity();
-            	  $game['White']  = $record->value('player_w.name');
-            	  $game['W_ELO']  = $record->value('elo_w.rating');
-            	  $game['Black']  = $record->value('player_b.name');
-            	  $game['B_ELO']  = $record->value('elo_b.rating');
-            	  $game['Event']  = $record->value('event.name');
-            	  $game['Date']   = $record->value('date_str');
-            	  $game['ECO']	= $record->value('eco.code');
-            	  $game['ECO_opening']	= $record->value('opening.opening');
-            	  $game['ECO_variation']	= $record->value('opening.variation');
-            	  $game['MoveListHash']	= $record->value('line.hash');
+      } else {
 
-            	  // Result in human readable format
-                $labelsObj = $record->get('result_w');
-                $labelsArray = $labelsObj->labels();
-                if( in_array( "Draw", $labelsArray))
-                  $game['Result'] = "1/2-1/2";
-                else if( in_array( "Win", $labelsArray))
-                  $game['Result'] = "1-0";
-                else if( in_array( "Loss", $labelsArray))
-                  $game['Result'] = "0-1";
-                else
-                  $game['Result'] = "Unknown";
+        // Dispatch email immediately
+        $this->dispatchEmail( $user, [$aid]);
+      }
 
-                }
+    }
 
+    public function dispatchEmail( $user, $aids) {
 
-      // generated URLs are "absolute paths" by default. Pass a third optional
-      // argument to generate different URLs (e.g. an "absolute URL")
-      $gamePage = $this->router->generate('index', ['gid' => $gid], UrlGeneratorInterface::ABSOLUTE_URL);
+      $games      = array();
+      $whites     = array();
+      $white_elos = array();
+      $blacks     = array();
+      $black_elos = array();
+      $results    = array();
+      $ecos       = array();
+      $events     = array();
+      $dates      = array();
+      $links      = array();
 
+      foreach ($aids as $key => $aid) {
+
+        $gid = $this->getAnalysisGameId( $aid);
+
+        $games[] = $key;
+
+        if( $_ENV['APP_DEBUG'])
+                $this->logger->debug( 'Fetched game id: '.$gid);
+
+        // Fetch game details
+      	$params = ["gid" => $gid];
+      	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
+                MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
+                WITH game,
+                 CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
+                 CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
+                 CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str
+                 MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
+                  MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
+                  MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
+                  MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
+                  MATCH (game)-[:WAS_PART_OF]->(event:Event)
+                  MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
+                  MATCH (game)-[:FINISHED_ON]->(line:Line)
+                  MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
+                 RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
+                	eco.code, opening.opening, opening.variation LIMIT 1";
+
+        $result = $this->neo4j_client->run( $query, $params);
+
+        foreach ($result->records() as $record) {
+
+      	  // Fetch game object
+//      	  $gameObj = $record->get('game');
+          //	  $this->game['ID']	= $gameObj->identity();
+      	  $whites[]      = $record->value('player_w.name');
+      	  $white_elos[]  = $record->value('elo_w.rating');
+      	  $blacks[]      = $record->value('player_b.name');
+      	  $black_elos[]  = $record->value('elo_b.rating');
+      	  $events[]      = $record->value('event.name');
+      	  $dates[]       = $record->value('date_str');
+      	  $ecos[]        = $record->value('eco.code');
+//      	  $game['ECO_opening']	= $record->value('opening.opening');
+//      	  $game['ECO_variation']	= $record->value('opening.variation');
+//      	  $game['MoveListHash']	= $record->value('line.hash');
+
+      	  // Result in human readable format
+          $labelsObj = $record->get('result_w');
+          $labelsArray = $labelsObj->labels();
+          if( in_array( "Draw", $labelsArray))
+            $results[] = "1/2-1/2";
+          else if( in_array( "Win", $labelsArray))
+            $results[] = "1-0";
+          else if( in_array( "Loss", $labelsArray))
+            $results[] = "0-1";
+          else
+            $results[] = "Unknown";
+        }
+
+        // generated URLs are "absolute paths" by default. Pass a third optional
+        // argument to generate different URLs (e.g. an "absolute URL")
+        $links[] = $this->router->generate('index', ['gid' => $gid],
+          UrlGeneratorInterface::ABSOLUTE_URL);
+      }
 
       $email = (new TemplatedEmail())
           ->from(new Address('support@chesscheat.com', 'ChessCheat Support'))
@@ -2650,15 +2690,22 @@ RETURN average.milliseconds AS speed';
 
           // pass variables (name => value) to the template
           ->context([
-              'link' => $gamePage,
-              'game' => $game,
-              'expiration_date' => new \DateTime('+7 days'),
+              'game'      => $games,
+              'link'      => $links,
+              'white'     => $whites,
+              'white_elo' => $white_elos,
+              'black'     => $blacks,
+              'black_elo' => $black_elos,
+              'result'    => $results,
+              'eco'       => $ecos,
+              'event'     => $events,
+              'date'      => $dates,
+//              'expiration_date' => new \DateTime('+7 days'),
               'firstName' => (strlen( $user->getFirstName())>0)?$user->getFirstName():"User",
           ])
       ;
 
       $this->mailer->send($email);
-
     }
 }
 ?>

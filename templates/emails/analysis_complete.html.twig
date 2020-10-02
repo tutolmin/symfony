@@ -17,7 +17,7 @@
 
 <h3>Dear {{ firstName }}!</h3>
 
-<p>The following game analysis is complete. You can view the full report at ChessCheat
+<p>The following game's analyses are complete. You can view the full report at ChessCheat
   by clicking on the Analysis icon.</p>
 
 <table>
@@ -30,20 +30,26 @@
   <th>Date</th>
   <th>Analysis</th>
 </tr>
+
+{% for i in game %}
+
 <tr>
-  <td>{{ game['White'] }} ({{ game['W_ELO'] }})</td>
-  <td>{{ game['Black'] }} ({{ game['B_ELO'] }})</td>
-  <td>{{ game['Result'] }}</td>
-  <td>{{ game['ECO'] }}</td>
-  <td>{{ game['Event'] }}</td>
-  <td>{{ game['Date'] }}</td>
-  <td><a href="{{ link }}">
+  <td>{{ cycle(white, i) }} ({{ cycle(white_elo, i) }})</td>
+  <td>{{ cycle(black, i) }} ({{ cycle(black_elo, i) }})</td>
+  <td>{{ cycle(result, i) }}</td>
+  <td>{{ cycle(eco, i) }}</td>
+  <td>{{ cycle(event, i) }}</td>
+  <td>{{ cycle(date, i) }}</td>
+  <td><a href="{{ cycle(link, i) }}">
   <img src="{{ email.image('@img/analysis.png') }}" alt="Analysis"></a></td>
 </tr>
+
+{% endfor %}
+
 </table>
-<!--
+
 <p>Regards,<br/>
 ChessCheat
 </p>
--->
+
 {% endapply %}

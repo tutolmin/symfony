@@ -6,7 +6,7 @@
 parameters:
     PGNs_directory: '%kernel.project_dir%/public/uploads/PGNs'
     cache_directory: '%kernel.project_dir%/cache'
-    router.request_context.host: 'test.chesscheat.com'
+    router.request_context.host: 'dev.chesscheat.com'
     router.request_context.base_url: ''
     asset.request_context.base_path: '%router.request_context.base_url%'
 
