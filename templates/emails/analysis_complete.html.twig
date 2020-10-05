@@ -22,6 +22,7 @@
 
 <table>
 <tr>
+  <th>#</th>
   <th>White</th>
   <th>Black</th>
   <th>Result</th>
@@ -34,6 +35,7 @@
 {% for i in game %}
 
 <tr>
+  <td>{{ i + 1 }}</td>
   <td>{{ cycle(white, i) }} ({{ cycle(white_elo, i) }})</td>
   <td>{{ cycle(black, i) }} ({{ cycle(black_elo, i) }})</td>
   <td>{{ cycle(result, i) }}</td>

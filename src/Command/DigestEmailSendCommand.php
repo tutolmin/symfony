@@ -100,7 +100,7 @@ class DigestEmailSendCommand extends Command
         // Get ids of selected analyses
         $aids = array();
         foreach ($analyses as $analysis) {
-          
+
           // Remove analysis record from the database
           $this->em->remove( $analysis);
 
@@ -115,7 +115,7 @@ class DigestEmailSendCommand extends Command
         $this->em->flush();
 
         $output->writeln( "Sending for user id: ".$user->getId().
-          ", number of analyses: ".count($analyses)." (".implode(',', $aids).")");
+          ", number of analyses: ".count($aids)." (".implode(',', $aids).")");
 
         // Dispatch an email
         $this->queueManager->dispatchEmail( $user, $aids);

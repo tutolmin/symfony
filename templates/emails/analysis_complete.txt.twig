@@ -4,7 +4,7 @@ The following game's analyses are complete. You can view the full report at Ches
 
 {% for i in game %}
 
-{{ cycle(white, i) }} ({{ cycle(white_elo, i) }}) vs. {{ cycle(black, i) }} ({{ cycle(black_elo, i) }}) - {{ cycle(result, i) }}, {{ cycle(eco, i) }}, {{ cycle(event, i) }}, {{ cycle(date, i) }}
+{{ i + 1 }}. {{ cycle(white, i) }} ({{ cycle(white_elo, i) }}) vs. {{ cycle(black, i) }} ({{ cycle(black_elo, i) }}) - {{ cycle(result, i) }}, {{ cycle(eco, i) }}, {{ cycle(event, i) }}, {{ cycle(date, i) }}
 {{ cycle(link, i) }}
 
 {% endfor %}

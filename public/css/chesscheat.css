@@ -319,7 +319,7 @@ div.varEval
   transition: 0.4s;
 }
 
-.s-accordion:after, .q-accordion:after, .u-accordion:after, .a-accordion:after, .c-accordion, .l-accordion:after {
+.s-accordion:after, .q-accordion:after, .u-accordion:after, .a-accordion:after, .c-accordion:after, .l-accordion:after {
   content: '\002B';
   color: #777;
   font-weight: bold;
