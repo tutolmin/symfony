@@ -2589,10 +2589,15 @@ RETURN average.milliseconds AS speed';
         $this->em->persist($ca);
         $this->em->flush();
 
-      } else {
+      } else if( $user->getNotificationType() == "instant") {
 
         // Dispatch email immediately
         $this->dispatchEmail( $user, [$aid]);
+
+      } else {
+
+        // Some other notification type
+        // Possibly "none" to disable notifications altogether
       }
 
     }
