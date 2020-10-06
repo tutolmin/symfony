@@ -612,7 +612,7 @@ MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
 MATCH (game)-[:WAS_PART_OF]->(event:Event)
 MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
 OPTIONAL MATCH (line)<-[:PERFORMED_ON]-(analysis:Analysis)-[:REQUIRED_DEPTH]->(d:Depth)
-RETURN game, collect( [labels(analysis), d.level]) AS analysises, white_player.name, black_player.name, date_str, eco_code.code,
+RETURN game, game.hash, collect( [labels(analysis), d.level]) AS analysises, white_player.name, black_player.name, date_str, eco_code.code,
 	event.name, round.name, site.name, white_elo.rating, black_elo.rating, plycount.counter, white_result
 LIMIT 1";
 //var_dump( $game_params);
@@ -622,7 +622,8 @@ LIMIT 1";
 	foreach ($game_result->records() as $game_record) {
 
         $gameObj = $game_record->get('game');
-        $games[$index]['ID'] = $gameObj->identity();
+        $games[$index]['ID']    = $gameObj->identity();
+        $games[$index]['Hash']  = $game_record->value('game.hash');
         $games[$index]['White'] = $game_record->value('white_player.name');
         $games[$index]['ELO_W'] = $game_record->value('white_elo.rating')==0?"":$game_record->value('white_elo.rating');
         $games[$index]['Black'] = $game_record->value('black_player.name');

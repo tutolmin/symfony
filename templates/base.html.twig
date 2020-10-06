@@ -6,11 +6,11 @@
         {% block stylesheets %}{% endblock %}
         {% block head %}{% endblock %}
     </head>
-    <body onload="pageLoad({{ gid }});">
+    <body onload="pageLoad('{{ gid }}');">
 
         {% block body %}{% endblock %}
         {% block javascripts %}{% endblock %}
-        
+
         <div class="footer">
           <p>
           &copy;&nbsp;2020&nbsp;Chess Cheat, LLC.

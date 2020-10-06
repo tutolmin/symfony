@@ -60,7 +60,7 @@ class LoadQueueController extends AbstractController
     private $queueManager;
 
     // Dependency injection of the Neo4j ClientInterface
-    public function __construct( ClientInterface $client, Stopwatch $watch, 
+    public function __construct( ClientInterface $client, Stopwatch $watch,
 	LoggerInterface $logger, Security $security, UserManager $um, QueueManager $qm)
     {
         $this->neo4j_client = $client;
@@ -104,7 +104,7 @@ class LoadQueueController extends AbstractController
 	if( floor( $this->item_interval / 60) > 0)
 	  return round( $this->item_interval / 60)."+ minute(s)";
 
-	return $this->item_interval." seconds"; 
+	return $this->item_interval." seconds";
     }
 
     private function fetchItem( $idx) {
@@ -113,22 +113,22 @@ class LoadQueueController extends AbstractController
 	$game_params = [];
 	$game_params["gid"] = intval( $this->game_id);
 
-	$game_query="MATCH (game:Game) WHERE id(game) = {gid} WITH game 
-MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game) 
-WITH game, CASE 
-  WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+CASE 
-  WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+CASE 
-  WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str 
-MATCH (game)-[:ENDED_WITH]->(white_result:Result)<-[:ACHIEVED]-(white_side:Side:White)<-[:PLAYED_AS]-(white_player:Player) 
-MATCH (game)-[:ENDED_WITH]->(black_result:Result)<-[:ACHIEVED]-(black_side:Side:Black)<-[:PLAYED_AS]-(black_player:Player) 
+	$game_query="MATCH (game:Game) WHERE id(game) = {gid} WITH game
+MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
+WITH game, CASE
+  WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+CASE
+  WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+CASE
+  WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str
+MATCH (game)-[:ENDED_WITH]->(white_result:Result)<-[:ACHIEVED]-(white_side:Side:White)<-[:PLAYED_AS]-(white_player:Player)
+MATCH (game)-[:ENDED_WITH]->(black_result:Result)<-[:ACHIEVED]-(black_side:Side:Black)<-[:PLAYED_AS]-(black_player:Player)
 MATCH (game)-[:FINISHED_ON]->(line:Line)-[:GAME_HAS_LENGTH]->(plycount:GamePlyCount)
 MATCH (white_side)-[:RATED]->(white_elo:Elo)
 MATCH (black_side)-[:RATED]->(black_elo:Elo)
-MATCH (line)-[:CLASSIFIED_AS]->(eco_code:EcoCode) 
+MATCH (line)-[:CLASSIFIED_AS]->(eco_code:EcoCode)
 MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
 MATCH (game)-[:WAS_PART_OF]->(event:Event)
 MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
-RETURN game, white_player.name, black_player.name, date_str, eco_code.code,
+RETURN game, game.hash, white_player.name, black_player.name, date_str, eco_code.code,
 	event.name, round.name, site.name, white_elo.rating, black_elo.rating, plycount.counter, white_result
 LIMIT 1";
 
@@ -152,6 +152,7 @@ LIMIT 1";
 	if( $this->item_status == "Pending")
           $this->items[$idx]['Interval'] = $this->item_interval?$this->formatInterval():"few seconds";
 
+        $this->items[$idx]['Hash'] =  $game_record->value('game.hash');
         $this->items[$idx]['White'] = $game_record->value('white_player.name');
         $this->items[$idx]['ELO_W'] = $game_record->value('white_elo.rating')==0?"":$game_record->value('white_elo.rating');
         $this->items[$idx]['Black'] = $game_record->value('black_player.name');
@@ -176,7 +177,7 @@ LIMIT 1";
     /**
       * @Route("/loadQueue")
       */
-    public function loadQueue() 
+    public function loadQueue()
     {
 	// HTTP request
 	$request = Request::createFromGlobals();
@@ -224,8 +225,8 @@ LIMIT 1";
 	$tags=explode(';', json_decode( $query_tags));
 
         // Order condition
-        $known_tags = [ "id", 
-			"player", 
+        $known_tags = [ "id",
+			"player",
 			"result", "ending",
 			"status",
 			"side",
@@ -233,8 +234,8 @@ LIMIT 1";
 			"email",
 			"eco",
 			"piece",
-			"white", "black", 
-			"wins", "loses", "draws", 
+			"white", "black",
+			"wins", "loses", "draws",
 		"start_year", "start_month", "start_day", "end_year", "end_month", "end_day" ];
 
 	// Opposite arrays
@@ -247,19 +248,19 @@ LIMIT 1";
 	$side_label = "";
 
 	// Analysis type
-	$analysis_types	= [ "fast" => $_ENV['FAST_ANALYSIS_DEPTH'], 
+	$analysis_types	= [ "fast" => $_ENV['FAST_ANALYSIS_DEPTH'],
 			"deep" => $_ENV['DEEP_ANALYSIS_DEPTH'] ];
 	$analysis_depth = 0;
 	$depth_param	= "";
 
 	// Valid tag values
 	$valid_ending	= [ "checkmate" => "CheckMate", "stalemate" => "StaleMate" ];
-	$valid_piece	= [ "pawn" => "Pawn", "rook" => "Rook", "queen" => "Queen", 
+	$valid_piece	= [ "pawn" => "Pawn", "rook" => "Rook", "queen" => "Queen",
 		"king" => "King", "bishop" => "Bishop", "knight" => "Knight" ];
 
 	// Game Status Labels
-	$analysis_statuses	= [ "complete" => "Complete", "processing" => "Processing", 
-		"pending" => "Pending", "skipped" => "Skipped", 
+	$analysis_statuses	= [ "complete" => "Complete", "processing" => "Processing",
+		"pending" => "Pending", "skipped" => "Skipped",
 		"partially" => "Partially", "evaluated" => "Evaluated",
 		"exported" => "Exported" ];
 	$status_param	= "";
@@ -296,13 +297,13 @@ LIMIT 1";
 
 	// Non empty and has a colon separator
 	if( strlen($tag) && strpos($tag, ":") !== FALSE) {
-	    
+
 	    $tag_name_value=explode(':', $tag);
             $tag_name = $tag_name_value[0];
 
 	    // Check if we accept the parameter
 	    if (in_array( $tag_name, $known_tags)) {
-	
+
 		$tag_value = filter_var($tag_name_value[1], FILTER_SANITIZE_STRING);
 
 if( self::_DEBUG) {
@@ -406,7 +407,7 @@ echo "<br/>\n";
 		    $params["end_day"] = intval( filter_var($tag_name_value[1], FILTER_SANITIZE_NUMBER_INT));
 		    if( $params["end_day"] > 31 || $params["end_day"] < 1) $params["end_day"] = 0;
 		    break;
-		
+
 		  case "type":
 
 		    // Check for valid analysis type
@@ -437,7 +438,7 @@ echo "<br/>\n";
 
 		  case "eco":
 		    // Check for valid ECO string
-		    if( strlen( $tag_value) == 3 ) { 
+		    if( strlen( $tag_value) == 3 ) {
 			$plycount_eco_label	=	":".strtoupper( $tag_value)."PlyCount";
 			$date_eco_label		=	":".strtoupper( $tag_value)."Day";
 			$order_rel_type		=	strtoupper( $tag_value);
@@ -450,25 +451,25 @@ echo "<br/>\n";
 		    break;
 
 		  case "piece":
-		
+
 		    // Check for valid piece type
 		    if( !array_key_exists( $tag_value, $valid_piece)) break;
-		    
-//		    if( strlen( $ending_label)) 
+
+//		    if( strlen( $ending_label))
 //			$ending_label .= "By".$valid_piece[$tag_value];
-		    if( strlen( $plycount_ending_label)) 
+		    if( strlen( $plycount_ending_label))
 			$plycount_ending_label .= "By".$valid_piece[$tag_value];
-		    if( strlen( $date_ending_label)) 
+		    if( strlen( $date_ending_label))
 			$date_ending_label .= "By".$valid_piece[$tag_value];
-		    if( strlen( $rel_type)) 
+		    if( strlen( $rel_type))
 		        $rel_type.="_BY_".strtoupper( $tag_value);
-		    if( strlen( $order_rel_type)) 
+		    if( strlen( $order_rel_type))
 		        $order_rel_type.="_BY_".strtoupper( $tag_value);
 
 		    break;
 
 		  case "ending":
-		
+
 		    // Check for valid ending type
 		    if( !array_key_exists( $tag_value, $valid_ending)) break;
 
@@ -478,10 +479,10 @@ echo "<br/>\n";
 		    if( strlen( $plycount_eco_label) == 0) {
 		      $rel_type = strtoupper( $tag_value);
 		      $order_rel_type = $rel_type;
-		    } else 
+		    } else
 		      $rel_type.="_".strtoupper( $tag_value);
 
-		    $ending_label=":".$valid_ending[$tag_value]; 
+		    $ending_label=":".$valid_ending[$tag_value];
 		    $plycount_ending_label=$valid_ending[$tag_value];
 		    $date_ending_label=$valid_ending[$tag_value];
 
@@ -597,10 +598,10 @@ RETURN DISTINCT id(game) AS gid LIMIT 1";
 	} else if( array_key_exists( "first", $params) || array_key_exists( "second", $params))
 
 //MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:".$date_ending_label.$date_eco_label.")<-[".$rel_type."_WAS_PLAYED_ON]-(game)
-	  $query = "MATCH (game:Game".$this->item_status.")-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(first_side:Side)<-[:PLAYED_AS]-(first_player:Player$first_param) 
-MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(second_side:Side)<-[:PLAYED_AS]-(second_player:Player$second_param) 
+	  $query = "MATCH (game:Game".$this->item_status.")-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(first_side:Side)<-[:PLAYED_AS]-(first_player:Player$first_param)
+MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(second_side:Side)<-[:PLAYED_AS]-(second_player:Player$second_param)
   WITH game,second_player,first_player,second_result,first_result,second_side,first_side
-  WHERE 
+  WHERE
       first_player <> second_player
     AND (
       (
@@ -617,19 +618,19 @@ MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DA
   WITH game,second_player,first_player,second_result,first_result,second_side,first_side,
     CASE WHEN year.year=0	THEN '0000'		ELSE toString(year.year) END +
     CASE WHEN month.month<10	THEN '0'+month.month	ELSE toString(month.month) END +
-    CASE WHEN day.day<10	THEN '0'+day.day	ELSE toString(day.day) END AS date_str, 
+    CASE WHEN day.day<10	THEN '0'+day.day	ELSE toString(day.day) END AS date_str,
     CASE WHEN {start_year}=0	THEN '0000'		ELSE toString({start_year}) END +
     CASE WHEN {start_month}<10	THEN '0'+{start_month}	ELSE toString({start_month}) END +
-    CASE WHEN {start_day}<10	THEN '0'+{start_day}	ELSE toString({start_day}) END AS start_date_str, 
+    CASE WHEN {start_day}<10	THEN '0'+{start_day}	ELSE toString({start_day}) END AS start_date_str,
     CASE WHEN {end_year}=0	THEN '0000'		ELSE toString({end_year}) END +
     CASE WHEN {end_month}<10	THEN '0'+{end_month}	ELSE toString({end_month}) END +
-    CASE WHEN {end_day}<10	THEN '0'+{end_day}	ELSE toString({end_day}) END AS end_date_str  
+    CASE WHEN {end_day}<10	THEN '0'+{end_day}	ELSE toString({end_day}) END AS end_date_str
   WHERE
       start_date_str <= date_str <= end_date_str
 MATCH (game)-[:FINISHED_ON]->(:Line$ending_label)-[:".$rel_type."_HAS_LENGTH]->(plycount:GamePlyCount:".
 $plycount_ending_label."PlyCount".$plycount_eco_label.")
 RETURN DISTINCT id(game) AS gid, date_str, plycount
-$order_condition 
+$order_condition
 $skip_records
 LIMIT ".self::RECORDS_PER_PAGE;
 /*
@@ -642,23 +643,23 @@ MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:PLAYED_DATE]-(game)
 	WITH game, plycount,
     CASE WHEN year.year=0       THEN '0000'             ELSE toString(year.year) END +
     CASE WHEN month.month<10    THEN '0'+month.month    ELSE toString(month.month) END +
-    CASE WHEN day.day<10        THEN '0'+day.day        ELSE toString(day.day) END AS date_str, 
+    CASE WHEN day.day<10        THEN '0'+day.day        ELSE toString(day.day) END AS date_str,
     CASE WHEN {start_year}=0    THEN '0000'             ELSE toString({start_year}) END +
     CASE WHEN {start_month}<10  THEN '0'+{start_month}  ELSE toString({start_month}) END +
-    CASE WHEN {start_day}<10    THEN '0'+{start_day}    ELSE toString({start_day}) END AS start_date_str, 
+    CASE WHEN {start_day}<10    THEN '0'+{start_day}    ELSE toString({start_day}) END AS start_date_str,
     CASE WHEN {end_year}=0      THEN '0000'             ELSE toString({end_year}) END +
     CASE WHEN {end_month}<10    THEN '0'+{end_month}    ELSE toString({end_month}) END +
-    CASE WHEN {end_day}<10      THEN '0'+{end_day}      ELSE toString({end_day}) END AS end_date_str  
+    CASE WHEN {end_day}<10      THEN '0'+{end_day}      ELSE toString({end_day}) END AS end_date_str
   WHERE
       start_date_str <= date_str <= end_date_str
-MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White) 
-MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black) 
-  WHERE [x IN labels(first_result) WHERE x IN {first_results}] 
+MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White)
+MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black)
+  WHERE [x IN labels(first_result) WHERE x IN {first_results}]
 RETURN DISTINCT id(game) AS gid, date_str, plycount
-$order_condition 
+$order_condition
 $skip_records
 LIMIT ".self::RECORDS_PER_PAGE;
-*/	
+*/
 	// No special limiting tags, select all games
 	else {
 
@@ -689,7 +690,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 //	    $moves_ordering_condition = "MATCH (:PlyCount{counter:{maxplies}})<-[:LONGER*0..]-";
 	    $moves_ordering_condition = "DESC";
 	    $left="<"; $right="";
-	    
+
 	    if( strlen( $descending)==0) {
 	      $moves_ordering_condition = "";
 //	      $moves_ordering_condition = "MATCH (:PlyCount{counter:{minplies}})-[:LONGER*0..]->";
@@ -706,7 +707,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 	    $query = $moves_ordering_condition.
 "(p:GamePlyCount".$plycount_ending_label.$plycount_eco_label.") WITH p LIMIT 1 ".
 */
-	    $query = 
+	    $query =
 "MATCH (p:GamePlyCount:".$plycount_ending_label."PlyCount".$plycount_eco_label.") WITH p ORDER BY p.counter $moves_ordering_condition LIMIT 1 ".
 "MATCH (p)".$left."-[:LONGER_$order_rel_type*0..]-".$right."(:GamePlyCount:".$plycount_ending_label."PlyCount".$plycount_eco_label.")<-[:".
 $rel_type."_HAS_LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game) ";
@@ -727,14 +728,14 @@ $rel_type."_HAS_LENGTH]-(:Line$ending_label)<-[:FINISHED_ON]-(game:Game) ";
 	    $date_ordering_condition = "DESC";
 //"MATCH (:Year{year:{end_year}})<-[:OF]-(:Month{month:{end_month}})<-[:OF]-(:Day{day:{end_day}})<-[:NEXT*0..]-";
 	    $left="<"; $right="";
-	    
+
 	    if( strlen( $descending)==0) {
 	      $date_ordering_condition = "";
 //"MATCH (:Year{year:{start_year}})<-[:OF]-(:Month{month:{start_month}})<-[:OF]-(:Day{day:{start_day}})-[:NEXT*0..]->";
 	      $left=""; $right=">";
 	    }
 
-	    $query = 
+	    $query =
 "MATCH (d:GameDay:".$date_ending_label."Day".$date_eco_label.") WITH d ORDER BY d.idx $date_ordering_condition LIMIT 1 ".
 "MATCH (d)".$left."-[:NEXT_$order_rel_type*0..]-".$right."(:GameDay:".$date_ending_label."Day".$date_eco_label.")<-[:".
 $rel_type."_WAS_PLAYED_ON_DATE]-(game:Game)-[:FINISHED_ON]->(:Line$ending_label) ";
@@ -746,14 +747,14 @@ $rel_type."_WAS_PLAYED_ON_DATE]-(game:Game)-[:FINISHED_ON]->(:Line$ending_label)
 	}
 
 	  $query .= " WITH game
-MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White) 
-MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black) 
-  WHERE [x IN labels(first_result) WHERE x IN {first_results}] 
-RETURN DISTINCT id(game) AS gid 
-$skip_records 
+MATCH (game)-[:ENDED_WITH]->(first_result:Result)<-[:ACHIEVED]-(:Side:White)
+MATCH (game)-[:ENDED_WITH]->(second_result:Result)<-[:ACHIEVED]-(:Side:Black)
+  WHERE [x IN labels(first_result) WHERE x IN {first_results}]
+RETURN DISTINCT id(game) AS gid
+$skip_records
 LIMIT ".self::RECORDS_PER_PAGE;
 	}
-//    AND [x IN labels(second_result) WHERE x IN {second_results}] 
+//    AND [x IN labels(second_result) WHERE x IN {second_results}]
 
 
 
@@ -798,29 +799,29 @@ RETURN a, distance AS idx, d.level, id(game) AS gid, s.status ORDER BY idx";
 	  // Descending sorting
 	  if( strlen( $descending)) $query .= " DESC";
 
-	} else { 
-	
+	} else {
+
 	  // All analysis nodes starting from head
-//  USING SCAN f:Analysis 
-	  $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis) 
+//  USING SCAN f:Analysis
+	  $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
 MATCH (:Tail:Queue)-[:LAST]->(l:Analysis)
   WITH f,l LIMIT 1
-MATCH dist=shortestPath((f)-[:NEXT*0..]->(l)) WITH length(dist)+2 as distance,f,l LIMIT 1 
-MATCH path=(f)-[:NEXT*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
+MATCH dist=shortestPath((f)-[:NEXT*0..]->(l)) WITH length(dist)+2 as distance,f,l LIMIT 1
+MATCH path=(f)-[:NEXT*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.")
 MATCH (s:Status)<-[:HAS_GOT]-(a)
-MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
-RETURN a, length(path) AS idx, d.level, id(game) AS gid, s.status 
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game)
+RETURN a, length(path) AS idx, d.level, id(game) AS gid, s.status
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
 	  // Items for specific status
 	  if( array_key_exists( "status", $params))
 	    $query = "
-MATCH (s:Status".$status_param.")-[:FIRST]->(f:Analysis) 
+MATCH (s:Status".$status_param.")-[:FIRST]->(f:Analysis)
 MATCH (:Status".$status_param.")-[:LAST]->(l:Analysis)
   WITH f,l,s LIMIT 1
-MATCH dist=shortestPath((f)-[:NEXT_BY_STATUS*0..]->(l)) WITH length(dist)+2 as distance,f,l,s LIMIT 1 
-MATCH path=(f)-[:NEXT_BY_STATUS*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH dist=shortestPath((f)-[:NEXT_BY_STATUS*0..]->(l)) WITH length(dist)+2 as distance,f,l,s LIMIT 1
+MATCH path=(f)-[:NEXT_BY_STATUS*0..]->(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.")
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game)
 RETURN a, length(path) AS idx, d.level, id(game) AS gid, s.status
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
@@ -831,10 +832,10 @@ $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 	    $query = "MATCH (:Head:Queue)-[:FIRST]->(f:Analysis)
 MATCH (:Tail:Queue)-[:LAST]->(l:Analysis)
   WITH f,l LIMIT 1
-MATCH dist=shortestPath((f)-[:NEXT*0..]->(l)) WITH length(dist)+2 as distance,f,l LIMIT 1 
-MATCH path=(l)<-[:NEXT*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
+MATCH dist=shortestPath((f)-[:NEXT*0..]->(l)) WITH length(dist)+2 as distance,f,l LIMIT 1
+MATCH path=(l)<-[:NEXT*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.")
 MATCH (s:Status)<-[:HAS_GOT]-(a)
-MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game)
 RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid, s.status
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
@@ -844,9 +845,9 @@ $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 MATCH (s:Status".$status_param.")-[:FIRST]->(f:Analysis)
 MATCH (:Status".$status_param.")-[:LAST]->(l:Analysis)
   WITH f,l,s LIMIT 1
-MATCH dist=shortestPath((f)-[:NEXT_BY_STATUS*0..]->(l)) WITH length(dist)+2 as distance,f,l,s LIMIT 1 
-MATCH path=(l)<-[:NEXT_BY_STATUS*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.") 
-MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game) 
+MATCH dist=shortestPath((f)-[:NEXT_BY_STATUS*0..]->(l)) WITH length(dist)+2 as distance,f,l,s LIMIT 1
+MATCH path=(l)<-[:NEXT_BY_STATUS*0..]-(a:Analysis".$side_label.")-[:REQUESTED_BY]->(w:WebUser".$webuser.")
+MATCH (d:Depth".$depth_param.")<-[:REQUIRED_DEPTH]-(a)-[:REQUESTED_FOR]->(game:Game)
 RETURN a, distance-length(path) AS idx, d.level, id(game) AS gid, s.status
 $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
@@ -859,7 +860,7 @@ $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 
 //	$event = $this->stopwatch->lap('loadQueue');
 
-	// Start analysis Id -1 means we need to fetch first Pending once	
+	// Start analysis Id -1 means we need to fetch first Pending once
 	$said = -1;
 //if( false)
         // Fetch the item data from the DB
@@ -897,16 +898,16 @@ $skip_records LIMIT ".self::RECORDS_PER_PAGE;
 	      // First Pending by default
 	      $said = $this->queueManager->getStatusQueueNode();
 
-	      $this->item_interval = 
+	      $this->item_interval =
 		$this->queueManager->getAnalysisInterval( $said, $this->analysis_id);
 
-	    } else {	
+	    } else {
 
 	    if( strlen( $descending))
-	      $this->item_interval -= 
+	      $this->item_interval -=
 		$this->queueManager->getAnalysisInterval( $this->analysis_id, $said);
 	    else
-	      $this->item_interval += 
+	      $this->item_interval +=
 		$this->queueManager->getAnalysisInterval( $said, $this->analysis_id);
 	    }
 
@@ -921,11 +922,11 @@ MATCH (f)-[:NEXT*0..]->(t:Action)
   MATCH (t)-[:WAS_PERFORMED_TIME]->(s:Second)-[:OF]->(n:Minute)-[:OF]->(h:Hour)
     OPTIONAL MATCH (t)-[:CHANGED_TO]->(status:Status)
     OPTIONAL MATCH (t)-[:CHANGED_TO]->(depth:Depth)
-RETURN t.action, 
-  apoc.temporal.format( datetime({ year: y.year, month: m.month, 
-				day: d.day, hour: h.hour, 
-				minute: n.minute, second: s.second}), 
-				'YYYY-MM-dd HH:mm:ss') AS dts, 
+RETURN t.action,
+  apoc.temporal.format( datetime({ year: y.year, month: m.month,
+				day: d.day, hour: h.hour,
+				minute: n.minute, second: s.second}),
+				'YYYY-MM-dd HH:mm:ss') AS dts,
   t.parameter, status.status, depth.level";
 
 	  $params["aid"] = intval( $this->analysis_id);
@@ -936,7 +937,7 @@ RETURN t.action,
 	  $this->item_action_dts = array();
 	  $this->item_action_params = array();
           foreach ( $result_a->records() as $record_a) {
-	
+
 	    // Fill in arrays
 	    $this->item_actions[] = $record_a->value('t.action');
 	    $this->item_action_dts[] = $record_a->value('dts');

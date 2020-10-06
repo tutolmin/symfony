@@ -56,6 +56,27 @@ RETURN id(g) AS gid LIMIT 1';
         return false;
     }
 
+
+    // Find :Game node in the database by it's hash
+    public function gameIdByHash( $hash)
+    {
+        $this->logger->debug( "Looking for a game hash");
+
+        $query = 'MATCH (g:Game) WHERE g.hash = {hash}
+RETURN id(g) AS gid LIMIT 1';
+
+        $params = ["hash" => $hash];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('gid') != null)
+            return $record->value('gid');
+
+        // Return
+        return -1;
+    }
+
+
     // get the total number of Games in the DB
     public function getGamesTotal()
     {

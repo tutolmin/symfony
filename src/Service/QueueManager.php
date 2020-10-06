@@ -2640,7 +2640,8 @@ RETURN average.milliseconds AS speed';
                   MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
                   MATCH (game)-[:FINISHED_ON]->(line:Line)
                   MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
-                 RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
+                 RETURN game.hash, date_str, result_w, event.name, player_b.name, player_w.name,
+                  elo_b.rating, elo_w.rating, game, line.hash,
                 	eco.code, opening.opening, opening.variation LIMIT 1";
 
         $result = $this->neo4j_client->run( $query, $params);
@@ -2672,12 +2673,12 @@ RETURN average.milliseconds AS speed';
             $results[] = "0-1";
           else
             $results[] = "Unknown";
-        }
 
-        // generated URLs are "absolute paths" by default. Pass a third optional
-        // argument to generate different URLs (e.g. an "absolute URL")
-        $links[] = $this->router->generate('index', ['gid' => $gid],
-          UrlGeneratorInterface::ABSOLUTE_URL);
+          // generated URLs are "absolute paths" by default. Pass a third optional
+          // argument to generate different URLs (e.g. an "absolute URL")
+          $links[] = $this->router->generate('index', ['gid' => $record->value('game.hash')],
+            UrlGeneratorInterface::ABSOLUTE_URL);
+        }
       }
 
       $email = (new TemplatedEmail())
