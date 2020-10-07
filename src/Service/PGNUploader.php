@@ -32,7 +32,7 @@ class PGNUploader
     	// the filename is never matches 'games' prefix, reserved for :Game-only db merge
     	// the filename is never matches 'lines' prefix, reserved for :Game-only db merge
     	// Strip '/tmp/' from a filename
-      $fileName = $this->getTargetDirectory() . "/" . $hash . '.html';
+      $fileName = $this->getTargetDirectory() . "/pages-" . $hash . '.html';
 
       $this->logger->debug( $fileName);
 

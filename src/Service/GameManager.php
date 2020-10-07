@@ -774,9 +774,9 @@ RETURN count(a) AS ttl';
       $filesystem = new Filesystem();
       try {
 
-        // Filename SHOULD contain 'html' prefix in order to make sure
+        // Filename SHOULD contain 'pages' prefix in order to make sure
         // the filename is never matches 'games|lines|evals' prefixes
-        $tmp_file = $filesystem->tempnam('/tmp', 'html-');
+        $tmp_file = $filesystem->tempnam('/tmp', 'pages-');
 
         // Save the PGNs into a local temp file
         file_put_contents( $tmp_file, $htmlContents);
