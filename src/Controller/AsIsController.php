@@ -29,7 +29,7 @@ class AsIsController extends AbstractController
       $this->security = $security;
   }
      /**
-      * @Route("/asis/{gid}", requirements={"gid": "[0-9a-z]{64}"})
+      * @Route("/asis/{gid}", requirements={"gid": "[0-9a-z]{64}|upload|search|queue"})
       * @SecurityBundle("is_granted('IS_AUTHENTICATED_ANONYMOUSLY')")
       */
     public function asis( Request $request, PGNUploader $fileUploader, $gid)

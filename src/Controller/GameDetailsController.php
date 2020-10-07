@@ -121,7 +121,7 @@ class GameDetailsController extends AbstractController
 
 	// Get game id from request
 	$this->game['ID'] = $this->gameManager->gameIdByHash(
-    $request->query->getAlnum('gid', -1));
+    $request->query->getAlnum('gid', '-1'));
 
 	// Get game info
 	if( $this->getGameInfo()) {

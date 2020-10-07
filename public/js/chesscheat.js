@@ -1,6 +1,6 @@
 function pageLoad( gid) {
 
-  // Show particular game
+  // Show the game in analysis tab
   showGameDetails( gid);
 
   // Show Pending games in a queue
@@ -10,6 +10,28 @@ function pageLoad( gid) {
   // Show white wins
   $('.tagsinput#form-tags').importTags( '1-0;');
   loadGames();
+
+  // Specific section or game ID
+  if( gid == 'upload') {
+
+    // Issue a click event on an Upload tab
+    document.getElementById("uploadTab").click();
+
+  } else if ( gid == 'search') {
+
+      // Issue a click event on an Search tab
+    document.getElementById("searchTab").click();
+
+  } else if ( gid == 'queue') {
+
+      // Issue a click event on an Queue tab
+    document.getElementById("queueTab").click();
+
+  } else {
+
+    // Issue a click event on an Analyze tab
+    document.getElementById("analysisTab").click();
+  }
 }
 
 function parse_url( url) {
@@ -176,7 +198,13 @@ function showQueueTag( tag) {
 // Display game data on the Analyze tab
 function showGameDetails( gid) {
 
-  console.log( "Game ID: " + gid);
+  // Section has been specified
+  section = '';
+  if( gid == 'upload' || gid == 'search' || gid == 'queue') {
+    section = gid; gid = 0;
+  }
+
+  console.log( "Game ID: " + gid + " section: " + section);
 
   // Clear the tab elements prior to new game load
   document.getElementById('gamePlayers').innerHTML = "Loading...";
@@ -210,7 +238,7 @@ function showGameDetails( gid) {
   hasEvaluation = Game["hasEvaluation"];
 
   // Replay game moves and display new game data
-  init();
+  if( section.length > 0) { init( false); } else { init(); }
 
   // Special hidden field in case a user submits the game for analysis
   document.getElementById( 'game_being_analyzed').value = Game["ID"];
@@ -223,8 +251,6 @@ function showGameDetails( gid) {
 
   });
 
-  // Issue a click event on an Analyze tab
-  document.getElementById("analysisTab").click();
 }
 
 
@@ -576,7 +602,7 @@ const _T1_DEPTH = 10;
 const _T1_TIME  = 11;
 
 // New game has been loaded for analysis
-var init = function() {
+var init = function( play = true) {
 
 positionIndex=0;
 alternativeIndex=-1;
@@ -603,9 +629,13 @@ console.timeEnd("Process positions");
 
 currentGame.reset();
 
-// Start playing the moves
-timerIsOn = true;
-window.setTimeout( makeNextMove, 1000);
+// Start playing the moves if autostart is true
+console.log( "Autoplay: " + play)
+if( play) {
+
+  timerIsOn = true;
+  window.setTimeout( makeNextMove, 1000);
+}
 
 // Show game header
 var WhiteELO = "";
