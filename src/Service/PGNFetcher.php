@@ -21,7 +21,7 @@ class PGNFetcher
     private $stopwatch;
 
     public function __construct( Stopwatch $watch, LoggerInterface $logger,
-	CacheFileFetcher $fetcher, EntityManagerInterface $manager)
+	    CacheFileFetcher $fetcher, EntityManagerInterface $manager)
     {
         $this->stopwatch = $watch;
         $this->logger = $logger;
@@ -59,19 +59,29 @@ class PGNFetcher
 
         $this->stopwatch->lap('getPGN');
 
-	$PGNstring = "";
-        $PGNstring .= $this->fetcher->getFile( $game->getHash().'.pgn')->getContent();
-        $PGNstring .= "\n"; // Tags should be delimited from moves
+	      $PGNstring = "";
+        $PGNstring .= $this->fetchPGN( $game->getHash().'.pgn');
 
         $this->stopwatch->lap('getPGN');
 
-        $PGNstring .= $this->fetcher->getFile( $line->getHash().'.pgn')->getContent();
-        $PGNstring .= "\n";
+        $PGNstring .= $this->fetchPGN( $line->getHash().'.pgn');
 
         $this->stopwatch->stop('getPGN');
 
         return $PGNstring;
     }
+
+
+    // Get specific file from cache
+    public function fetchPGN( $filename) {
+
+      $PGNstring = "";
+      $PGNstring .= $this->fetcher->getFile( $filename)->getContent();
+      $PGNstring .= "\n"; // Tags should be delimited from moves
+
+      return $PGNstring;
+    }
+
 
     // Fetches the list of PGNs
     public function getPGNs( $gids)

@@ -11,27 +11,6 @@ function pageLoad( gid) {
   $('.tagsinput#form-tags').importTags( '1-0;');
   loadGames();
 
-  // Specific section or game ID
-  if( gid == 'upload') {
-
-    // Issue a click event on an Upload tab
-    document.getElementById("uploadTab").click();
-
-  } else if ( gid == 'search') {
-
-      // Issue a click event on an Search tab
-    document.getElementById("searchTab").click();
-
-  } else if ( gid == 'queue') {
-
-      // Issue a click event on an Queue tab
-    document.getElementById("queueTab").click();
-
-  } else {
-
-    // Issue a click event on an Analyze tab
-    document.getElementById("analysisTab").click();
-  }
 }
 
 function parse_url( url) {
@@ -251,6 +230,27 @@ function showGameDetails( gid) {
 
   });
 
+  // Specific section or game ID
+  if( section == 'upload') {
+
+    // Issue a click event on an Upload tab
+    document.getElementById("uploadTab").click();
+
+  } else if ( section == 'search') {
+
+      // Issue a click event on an Search tab
+    document.getElementById("searchTab").click();
+
+  } else if ( section == 'queue') {
+
+      // Issue a click event on an Queue tab
+    document.getElementById("queueTab").click();
+
+  } else {
+
+    // Issue a click event on an Analyze tab
+    document.getElementById("analysisTab").click();
+  }
 }
 
 

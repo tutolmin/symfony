@@ -11,7 +11,9 @@ use Symfony\Component\Filesystem\Filesystem;
 use App\Service\PGNFetcher;
 use App\Service\PGNUploader;
 use GraphAware\Neo4j\Client\ClientInterface;
+use GraphAware\Neo4j\OGM\EntityManagerInterface;
 use App\Entity\Game;
+use Twig\Environment;
 
 class GameManager
 {
@@ -24,17 +26,29 @@ class GameManager
     private $fetcher;
     private $uploader;
 
+    // templates
+    private $twig;
+
+    private $manager;
+    private $gameRepository;
+
     // We need to check roles and get user id
     private $security;
 
     public function __construct( ClientInterface $client, LoggerInterface $logger,
-    	PGNFetcher $fetcher, PGNUploader $uploader, Security $security)
+    	PGNFetcher $fetcher, PGNUploader $uploader, Security $security,
+      Environment $twig, EntityManagerInterface $manager)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
         $this->fetcher = $fetcher;
         $this->uploader = $uploader;
         $this->security = $security;
+        $this->twig = $twig;
+        $this->manager = $manager;
+
+        // get the game repository
+        $this->gameRepository = $this->manager->getRepository( Game::class);
     }
 
     // Find :Game node in the database
@@ -60,7 +74,7 @@ RETURN id(g) AS gid LIMIT 1';
     // Find :Game node in the database by it's hash
     public function gameIdByHash( $hash)
     {
-        $this->logger->debug( "Looking for a game hash");
+        $this->logger->debug( "Looking for a game id");
 
         $query = 'MATCH (g:Game) WHERE g.hash = {hash}
 RETURN id(g) AS gid LIMIT 1';
@@ -74,6 +88,30 @@ RETURN id(g) AS gid LIMIT 1';
 
         // Return
         return -1;
+    }
+
+
+    // Find :Game hash in the database by it's node id
+    public function gameHashById( $gid)
+    {
+        $this->logger->debug( "Looking for a game hash");
+
+        // Checks if game exists
+        if( !$this->gameExists( $gid))
+	        return '';
+
+        $query = 'MATCH (g:Game) WHERE id(g) = {gid}
+RETURN g.hash AS hash LIMIT 1';
+
+        $params = ["gid" => intval( $gid)];
+        $result = $this->neo4j_client->run($query, $params);
+
+        foreach ($result->records() as $record)
+          if( $record->value('hash') != null)
+            return $record->value('hash');
+
+        // Return
+        return '';
     }
 
 
@@ -516,6 +554,246 @@ RETURN count(a) AS ttl';
 
       // Put the file into special uploads directory
       $this->uploader->uploadLines( $tmp_file);
+    }
+
+
+
+    // Exports single HTML file for a game
+    public function exportHTMLFile( $gid)
+    {
+      $game = $this->gameRepository->findOneById( $gid);
+
+      $this->logger->debug('(:Game) hash: '.$game->getHash());
+
+      $line = $game->getLine();
+
+      $PGNstring = $this->fetcher->fetchPGN( $line->getHash().'.pgn');
+
+      $sides = ["White" => "W_", "Black" => "B_"];
+      foreach( $sides as $prefix) {
+        $gameInfo[$prefix.'Plies']="";
+        $gameInfo[$prefix.'Analyzed']="";
+        $gameInfo[$prefix.'ECOs']="";
+        $gameInfo[$prefix.'ECO_rate']="";
+        $gameInfo[$prefix.'T1']="";
+        $gameInfo[$prefix.'T1_rate']="";
+        $gameInfo[$prefix.'T2']="";
+        $gameInfo[$prefix.'T2_rate']="";
+        $gameInfo[$prefix.'T3']="";
+        $gameInfo[$prefix.'T3_rate']="";
+        $gameInfo[$prefix.'ET3']="";
+        $gameInfo[$prefix.'ET3_rate']="";
+        $gameInfo[$prefix.'Best']="";
+        $gameInfo[$prefix.'Best_rate']="";
+        $gameInfo[$prefix.'Sound']="";
+        $gameInfo[$prefix.'Sound_rate']="";
+        $gameInfo[$prefix.'Forced']="";
+        $gameInfo[$prefix.'Forced_rate']="";
+        $gameInfo[$prefix.'Deltas']="";
+        $gameInfo[$prefix.'avg_diff']="";
+        $gameInfo[$prefix.'median']="";
+        $gameInfo[$prefix.'std_dev']="";
+        $gameInfo[$prefix.'cheat_score']="";
+        $gameInfo[$prefix.'perp_len']="";
+      }
+
+      // Fetch game details
+    	$params = ["gid" => intval( $gid)];
+
+      $query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
+    MATCH (year:Year)<-[:OF]-(month:Month)<-[:OF]-(day:Day)<-[:GAME_WAS_PLAYED_ON_DATE]-(game)
+    WITH game,
+     CASE WHEN year.year=0 THEN '0000' ELSE toString(year.year) END+'.'+
+     CASE WHEN month.month<10 THEN '0'+month.month ELSE toString(month.month) END+'.'+
+     CASE WHEN day.day<10 THEN '0'+day.day ELSE toString(day.day) END AS date_str
+     MATCH (game)-[:ENDED_WITH]->(result_w:Result)<-[:ACHIEVED]-(white:Side:White)<-[:PLAYED_AS]-(player_w:Player)
+      MATCH (game)-[:ENDED_WITH]->(:Result)<-[:ACHIEVED]-(black:Side:Black)<-[:PLAYED_AS]-(player_b:Player)
+      MATCH (white)-[:RATED]->(elo_w:Elo) MATCH (black)-[:RATED]->(elo_b:Elo)
+      MATCH (game)-[:WAS_PLAYED_IN]->(round:Round)
+      MATCH (game)-[:WAS_PART_OF]->(event:Event)
+      MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
+      MATCH (game)-[:FINISHED_ON]->(line:Line)
+      MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
+     RETURN date_str, result_w, event.name, site.name, round.name,
+      player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
+    	eco.code, opening.opening, opening.variation LIMIT 1";
+    	$result = $this->neo4j_client->run( $query, $params);
+
+    	foreach ($result->records() as $record) {
+
+    	  // Fetch game object
+    	  $gameObj = $record->get('game');
+    //	  $this->game['ID']	= $gameObj->identity();
+    	  $gameInfo['White']  = $record->value('player_w.name');
+    	  $gameInfo['W_ELO']  = $record->value('elo_w.rating');
+    	  $gameInfo['Black']  = $record->value('player_b.name');
+    	  $gameInfo['B_ELO']  = $record->value('elo_b.rating');
+    	  $gameInfo['Event']  = $record->value('event.name');
+    	  $gameInfo['Site']   = $record->value('site.name');
+    	  $gameInfo['Round']  = $record->value('round.name');
+    	  $gameInfo['Date']   = $record->value('date_str');
+    	  $gameInfo['ECO']	= $record->value('eco.code');
+    	  $gameInfo['ECO_opening']	= $record->value('opening.opening');
+    	  $gameInfo['ECO_variation']	= $record->value('opening.variation');
+    	  $gameInfo['MoveListHash']	= $record->value('line.hash');
+
+    	  // Result in human readable format
+        $labelsObj = $record->get('result_w');
+        $labelsArray = $labelsObj->labels();
+        if( in_array( "Draw", $labelsArray))
+          $gameInfo['Result'] = "1/2-1/2";
+        else if( in_array( "Win", $labelsArray))
+          $gameInfo['Result'] = "1-0";
+        else if( in_array( "Loss", $labelsArray))
+          $gameInfo['Result'] = "0-1";
+        else
+          $gameInfo['Result'] = "Unknown";
+      }
+
+      // Get game Summary
+    	$query = 'MATCH (game:Game) WHERE id(game) = $gid
+        MATCH (game)-[:FINISHED_ON]->(line:Line)
+        OPTIONAL MATCH (line)-[:HAS_GOT]->(summary:Summary)
+        RETURN summary LIMIT 2';
+    	$result = $this->neo4j_client->run( $query, $params);
+
+    	foreach ($result->records() as $record) {
+
+    	  // If summary is null, get next
+        $summaryObj = $record->get('summary');
+        if( $record->value('summary') == null) continue;
+
+    	  // Which side summary is this?
+        $labelsArray = $summaryObj->labels();
+    	  $side ='Black';
+        if( in_array( 'White', $labelsArray)) $side = 'White';
+    	  $prefix = $sides[$side];
+
+      	if($summaryObj->hasValue('analyzed'))
+      		$gameInfo[$prefix.'Analyzed'] = $summaryObj->value('analyzed');
+      	if($summaryObj->hasValue('plies'))
+      		$gameInfo[$prefix.'Plies'] = $summaryObj->value('plies');
+      	if($summaryObj->hasValue('ecos'))
+      		$gameInfo[$prefix.'ECOs'] = $summaryObj->value('ecos');
+      	if($summaryObj->hasValue('eco_rate'))
+      		$gameInfo[$prefix.'ECO_rate'] = $summaryObj->value('eco_rate');
+      	if($summaryObj->hasValue('t1'))
+      		$gameInfo[$prefix.'T1'] = $summaryObj->value('t1');
+      	if($summaryObj->hasValue('t1_rate'))
+      		$gameInfo[$prefix.'T1_rate'] = $summaryObj->value('t1_rate');
+      	if($summaryObj->hasValue('t2'))
+      		$gameInfo[$prefix.'T2'] = $summaryObj->value('t2');
+      	if($summaryObj->hasValue('t2_rate'))
+      		$gameInfo[$prefix.'T2_rate'] = $summaryObj->value('t2_rate');
+      	if($summaryObj->hasValue('t3'))
+      		$gameInfo[$prefix.'T3'] = $summaryObj->value('t3');
+      	if($summaryObj->hasValue('t3_rate'))
+      		$gameInfo[$prefix.'T3_rate'] = $summaryObj->value('t3_rate');
+      	if($summaryObj->hasValue('t3'))
+      		$gameInfo[$prefix.'ET3'] = $summaryObj->value('et3');
+      	if($summaryObj->hasValue('et3_rate'))
+      		$gameInfo[$prefix.'ET3_rate'] = $summaryObj->value('et3_rate');
+      	if($summaryObj->hasValue('best'))
+      		$gameInfo[$prefix.'Best'] = $summaryObj->value('best');
+      	if($summaryObj->hasValue('best_rate'))
+      		$gameInfo[$prefix.'Best_rate'] = $summaryObj->value('best_rate');
+      	if($summaryObj->hasValue('sound'))
+      		$gameInfo[$prefix.'Sound'] = $summaryObj->value('sound');
+      	if($summaryObj->hasValue('sound_rate'))
+      		$gameInfo[$prefix.'Sound_rate'] = $summaryObj->value('sound_rate');
+      	if($summaryObj->hasValue('forced'))
+      		$gameInfo[$prefix.'Forced'] = $summaryObj->value('forced');
+      	if($summaryObj->hasValue('forced_rate'))
+      		$gameInfo[$prefix.'Forced_rate'] = $summaryObj->value('forced_rate');
+      	if($summaryObj->hasValue('deltas'))
+      		$gameInfo[$prefix.'Deltas'] = $summaryObj->value('deltas');
+      	if($summaryObj->hasValue('mean'))
+      		$gameInfo[$prefix.'avg_diff'] = $summaryObj->value('mean');
+      	if($summaryObj->hasValue('median'))
+      		$gameInfo[$prefix.'median'] = $summaryObj->value('median');
+      	if($summaryObj->hasValue('std_dev'))
+      		$gameInfo[$prefix.'std_dev'] = $summaryObj->value('std_dev');
+      	if($summaryObj->hasValue('cheat_score'))
+      		$gameInfo[$prefix.'cheat_score'] = $summaryObj->value('cheat_score');
+      	if($summaryObj->hasValue('perp_len'))
+      		$gameInfo[$prefix.'perp_len'] = $summaryObj->value('perp_len');
+    	}
+
+
+      $htmlContents = $this->twig->render('game.html.twig', [
+        'white'     => $gameInfo['White'],
+        'white_elo' => $gameInfo['W_ELO'],
+        'black'     => $gameInfo['Black'],
+        'black_elo' => $gameInfo['B_ELO'],
+        'event'     => $gameInfo['Event'],
+        'site'      => $gameInfo['Site'],
+        'round'     => $gameInfo['Round'],
+        'date'      => $gameInfo['Date'],
+        'result'    => $gameInfo['Result'],
+        'eco'       => $gameInfo['ECO'].": ".$gameInfo['ECO_opening'].
+          " (".$gameInfo['ECO_variation'].")",
+        'w_cs'      => $gameInfo['W_cheat_score'],
+        'w_games'   => 1,
+        'w_plies'   => $gameInfo['W_Plies'],
+        'w_analyzed'=> $gameInfo['W_Analyzed'],
+        'w_eco'     => $gameInfo['W_ECO_rate'],
+        'w_t1'      => $gameInfo['W_T1_rate'],
+        'w_t2'      => $gameInfo['W_T2_rate'],
+        'w_t3'      => $gameInfo['W_T3_rate'],
+        'w_et3'     => $gameInfo['W_ET3_rate'],
+        'w_best'    => $gameInfo['W_Best_rate'],
+        'w_sound'   => $gameInfo['W_Sound_rate'],
+        'w_forced'  => $gameInfo['W_Forced_rate'],
+        'w_deltas'  => $gameInfo['W_Deltas'],
+        'w_mean'    => $gameInfo['W_avg_diff'],
+        'w_median'  => $gameInfo['W_median'],
+        'w_stddev'  => $gameInfo['W_std_dev'],
+        'w_bdist'   => $gameInfo['W_perp_len'],
+        'b_cs'      => $gameInfo['B_cheat_score'],
+        'b_games'   => 1,
+        'b_plies'   => $gameInfo['B_Plies'],
+        'b_analyzed'=> $gameInfo['B_Analyzed'],
+        'b_eco'     => $gameInfo['B_ECO_rate'],
+        'b_t1'      => $gameInfo['B_T1_rate'],
+        'b_t2'      => $gameInfo['B_T2_rate'],
+        'b_t3'      => $gameInfo['B_T3_rate'],
+        'b_et3'     => $gameInfo['B_ET3_rate'],
+        'b_best'    => $gameInfo['B_Best_rate'],
+        'b_sound'   => $gameInfo['B_Sound_rate'],
+        'b_forced'  => $gameInfo['B_Forced_rate'],
+        'b_deltas'  => $gameInfo['B_Deltas'],
+        'b_mean'    => $gameInfo['B_avg_diff'],
+        'b_median'  => $gameInfo['B_median'],
+        'b_stddev'  => $gameInfo['B_std_dev'],
+        'b_bdist'   => $gameInfo['B_perp_len'],
+        'pgn'       => $PGNstring
+//          'category' => '...',
+///         'promotions' => ['...', '...'],
+      ]);
+
+      $filesystem = new Filesystem();
+      try {
+
+        // Filename SHOULD contain 'html' prefix in order to make sure
+        // the filename is never matches 'games|lines|evals' prefixes
+        $tmp_file = $filesystem->tempnam('/tmp', 'html-');
+
+        // Save the PGNs into a local temp file
+        file_put_contents( $tmp_file, $htmlContents);
+
+      } catch (IOExceptionInterface $exception) {
+
+        $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+
+	      return false;
+      }
+
+      $this->logger->debug( "Saving file into uploads dir.");
+
+      // Put the file into special uploads directory
+      $this->uploader->uploadHTML( $tmp_file, $this->gameHashById( $gid));
+
+      return true;
     }
 
 

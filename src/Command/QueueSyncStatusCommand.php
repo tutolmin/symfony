@@ -132,6 +132,9 @@ class QueueSyncStatusCommand extends Command
             // Request JSON files update for the game
             $this->gameManager->exportJSONFile( $gid, $depths);
 
+            // Request HTML file export for the game
+            $this->gameManager->exportHTMLFile( $gid);
+
             // Send notification message
             $this->queueManager->notifyUser( $aid);
 	  }

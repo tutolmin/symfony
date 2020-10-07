@@ -1,0 +1,92 @@
+{% extends 'base_no_tabs.html.twig' %}
+
+{% block title %}ChessCheat: Game Details{% endblock %}
+
+{% block body %}
+
+<table border=0><tr><td style="vertical-align:top;width:420px;">
+
+<div class="gameHeaderContainer">
+ <div id="gamePlayers" class="gamePlayers">{{ white }} ({{white_elo}}) vs. {{ black }} ({{black_elo}})</div>
+ <div id="gameEDR" class="gameEDR">{{ site }}, {{ event }}, round {{ round }}, {{ date }}, {{ result }}</div>
+ <div>
+  <div class="blockName"><abbr title="Encyclopedia of Chess Openings">ECO</abbr>:</div>
+  <div id="gameECO" class="gameECO">{{ eco }}</div>
+ </div>
+</div>
+
+<div>
+<img src="img/chesspieces/wikipedia/wK.png" width="48" alt="White" title="White" style="float:left;"/>
+<div class="cheat-score" id="whiteCheatScore">Cheat Score: {{ w_cs }}</div>
+<br/>
+<img src="img/chesspieces/wikipedia/bK.png" width="48" alt="Black" title="Black" style="float:left;"/>
+<div class="cheat-score" id="blackCheatScore">Cheat Score: {{ b_cs }}</div>
+</div>
+
+<table class="gameInfo" cellspacing="0" cellpadding="0" border="0"><tbody><tr><td>
+
+<table><tbody>
+<tr><th></th><th>{{ white }}</th><th>{{ black }}</th></tr>
+<tr><td>Games</td>
+<td>{{ w_games }}</td><td>{{ b_games }}</td></tr>
+<tr><td><abbr title="Total number of moves per game">Plies</abbr></td>
+<td>{{ w_plies }}</td><td>{{ b_plies }}</td></tr>
+<tr><td><abbr title="Number of analyzed moves">Analyzed</abbr></td>
+<td>{{ w_analyzed }}</td><td>{{ b_analyzed }}</td></tr>
+<tr><td><abbr title="Encyclopedia of Chess Openings">ECO</abbr>, %</td>
+<td>{{ w_eco }}</td><td>{{ b_eco }}</td></tr>
+<tr><td><abbr title="Percentage of first line moves">T1</abbr>, %</td>
+<td>{{ w_t1 }}</td><td>{{ b_t1 }}</td></tr>
+<tr><td><abbr title="Percentage of first and second line moves">T2</abbr>, %</td>
+<td>{{ w_t2 }}</td><td>{{ b_t2 }}</td></tr>
+<tr><td><abbr title="Percentage of top three line moves">T3</abbr>, %</td>
+<td>{{ w_t3 }}</td><td>{{ b_t3 }}</td></tr>
+<tr><td><abbr title="Percentage of top three line moves, including ECOs">ET3</abbr>, %</td>
+<td>{{ w_et3 }}</td><td>{{ b_et3 }}</td></tr>
+<tr><td><abbr title="Percentage of best moves">Best</abbr>, %</td>
+<td>{{ w_best }}</td><td>{{ b_best }}</td></tr>
+<tr><td><abbr title="Percentage of sound moves">Sound</abbr>, %</td>
+<td>{{ w_sound }}</td><td>{{ b_sound }}</td></tr>
+<tr><td><abbr title="Percentage of forced moves">Forced</abbr>, %</td>
+<td>{{ w_forced }}</td><td>{{ b_forced }}</td></tr>
+<tr><td><abbr title="Total number of moves with evaluation differences with the first line">Deltas</abbr></td>
+<td>{{ w_deltas }}</td><td>{{ b_deltas }}</td></tr>
+<tr><td><abbr title="Average Difference of the error">A.&nbsp;D.</abbr>,&nbsp;<abbr title="Centipawns (100 cp = 1 pawn)">cp</abbr></td>
+<td>{{ w_mean }}</td><td>{{ b_mean }}</td></tr>
+<tr><td><abbr title="Median error">Median</abbr>,&nbsp;<abbr title="Centipawns (100 cp = 1 pawn)">cp</abbr></td>
+<td>{{ w_median }}</td><td>{{ b_median }}</td></tr>
+<tr><td><abbr title="Standard Deviation">S.&nbsp;D.</abbr>,&nbsp;<abbr title="Centipawns (100 cp = 1 pawn)">cp</abbr></td>
+<td>{{ w_stddev }}</td><td>{{ b_stddev }}</td></tr>
+<tr><td><abbr title="Distance to a baseline">bDist</abbr></td>
+<td>{{ w_bdist }}</td><td>{{ b_bdist }}</td></tr>
+</tbody></table>
+
+</td></tr></tbody></table>
+
+</td><td style="vertical-align:top;width:630px;">
+
+<div id="moveList" class="moveList">Movelist: {{ pgn }}</div>
+
+<div id="mainContainer" class="mainContainer">
+
+  <p>ChessCheat was created as an attempt to fight growing problem
+of cheating in online chess and <abbr title='Over the Board'>OTB</abbr> games.
+More and more players are using different appliances and gadgets
+in order to get a forbidden computer assistance.</p>
+
+<p>If you feel the opponent was not following the rules of fair play
+you can upload your game to our database and let our
+comprehensive system analyze it for you i.e. check for common cheating patterns.</p>
+
+<p>After analysis is complete a special value, called <b>Cheat Score</b>
+will be calculated for both White and Black player moves. Then you can compare
+this score with other players, GMs and computers.</p>
+
+<p>Our system is still in beta, so the analysis data and Cheat Score value
+are provided for educational purposes only and can NOT serve as a basis for official appeal.</p>
+
+</div>
+
+</td></tr></table>
+
+{% endblock %}
