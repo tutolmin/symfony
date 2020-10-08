@@ -8,11 +8,12 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 //use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
-use Symfony\Component\Security\Core\Security;
+//use Symfony\Component\Security\Core\Security;
 use GraphAware\Neo4j\Client\ClientInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
 use App\Service\UserManager;
 use App\Service\QueueManager;
+use App\Service\GameManager;
 
 class LoadQueueController extends AbstractController
 {
@@ -51,34 +52,37 @@ class LoadQueueController extends AbstractController
     private $item_action_params;
 
     // Security context
-    private $security;
+//    private $security;
 
     // User nameger reference
     private $userManager;
 
     // Queue manager reference
     private $queueManager;
+    private $gameManager;
 
     // Dependency injection of the Neo4j ClientInterface
     public function __construct( ClientInterface $client, Stopwatch $watch,
-	LoggerInterface $logger, Security $security, UserManager $um, QueueManager $qm)
+    	LoggerInterface $logger, UserManager $um,
+      QueueManager $qm, GameManager $gm)
     {
         $this->neo4j_client = $client;
         $this->stopwatch = $watch;
         $this->logger = $logger;
-        $this->security = $security;
+  //      $this->security = $security;
         $this->userManager = $um;
         $this->queueManager = $qm;
+        $this->gameManager = $gm;
 
         // Init Ids with non-existing values
         $this->queue_idx = 0;
         $this->analysis_id = -1;
         $this->game_id = -1;
 
-	$this->idx = 0;
+	      $this->idx = 0;
         $this->wu_id = null;
-	$this->item_status = "";
-	$this->item_interval = 0;
+        $this->item_status = "";
+        $this->item_interval = 0;
 
         // starts event named 'eventName'
         $this->stopwatch->start('loadQueue');
@@ -92,19 +96,19 @@ class LoadQueueController extends AbstractController
 
     private function formatInterval() {
 
-	// More than a day
-	if( floor( $this->item_interval / 86400) > 0)
-	  return round( $this->item_interval / 86400)."+ day(s)";
+    	// More than a day
+    	if( floor( $this->item_interval / 86400) > 0)
+    	  return round( $this->item_interval / 86400)."+ day(s)";
 
-	// More than an hour
-	if( floor( $this->item_interval / 3600) > 0)
-	  return round( $this->item_interval / 3600)."+ hour(s)";
+    	// More than an hour
+    	if( floor( $this->item_interval / 3600) > 0)
+    	  return round( $this->item_interval / 3600)."+ hour(s)";
 
-	// More than a minute
-	if( floor( $this->item_interval / 60) > 0)
-	  return round( $this->item_interval / 60)."+ minute(s)";
+    	// More than a minute
+    	if( floor( $this->item_interval / 60) > 0)
+    	  return round( $this->item_interval / 60)."+ minute(s)";
 
-	return $this->item_interval." seconds";
+    	return $this->item_interval." seconds";
     }
 
     private function fetchItem( $idx) {
@@ -185,7 +189,7 @@ LIMIT 1";
 	// Query params
 	$params = [];
 
-	// Pagination, skip records
+    	// Pagination, skip records
         $skip_records = 'SKIP $SKIP';
         $params["SKIP"] = 0;
 	if( $page = $request->query->getInt('page', 0))
@@ -225,7 +229,7 @@ LIMIT 1";
 	$tags=explode(';', json_decode( $query_tags));
 
         // Order condition
-        $known_tags = [ "id",
+        $known_tags = [ "hash",
 			"player",
 			"result", "ending",
 			"status",
@@ -315,9 +319,9 @@ echo "<br/>\n";
 		// Parse the parameter
 		switch( $tag_name) {
 
-		  case "id":
-		    $params["id"] = intval( filter_var($tag_name_value[1], FILTER_SANITIZE_NUMBER_INT));
-//		    if( $params["end_month"] > 12 || $params["end_month"] < 1) $params["end_month"] = 0;
+		  case "hash":
+        $params["id"] = $this->gameManager->gameIdByHash(
+          filter_var($tag_name_value[1], FILTER_SANITIZE_STRING));
 		    break;
 
 		  case "player":

@@ -42,13 +42,13 @@ function loadGames() {
       var W_analysis_icon = '';
       var B_analysis_icon = '';
       if( typeof val["Analysis_W"] == 'string' && val["Analysis_W"].length > 0)
-	W_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["ID"] + ')"><img src="img/' +
+	W_analysis_icon = '<a href="#" onclick="showQueueTag( \'' + val["Hash"] + '\')"><img src="img/' +
 	val["Analysis_W"] + '.png" title="' + val["Analysis_W"] + ' analysis present"/></a>';
       if( typeof val["Analysis_B"] == 'string' && val["Analysis_B"].length > 0)
-	B_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["ID"] + ')"><img src="img/' +
+	B_analysis_icon = '<a href="#" onclick="showQueueTag( \'' + val["Hash"] + '\')"><img src="img/' +
 	val["Analysis_B"] + '.png" title="' + val["Analysis_B"] + ' analysis present"/></a>';
 
-      items.push('<tr class="tableRow"><td class="checkboxCell"><input type="checkbox" value="' + val["ID"] + '" name="items[]"/></td>' +
+      items.push('<tr class="tableRow"><td class="checkboxCell"><input type="checkbox" value="' + val["Hash"] + '" name="items[]"/></td>' +
 	'<td class="centered">' + W_analysis_icon + '</td>' +
 	'<td>' + val["White"] + '</td><td class="centered">' + val["ELO_W"] + '</td>' +
 	'<td class="centered">' + B_analysis_icon + '</td>' +

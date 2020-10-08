@@ -470,7 +470,8 @@ WITH game,
   MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
   MATCH (game)-[:FINISHED_ON]->(line:Line)
   MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
- RETURN date_str, result_w, event.name, player_b.name, player_w.name, elo_b.rating, elo_w.rating, game, line.hash,
+ RETURN game.hash, date_str, result_w, event.name, player_b.name, player_w.name,
+  elo_b.rating, elo_w.rating, game, line.hash,
 	eco.code, opening.opening, opening.variation LIMIT 1";
 	$result = $this->neo4j_client->run( $query, $params);
 
@@ -479,16 +480,17 @@ WITH game,
 	  // Fetch game object
 	  $gameObj = $record->get('game');
 //	  $this->game['ID']	= $gameObj->identity();
+    $this->game['Hash']   = $record->value('game.hash');
 	  $this->game['White']  = $record->value('player_w.name');
 	  $this->game['W_ELO']  = $record->value('elo_w.rating');
 	  $this->game['Black']  = $record->value('player_b.name');
 	  $this->game['B_ELO']  = $record->value('elo_b.rating');
 	  $this->game['Event']  = $record->value('event.name');
 	  $this->game['Date']   = $record->value('date_str');
-	  $this->game['ECO']	= $record->value('eco.code');
-	  $this->game['ECO_opening']	= $record->value('opening.opening');
+	  $this->game['ECO']	  = $record->value('eco.code');
+	  $this->game['ECO_opening']	  = $record->value('opening.opening');
 	  $this->game['ECO_variation']	= $record->value('opening.variation');
-	  $this->game['MoveListHash']	= $record->value('line.hash');
+	  $this->game['MoveListHash']	  = $record->value('line.hash');
 
 	  // Result in human readable format
     $labelsObj = $record->get('result_w');

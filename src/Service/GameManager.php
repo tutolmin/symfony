@@ -79,7 +79,7 @@ RETURN id(g) AS gid LIMIT 1';
         $query = 'MATCH (g:Game) WHERE g.hash = {hash}
 RETURN id(g) AS gid LIMIT 1';
 
-        $params = ["hash" => $hash];
+        $params = ["hash" => "$hash"];
         $result = $this->neo4j_client->run($query, $params);
 
         foreach ($result->records() as $record)

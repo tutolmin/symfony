@@ -2,10 +2,14 @@
 
 namespace App\Controller;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use GraphAware\Neo4j\Client\ClientInterface;
+use Symfony\Component\Stopwatch\Stopwatch;
+use App\Service\GameManager;
 
 class LoadGamesController extends AbstractController
 {
@@ -14,15 +18,42 @@ class LoadGamesController extends AbstractController
 
     const _DEBUG = FALSE;
 
+    // Neo4j client interface reference
+    private $neo4j_client;
+
+    // StopWatch instance
+    private $stopwatch;
+
+    // Logger reference
+    private $logger;
+
+    // Game manager
+    private $gameManager;
+
+    // Dependency injection of the Neo4j ClientInterface
+    public function __construct( ClientInterface $client, Stopwatch $watch,
+    	LoggerInterface $logger, GameManager $gm)
+    {
+        $this->neo4j_client = $client;
+        $this->stopwatch = $watch;
+        $this->logger = $logger;
+        $this->gameManager = $gm;
+
+        // starts event named 'eventName'
+        $this->stopwatch->start('loadGames');
+    }
+
+    public function __destruct()
+    {
+        // stops event named 'eventName'
+        $this->stopwatch->stop('loadGames');
+    }
+
     /**
       * @Route("/loadGames")
       */
-    public function loadGames(
-	\Symfony\Component\Stopwatch\Stopwatch $stopwatch,
-	\GraphAware\Neo4j\Client\ClientInterface $neo4j_client): JsonResponse
+    public function loadGames(): JsonResponse
     {
-	// starts event named 'eventName'
-	$stopwatch->start('loadGames');
 
 	// HTTP request
 	$request = Request::createFromGlobals();
@@ -69,7 +100,7 @@ class LoadGamesController extends AbstractController
 	$tags=explode(';', json_decode( $query_tags));
 
         // Order condition
-        $known_tags = [ "id",
+        $known_tags = [ "hash",
 			"player",
 			"result", "ending",
 			"status",
@@ -145,9 +176,9 @@ echo "<br/>\n";
 		// Parse the parameter
 		switch( $tag_name) {
 
-		  case "id":
-		    $params["id"] = intval( filter_var($tag_name_value[1], FILTER_SANITIZE_NUMBER_INT));
-//		    if( $params["end_month"] > 12 || $params["end_month"] < 1) $params["end_month"] = 0;
+      case "hash":
+        $params["id"] = $this->gameManager->gameIdByHash(
+          filter_var($tag_name_value[1], FILTER_SANITIZE_STRING));
 		    break;
 
 		  case "player":
@@ -589,7 +620,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 //print_r( $params);
 //echo $query;
 
-        $result = $neo4j_client->run($query, $params);
+        $result = $this->neo4j_client->run($query, $params);
 	$games = array();
 	$index=0;
 //var_dump( $result->summarize()); // Returns the ResultSummary
@@ -618,7 +649,7 @@ LIMIT 1";
 //var_dump( $game_params);
 //echo $game_query;
 
-        $game_result = $neo4j_client->run($game_query, $game_params);
+        $game_result = $this->neo4j_client->run($game_query, $game_params);
 	foreach ($game_result->records() as $game_record) {
 
         $gameObj = $game_record->get('game');
@@ -680,7 +711,7 @@ LIMIT 1";
 	$index++;
     }
 
-	$event = $stopwatch->stop('loadGames');
+	$event = $this->stopwatch->stop('loadGames');
 
 	// Encode in JSON and output
         return new JsonResponse( $games);

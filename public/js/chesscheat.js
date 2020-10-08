@@ -220,10 +220,10 @@ function showGameDetails( gid) {
   if( section.length > 0) { init( false); } else { init(); }
 
   // Special hidden field in case a user submits the game for analysis
-  document.getElementById( 'game_being_analyzed').value = Game["ID"];
+  document.getElementById( 'game_being_analyzed').value = Game["Hash"];
 
   // Show PGN in a div
-  exportGame( Game["ID"]);
+  exportGame( Game["Hash"]);
 
   // Display a move list for a new game
   updateMovelist();
@@ -336,11 +336,11 @@ function parseTags( element) {
       return;
     }
 
-    // Simply numeric (game ID in the DB)
-    re = /^(\d+)$/i;
-    if( found_id = item.match( re)) {
-      tags_str += "id:" + found_id[1] + ";";
-      console.log( found_id);
+    // Hash (game hash in the DB)
+    re = /^([0-9a-z]{64})$/i;
+    if( found_hash = item.match( re)) {
+      tags_str += "hash:" + found_hash[1] + ";";
+      console.log( found_hash);
       return;
     }
 
@@ -414,7 +414,7 @@ function parseTags( element) {
             $('#queue-form-tags').tagsInput({
                     'unique': true,
                     'minChars': 2,
-                    'maxChars': 50,
+                    'maxChars': 64,
                     'limit': 5,
                     'delimiter': [';'],
                     'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \@\/_+-]+$'),
@@ -442,7 +442,7 @@ function parseTags( element) {
             $('#form-tags').tagsInput({
                     'unique': true,
                     'minChars': 2,
-                    'maxChars': 50,
+                    'maxChars': 64,
                     'limit': 5,
                     'delimiter': [';'],
                     'validationPattern': new RegExp('^[a-zA-Z0-9,\.\ \@\/_+-]+$'),

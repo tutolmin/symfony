@@ -47,13 +47,28 @@ class PGNFetcher
 
         $this->stopwatch->start('getPGN');
 
-        $game = $this->gameRepository->findOneById( $gid);
+//        $game = $this->gameRepository->findOneById( $gid);
+        $game = $this->gameRepository->findOneBy( ['hash' => $gid]);
+
+        if( !$game) {
+
+          $this->logger->debug( 'Game has not been found');
+
+          return '';  // Game has not been found
+        }
 
         $this->logger->debug('(:Game) hash: '.$game->getHash());
 
         $this->stopwatch->lap('getPGN');
 
         $line = $game->getLine();
+
+        if( !$line) {
+
+          $this->logger->debug( 'Line has not been found');
+
+          return '';
+        }
 
         $this->logger->debug('(:Line) hash: '.$line->getHash());
 
@@ -89,8 +104,9 @@ class PGNFetcher
       $PGNstring = "";
 
       // Iterate through all the IDs
-      foreach( $gids as $value)
-        $PGNstring .= $this->getPGN( $value);
+      if( is_array( $gids))
+        foreach( $gids as $value)
+          $PGNstring .= $this->getPGN( $value);
 
       return $PGNstring;
     }

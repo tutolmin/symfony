@@ -10,6 +10,7 @@ use Symfony\Component\Stopwatch\Stopwatch;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Psr\Log\LoggerInterface;
 use App\Service\PGNFetcher;
+use Symfony\Component\HttpKernel\EventListener\AbstractSessionListener;
 
 class ExportPGNController extends AbstractController
 {
@@ -32,7 +33,7 @@ class ExportPGNController extends AbstractController
       * @Security("is_granted('IS_AUTHENTICATED_ANONYMOUSLY')")
       */
       // HTTP request
-    public function exportPGNs() {
+    public function exportPGNs(): Response {
 
       $request = Request::createFromGlobals();
 
@@ -42,7 +43,20 @@ class ExportPGNController extends AbstractController
       // Fetch the games from the cache
       $PGNstring = $this->fetcher->getPGNs( $gids);
 
-      return new Response( $PGNstring);
+      // Prepare response
+      $response = new Response( $PGNstring);
+
+      // Strip automatic Cache-Control header for the user session
+      $response->headers->set(AbstractSessionListener::NO_AUTO_CACHE_CONTROL_HEADER, 'true');
+
+      // Generate ETag
+      $response->setETag(md5($response->getContent()));
+      $response->setPublic(); // make sure the response is public/cacheable
+      $response->isNotModified($request);
+      $response->setMaxAge(31536000);
+      $response->setSharedMaxAge(31536000);
+
+      return $response;
     }
 }
 ?>

@@ -38,7 +38,7 @@ class StaticContentController extends AbstractController
      * @Route("/privacy", name="privacy")
      * @Cache(expires="+1 week")
      */
-    public function privacy(): Response
+    public function privacy(Request $request): Response
     {
       // Generate content with template
       $response = $this->render('privacy.html.twig', [
@@ -61,7 +61,7 @@ class StaticContentController extends AbstractController
      * @Route("/about", name="about")
      * @Cache(expires="+1 week")
      */
-    public function about(): Response
+    public function about(Request $request): Response
     {
       // Generate content with template
       $response = $this->render('about.html.twig', [
