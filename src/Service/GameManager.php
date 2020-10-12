@@ -11,8 +11,10 @@ use Symfony\Component\Filesystem\Filesystem;
 use App\Service\PGNFetcher;
 use App\Service\PGNUploader;
 use GraphAware\Neo4j\Client\ClientInterface;
-use GraphAware\Neo4j\OGM\EntityManagerInterface;
+use GraphAware\Neo4j\OGM\EntityManagerInterface as Neo4jEntityManagerInterface;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Game;
+use App\Entity\SitemapHashes;
 use Twig\Environment;
 
 class GameManager
@@ -29,7 +31,7 @@ class GameManager
     // templates
     private $twig;
 
-    private $manager;
+    private $entityManager;
     private $gameRepository;
 
     // We need to check roles and get user id
@@ -37,7 +39,7 @@ class GameManager
 
     public function __construct( ClientInterface $client, LoggerInterface $logger,
     	PGNFetcher $fetcher, PGNUploader $uploader, Security $security,
-      Environment $twig, EntityManagerInterface $manager)
+      Environment $twig, EntityManagerInterface $em, Neo4jEntityManagerInterface $manager)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
@@ -45,10 +47,10 @@ class GameManager
         $this->uploader = $uploader;
         $this->security = $security;
         $this->twig = $twig;
-        $this->manager = $manager;
+        $this->entityManager = $em;
 
         // get the game repository
-        $this->gameRepository = $this->manager->getRepository( Game::class);
+        $this->gameRepository = $manager->getRepository( Game::class);
     }
 
     // Find :Game node in the database
@@ -792,6 +794,21 @@ RETURN count(a) AS ttl';
 
       // Put the file into special uploads directory
       $this->uploader->uploadHTML( $tmp_file, $this->gameHashById( $gid));
+
+      // Try to find existing hash in the SitemapHashes table first
+      $sh = $this->entityManager->getRepository(
+        SitemapHashes::class)->findOneBy( ['hash' => $game->getHash()]);
+
+      // No such hash found
+      if( $sh == NULL) {
+
+        // Add a record into SitemapHashes table
+        $sh = new SitemapHashes();
+        $sh->setHash( $game->getHash());
+
+        $this->entityManager->persist( $sh);
+        $this->entityManager->flush();
+      }
 
       return true;
     }

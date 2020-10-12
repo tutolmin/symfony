@@ -42,10 +42,10 @@ function loadGames() {
       var W_analysis_icon = '';
       var B_analysis_icon = '';
       if( typeof val["Analysis_W"] == 'string' && val["Analysis_W"].length > 0)
-	W_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["Hash"] + ')"><img src="img/' +
+	W_analysis_icon = '<a href="#" onclick="showQueueTag( \'' + val["Hash"] + '\')"><img src="img/' +
 	val["Analysis_W"] + '.png" title="' + val["Analysis_W"] + ' analysis present"/></a>';
       if( typeof val["Analysis_B"] == 'string' && val["Analysis_B"].length > 0)
-	B_analysis_icon = '<a href="#" onclick="showQueueTag( ' + val["Hash"] + ')"><img src="img/' +
+	B_analysis_icon = '<a href="#" onclick="showQueueTag( \'' + val["Hash"] + '\')"><img src="img/' +
 	val["Analysis_B"] + '.png" title="' + val["Analysis_B"] + ' analysis present"/></a>';
 
       items.push('<tr class="tableRow"><td class="centered"><input type="checkbox" value="' + val["Hash"] + '" name="items[]"/></td>' +
