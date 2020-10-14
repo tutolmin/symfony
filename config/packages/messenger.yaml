@@ -11,9 +11,14 @@ framework:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     queue_name: queue_manager
+            async_io_operation:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: io_operation
             sync: 'sync://'
 
         routing:
             # Route your messages to the transports
             'App\Message\QueueManagerCommand': async_queue_manager
+            'App\Message\InputOutputOperation': async_io_operation
             'Symfony\Component\Mailer\Messenger\SendEmailMessage':  async_mailer

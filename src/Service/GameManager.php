@@ -1140,6 +1140,9 @@ RETURN ply.san, id(node) AS node_id';
       $this->fetcher->invalidateLocalCache(
         'evals-'.$record->value('l.hash').'.json');
 
+      // Always update HTML file whenever JSON changes
+      $this->exportHTMLFile( $gid);
+
       return true;
     }
 

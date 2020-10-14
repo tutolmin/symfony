@@ -9,13 +9,11 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\QueueManager;
-//use App\Service\GameManager;
 use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
 use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
-use App\Entity\Analysis;
 
 class QueueSyncStatusCommand extends Command
 {
@@ -41,13 +39,11 @@ class QueueSyncStatusCommand extends Command
 
     // Dependency injection of the Queue manager service
     public function __construct( QueueManager $qm,
-//    GameManager $gm,
     	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
         $this->queueManager = $qm;
-  //      $this->gameManager = $gm;
 
         $this->em = $em;
 
@@ -91,7 +87,7 @@ class QueueSyncStatusCommand extends Command
         $number = intval( $input->getOption('number'));
 
         // Cap the user input with reasonable max value
-        if( $number > self::NUMBER) $number=self::NUMBER;
+        if( $number > self::NUMBER) $number = self::NUMBER;
 
         $output->writeln( 'We are going to process '. $number. ' items...');
 
@@ -119,6 +115,8 @@ class QueueSyncStatusCommand extends Command
 	          if( $status == -1) continue;
 */
         	  $output->writeln( 'Analysis node '.$aid.' status sync complete!');
+
+
 /*
           // Complete analysis needs JSON export
           if( Analysis::STATUS[$status] == 'Complete') {
@@ -135,8 +133,6 @@ class QueueSyncStatusCommand extends Command
             // Request HTML file export for the game
             $this->gameManager->exportHTMLFile( $gid);
 
-            // Send notification message
-            $this->queueManager->notifyUser( $aid);
 	        }
 */
 	      }

@@ -18,6 +18,7 @@ use App\Entity\User;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RouterInterface;
 use App\Message\QueueManagerCommand;
+use App\Message\InputOutputOperation;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 class QueueManager
@@ -1405,7 +1406,9 @@ DELETE r';
 
     	// By default, select an Analysis node with a property
     	$query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
-        WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 1';
+        WHERE exists(a.status) WITH a, a.status AS property LIMIT 1
+        REMOVE a.status
+        RETURN id(a) AS aid, property';
 
 	    // Special handling of Processing status queue nodes
       if( $status == 'Processing')
@@ -1414,8 +1417,9 @@ DELETE r';
           MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
            WHERE exists(a.status)
             AND a.status IN ["Skipped","Partially","Evaluated"]
-           WITH a LIMIT 1
-          RETURN id(a) AS aid, a.status';
+           WITH a, a.status AS property LIMIT 1
+          REMOVE a.status
+          RETURN id(a) AS aid, property';
 
       // Iterate through all the fetched records
       $result = $this->neo4j_client->run($query, $params);
@@ -1423,7 +1427,7 @@ DELETE r';
       foreach ($result->records() as $record)
       if( ($aid = $record->value('aid')) != null) {
 
-	      $property = $record->value('a.status');
+	      $property = $record->value('property');
 
   	    // Working with Pending Analysis node
   	    if( $status == 'Pending') {
@@ -1464,6 +1468,16 @@ DELETE r';
         // will cause the QueueManagerCommandHandler to be called
         $this->bus->dispatch(new QueueManagerCommand(
           'promote', ['analysis_id' => $aid, 'status' => $status]));
+
+        if( $status == 'Complete') {
+
+          // will cause the QueueManagerCommandHandler to be called
+          $this->bus->dispatch(new InputOutputOperation( 'export_json',
+            ['analysis_id' => $aid]));
+
+          // Send notification message
+          $this->notifyUser( $aid);
+        }
 
         // Return fetched Analysis id
 	      return $aid;
@@ -1564,11 +1578,11 @@ MERGE (a)-[:NEXT_BY_STATUS]->(n)
 DELETE r';
 
 	}
-
+/*
 	// Delete any status properties for Pending nodes
 	if( $status == 'Pending')
 	  $query .= ' REMOVE a.status';
-
+*/
 /*
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})

@@ -125,7 +125,7 @@ class QueueExportHTMLCommand extends Command
 	  $depths = $this->queueManager->getGameAnalysisDepths( $gid);
 
           // Request JSON files update for the game
-          if( $this->gameManager->exportJSONFile( $gid, $depths))
+          if( $this->gameManager->exportHTMLFile( $gid, $depths))
 
 	    // Mark the Analysis so we do not fetch it again
 	    $this->queueManager->promoteAnalysis( $aid, "Complete");
