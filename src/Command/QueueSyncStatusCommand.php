@@ -9,7 +9,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\QueueManager;
-use App\Service\GameManager;
+//use App\Service\GameManager;
 use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
 use Symfony\Component\HttpFoundation\Request;
 use App\Security\TokenAuthenticator;
@@ -28,7 +28,7 @@ class QueueSyncStatusCommand extends Command
 
     // Queue/Game manager reference
     private $queueManager;
-    private $gameManager;
+//    private $gameManager;
 
     // Doctrine EntityManager
     private $em;
@@ -40,13 +40,14 @@ class QueueSyncStatusCommand extends Command
     private $guardAuthenticatorHandler;
 
     // Dependency injection of the Queue manager service
-    public function __construct( QueueManager $qm, GameManager $gm,
-	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
+    public function __construct( QueueManager $qm,
+//    GameManager $gm,
+    	EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
         $this->queueManager = $qm;
-        $this->gameManager = $gm;
+  //      $this->gameManager = $gm;
 
         $this->em = $em;
 
@@ -73,15 +74,15 @@ class QueueSyncStatusCommand extends Command
         'Please specify the number of nodess to process',
         self::NUMBER // this is the new default value, instead of null
         )
-	// option to select status
-	->addOption(
+      	// option to select status
+      	->addOption(
         'status',
         null,
         InputOption::VALUE_OPTIONAL,
         'Please specify status to sync',
         'Pending'
-    )
-    ;
+        )
+        ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -94,11 +95,11 @@ class QueueSyncStatusCommand extends Command
 
         $output->writeln( 'We are going to process '. $number. ' items...');
 
-	// get status from command line
-	$optionValue = $input->getOption('status');
+      	// get status from command line
+      	$optionValue = $input->getOption('status');
 
-	// Sone output
-	$output->writeln( 'Syncing analysis status '. $optionValue);
+      	// Some output
+      	$output->writeln( 'Syncing analysis status '. $optionValue);
 
         // Initialize security context
         $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
@@ -108,18 +109,17 @@ class QueueSyncStatusCommand extends Command
             self::FIREWALL_MAIN
         );
 
-	// Iterate
+	      // Iterate
         while( $number-- > 0)
 
-	// Execute queue manager member function
-	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1) {
-
-          $status = $this->queueManager->getAnalysisStatus( $aid);
-	  if( $status == -1) continue;
-
-	  $output->writeln( 'Analysis node '.$aid.' status '.
-		Analysis::STATUS[$status].' sync complete!');
-
+        	// Execute queue manager member function
+        	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1) {
+/*
+            $status = $this->queueManager->getAnalysisStatus( $aid);
+	          if( $status == -1) continue;
+*/
+        	  $output->writeln( 'Analysis node '.$aid.' status sync complete!');
+/*
           // Complete analysis needs JSON export
           if( Analysis::STATUS[$status] == 'Complete') {
 
@@ -137,10 +137,11 @@ class QueueSyncStatusCommand extends Command
 
             // Send notification message
             $this->queueManager->notifyUser( $aid);
-	  }
-	}
+	        }
+*/
+	      }
 
-        return 0;
+      return 0;
     }
 }
 ?>

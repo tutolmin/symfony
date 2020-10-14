@@ -17,6 +17,8 @@ use App\Entity\CompleteAnalysis;
 use App\Entity\User;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RouterInterface;
+use App\Message\QueueManagerCommand;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class QueueManager
 {
@@ -56,6 +58,9 @@ class QueueManager
     // Mailer interface
     private $mailer;
 
+    // Message bus
+    private $bus;
+
     // User repo
     private $userRepository;
 
@@ -68,13 +73,16 @@ class QueueManager
 
     public function __construct( ClientInterface $client,
       EntityManagerInterface $em, MailerInterface $mailer,
-	    LoggerInterface $logger, Security $security, RouterInterface $router)
+	    LoggerInterface $logger, Security $security, RouterInterface $router,
+      MessageBusInterface $bus)
     {
         $this->logger = $logger;
         $this->neo4j_client = $client;
       	$this->security = $security;
 
         $this->em = $em;
+
+        $this->bus = $bus;
 
         $this->mailer = $mailer;
 
@@ -1386,69 +1394,82 @@ DELETE r';
     // Sync analysis status for first available node
     public function syncAnalysisStatus( $status = 'Pending')
     {
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Syncing analysis status '.$status);
+	    if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Syncing analysis status '.$status);
 
-	// Check if the status is valid
-	if( !in_array( $status, Analysis::STATUS)) return -1;
+    	// Check if the status is valid
+    	if( !in_array( $status, Analysis::STATUS)) return -1;
 
-	// Query params
-        $params = ['status' => $status];
+	    // Query params
+      $params = ['status' => $status];
 
-	// By default, select Status queue
-	$query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
-WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 1';
+    	// By default, select an Analysis node with a property
+    	$query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
+        WHERE exists(a.status) RETURN id(a) AS aid, a.status LIMIT 1';
 
-	// Special handling of Processing status queue nodes
-	if( $status == 'Processing') {
+	    // Special handling of Processing status queue nodes
+      if( $status == 'Processing')
+
+	      $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(f:Analysis)
+          MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
+           WHERE exists(a.status)
+            AND a.status IN ["Skipped","Partially","Evaluated"]
+           WITH a LIMIT 1
+          RETURN id(a) AS aid, a.status';
+
+      // Iterate through all the fetched records
+      $result = $this->neo4j_client->run($query, $params);
+
+      foreach ($result->records() as $record)
+      if( ($aid = $record->value('aid')) != null) {
+
+	      $property = $record->value('a.status');
+
+  	    // Working with Pending Analysis node
+  	    if( $status == 'Pending') {
+
+          // Switch to Processing
+        	if( $property == 'Processing')
+  	        $status = 'Processing';
+
+    	    // Switch to Complete
+    	    else if( $property == 'Partially'
+  		      || $property == 'Evaluated')
+  	        $status = 'Complete';
+
+          // Skipped node
+          else
+  	        $status = 'Skipped';
+
+  	    // Working with Processing Analysis nodes
+        } else if( $status == 'Processing') {
+
+          // Switch to Complete
+          if( $property == 'Partially'
+            || $property == 'Evaluated')
+            $status = 'Complete';
+
+          // Skipped node
+          else
+            $status = 'Skipped';
+
+  	    // Unexpected situation, skip
+        } else
+
+  	      $status = 'Skipped';
 /*
-	  $query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
-WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"]
-RETURN id(a) AS aid, a.status LIMIT 1';
-*/
-	  $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(f:Analysis)
-MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
- WHERE exists(a.status) AND a.status IN ["Skipped","Partially","Evaluated"]
- WITH a LIMIT 1
-RETURN id(a) AS aid, a.status';
-	}
-
-	// Iterate through all the fetched records
-        $result = $this->neo4j_client->run($query, $params);
-
-        foreach ($result->records() as $record)
-          if( ($aid = $record->value('aid')) != null) {
-
-	    $property = $record->value('a.status');
-
-	    // Skipped and invalid trigger Skipped status
-	    if( $property == 'Skipped')
-	      $status = 'Skipped';
-
-	    // Switch from Pending to Processing
-	    else if( $status == 'Pending' &&
-		($property == 'Processing'
-		|| $property == 'Partially'
-		|| $property == 'Evaluated'))
-	      $status = 'Processing';
-
-	    // Switch from Processing to Complete
-	    else if( $status == 'Processing' &&
-	    	($property == 'Evaluated'
-		|| $property == 'Partially'))
-	      $status = 'Complete';
-
-	    // Unexpected situation, skip
-	    else
-
-	      $status = 'Skipped';
-
 	    // Promote analysis with selected status
 	    if( $this->promoteAnalysis( $aid, $status))
-	      return $aid;
-	}
+*/
+        // will cause the QueueManagerCommandHandler to be called
+        $this->bus->dispatch(new QueueManagerCommand(
+          'promote', ['analysis_id' => $aid, 'status' => $status]));
 
-	return -1;
+        // Return fetched Analysis id
+	      return $aid;
+      }
+
+	    return -1;
     }
 
 
