@@ -11,6 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Stopwatch\Stopwatch;
 use App\Service\GameManager;
 use App\Message\QueueManagerCommand;
+use App\Message\InputOutputOperation;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 class QueueGameAnalysisController extends AbstractController
@@ -118,7 +119,11 @@ class QueueGameAnalysisController extends AbstractController
       $this->logger->debug( "Game ids to load: ". implode( ",", $this->gids));
 
       // Request :Line load for the list of games
-      $this->gameManager->loadLines( $this->gids);
+//      $this->gameManager->loadLines( $this->gids);
+
+      // will cause the InputOutputOperationHandler to be called
+      $this->bus->dispatch(new InputOutputOperation( 'load_lines',
+        ['gids' => $this->gids]));
 
       return new Response( count( $this->gids) . " game(s) have been queued for analysis.");
     }

@@ -10,6 +10,7 @@ class InputOutputOperation
     private $analysis_id;
     private $game_id;
     private $user_id;
+    private $gids;
 
     public function __construct(string $operation, array $params)
     {
@@ -29,6 +30,11 @@ class InputOutputOperation
           $this->user_id = $params['user_id'];
         else
           $this->user_id = $_ENV['SYSTEM_WEB_USER_ID'];
+
+        if (array_key_exists( 'gids', $params) && is_array( $params['gids']))
+          $this->gids = $params['gids'];
+        else
+          $this->gids = [];
     }
 
     public function getOperation(): string
@@ -49,6 +55,11 @@ class InputOutputOperation
     public function getUserId(): int
     {
         return $this->user_id;
+    }
+
+    public function getGids(): array
+    {
+        return $this->gids;
     }
 }
 ?>

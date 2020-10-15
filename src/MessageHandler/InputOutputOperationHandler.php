@@ -67,7 +67,8 @@ class InputOutputOperationHandler implements MessageHandlerInterface
 
         case 'export_json':
 
-          $this->logger->debug( "Exporting JSON for Analysis id: " . $operation->getAnalysisId());
+          $this->logger->debug( "Exporting JSON for Analysis id: " .
+            $operation->getAnalysisId());
 
           // Get game ID for analyis
           $gid = $this->queueManager->getAnalysisGameId( $operation->getAnalysisId());
@@ -77,6 +78,16 @@ class InputOutputOperationHandler implements MessageHandlerInterface
 
           // Request JSON files update for the game
           $this->gameManager->exportJSONFile( $gid, $depths);
+
+          break;
+
+        case 'load_lines':
+
+          $this->logger->debug( "Loading lines for the game ids: ".
+            implode( ",", $operation->getGids()));
+
+          // Request :Line load for the list of games
+          $this->gameManager->loadLines( $operation->getGids());
 
           break;
 
