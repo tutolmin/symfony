@@ -91,7 +91,9 @@ class QueueGameAnalysisController extends AbstractController
 
       // Iterate through all the IDs
       $counter = 0;
-      foreach( $gids as $gid) {
+      foreach( $gids as $hash) {
+
+        $gid = $this->gameManager->gameIdByHash( $hash);
 
         $this->logger->debug( 'Queueing game ID: '.$gid);
 
