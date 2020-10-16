@@ -1406,8 +1406,9 @@ DELETE r';
 
     	// By default, select an Analysis node with a property
     	$query = 'MATCH (a:Analysis)-[:HAS_GOT]->(s:Status{status:{status}})
-        WHERE exists(a.status) WITH a, a.status AS property LIMIT 1
-        REMOVE a.status
+        WHERE exists(a.status) AND a.status <> 'Switching'
+         WITH a, a.status AS property LIMIT 1
+        SET a.status = 'Switching'
         RETURN id(a) AS aid, property';
 
 	    // Special handling of Processing status queue nodes
@@ -1415,10 +1416,10 @@ DELETE r';
 
 	      $query = 'MATCH (:Status{status:{status}})-[:FIRST]->(f:Analysis)
           MATCH (f)-[:NEXT_BY_STATUS*0..]->(a:Analysis)
-           WHERE exists(a.status)
+           WHERE exists(a.status) AND a.status <> 'Switching'
             AND a.status IN ["Skipped","Partially","Evaluated"]
            WITH a, a.status AS property LIMIT 1
-          REMOVE a.status
+          SET a.status = 'Switching'
           RETURN id(a) AS aid, property';
 
       // Iterate through all the fetched records
@@ -1578,11 +1579,12 @@ MERGE (a)-[:NEXT_BY_STATUS]->(n)
 DELETE r';
 
 	}
-/*
+
 	// Delete any status properties for Pending nodes
+  // so that evaluator can easily start processing them
 	if( $status == 'Pending')
 	  $query .= ' REMOVE a.status';
-*/
+
 /*
 	  $query = 'MATCH (a:Analysis) WHERE id(a)={aid}
 MATCH (s:Status{status:{status}})
