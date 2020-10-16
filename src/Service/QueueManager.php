@@ -1462,10 +1462,7 @@ DELETE r';
         } else
 
   	      $status = 'Skipped';
-/*
-	    // Promote analysis with selected status
-	    if( $this->promoteAnalysis( $aid, $status))
-*/
+
         // will cause the QueueManagerCommandHandler to be called
         $this->bus->dispatch(new QueueManagerCommand(
           'promote', ['analysis_id' => $aid, 'status' => $status]));

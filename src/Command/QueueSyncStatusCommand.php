@@ -18,7 +18,7 @@ use App\Entity\User;
 class QueueSyncStatusCommand extends Command
 {
     // Maximum number of items to process
-    const NUMBER = 5;
+    const NUMBER = 100;
     const FIREWALL_MAIN = "main";
 
     // the name of the command (the part after "bin/console")
@@ -26,7 +26,6 @@ class QueueSyncStatusCommand extends Command
 
     // Queue/Game manager reference
     private $queueManager;
-//    private $gameManager;
 
     // Doctrine EntityManager
     private $em;
@@ -110,31 +109,9 @@ class QueueSyncStatusCommand extends Command
 
         	// Execute queue manager member function
         	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1) {
-/*
-            $status = $this->queueManager->getAnalysisStatus( $aid);
-	          if( $status == -1) continue;
-*/
+
         	  $output->writeln( 'Analysis node '.$aid.' status sync complete!');
 
-
-/*
-          // Complete analysis needs JSON export
-          if( Analysis::STATUS[$status] == 'Complete') {
-
-            // Get game ID for analyis
-            $gid = $this->queueManager->getAnalysisGameId( $aid);
-
-            // Get available depth for each side
-            $depths = $this->queueManager->getGameAnalysisDepths( $gid);
-
-            // Request JSON files update for the game
-            $this->gameManager->exportJSONFile( $gid, $depths);
-
-            // Request HTML file export for the game
-            $this->gameManager->exportHTMLFile( $gid);
-
-	        }
-*/
 	      }
 
       return 0;
