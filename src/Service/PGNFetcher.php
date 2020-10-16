@@ -41,14 +41,14 @@ class PGNFetcher
     }
 
     // Fetches single PGN file
-    public function getPGN( $gid)
+    public function getPGN( $hash)
     {
-        $this->logger->debug( 'Processing game ID: '.$gid);
+        $this->logger->debug( 'Processing game hash: '.$hash);
 
         $this->stopwatch->start('getPGN');
 
 //        $game = $this->gameRepository->findOneById( $gid);
-        $game = $this->gameRepository->findOneBy( ['hash' => $gid]);
+        $game = $this->gameRepository->findOneBy( ['hash' => $hash]);
 
         if( !$game) {
 
@@ -99,14 +99,14 @@ class PGNFetcher
 
 
     // Fetches the list of PGNs
-    public function getPGNs( $gids)
+    public function getPGNs( $hashes)
     {
       $PGNstring = "";
 
       // Iterate through all the IDs
-      if( is_array( $gids))
-        foreach( $gids as $value)
-          $PGNstring .= $this->getPGN( $value);
+      if( is_array( $hashes))
+        foreach( $hashes as $hash)
+          $PGNstring .= $this->getPGN( $hash);
 
       return $PGNstring;
     }

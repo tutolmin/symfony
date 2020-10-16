@@ -520,21 +520,21 @@ RETURN count(a) AS ttl';
       // returns User object or null if not authenticated
       $user = $this->security->getUser();
 
-      // Game ids to load
-      $gameIds = array();
+      // Game hashes to load
+      $gameHashes = array();
 
       // Check if the game line has been already loaded
       foreach( $gids as $gid)
         if( !$this->lineExists( $gid))
-          $gameIds[] = $gid;
+          $gameHashes[] = $this->gameHashById( $gid);
 
-      $this->logger->debug( "Game ids to fetch: ". implode( ",", $gameIds));
+      $this->logger->debug( "Game ids to fetch: ". implode( ",", $gameHashes));
 
       // Exit if array is empty
-      if( count( $gameIds) == 0) return 0;
+      if( count( $gameHashes) == 0) return 0;
 
       // Fetch the games from the cache
-      $PGNstring = $this->fetcher->getPGNs( $gameIds);
+      $PGNstring = $this->fetcher->getPGNs( $gameHashes);
 
 //      $this->logger->debug( "Fetched games: ". $PGNstring);
 
