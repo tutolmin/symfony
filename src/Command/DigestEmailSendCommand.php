@@ -16,6 +16,7 @@ use App\Service\QueueManager;
 class DigestEmailSendCommand extends Command
 {
     const FIREWALL_MAIN = "main";
+    const RECORDS_PER_EMAIL = 100;
 
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'email:digest:send';
@@ -92,7 +93,7 @@ class DigestEmailSendCommand extends Command
       foreach ($users as $user) {
 
         // Get the list of complete analises for a user
-        $analyses = $user->getCompleteAnalyses();
+        $analyses = $user->getCompleteAnalyses()->slice(0,self::RECORDS_PER_EMAIL);
 
         // Skip if no complete analyses have been found
         if( count( $analyses) == 0) continue;
