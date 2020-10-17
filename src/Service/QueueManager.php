@@ -2641,10 +2641,14 @@ RETURN average.milliseconds AS speed';
       $games      = array();
       $whites     = array();
       $white_elos = array();
+      $white_cs   = array();
       $blacks     = array();
       $black_elos = array();
+      $black_cs   = array();
       $results    = array();
       $ecos       = array();
+      $openings   = array();
+      $variations = array();
       $events     = array();
       $dates      = array();
       $links      = array();
@@ -2674,9 +2678,16 @@ RETURN average.milliseconds AS speed';
                   MATCH (game)-[:TOOK_PLACE_AT]->(site:Site)
                   MATCH (game)-[:FINISHED_ON]->(line:Line)
                   MATCH (line)-[:CLASSIFIED_AS]->(eco:EcoCode)<-[:PART_OF]-(opening:Opening)
+                  OPTIONAL MATCH (line)-[:HAS_GOT]->(sum_w:Summary:White)
+                  OPTIONAL MATCH (line)-[:HAS_GOT]->(sum_b:Summary:Black)
                  RETURN game.hash, date_str, result_w, event.name, player_b.name, player_w.name,
-                  elo_b.rating, elo_w.rating, game, line.hash,
-                	eco.code, opening.opening, opening.variation LIMIT 1";
+                  CASE WHEN elo_b.rating IS NULL THEN '' ELSE '('+elo_b.rating+')' END AS black_rating,
+                  CASE WHEN elo_w.rating IS NULL THEN '' ELSE '('+elo_w.rating+')' END AS white_rating,
+                   game, line.hash, eco.code, opening.opening,
+                  CASE WHEN opening.variation IS NULL THEN '' ELSE opening.variation END AS variation,
+                  CASE WHEN sum_w.cheat_score IS NULL THEN '' ELSE sum_w.cheat_score END AS white_cs,
+                  CASE WHEN sum_b.cheat_score IS NULL THEN '' ELSE sum_b.cheat_score END AS black_cs
+                 LIMIT 1";
 
         $result = $this->neo4j_client->run( $query, $params);
 
@@ -2686,15 +2697,16 @@ RETURN average.milliseconds AS speed';
 //      	  $gameObj = $record->get('game');
           //	  $this->game['ID']	= $gameObj->identity();
       	  $whites[]      = $record->value('player_w.name');
-      	  $white_elos[]  = $record->value('elo_w.rating');
+      	  $white_elos[]  = $record->value('white_rating');
+          $white_cs[]    = $record->value('white_cs');
       	  $blacks[]      = $record->value('player_b.name');
-      	  $black_elos[]  = $record->value('elo_b.rating');
+      	  $black_elos[]  = $record->value('black_rating');
+          $black_cs[]    = $record->value('black_cs');
       	  $events[]      = $record->value('event.name');
       	  $dates[]       = $record->value('date_str');
       	  $ecos[]        = $record->value('eco.code');
-//      	  $game['ECO_opening']	= $record->value('opening.opening');
-//      	  $game['ECO_variation']	= $record->value('opening.variation');
-//      	  $game['MoveListHash']	= $record->value('line.hash');
+      	  $openings[]    = $record->value('opening.opening');
+      	  $variations[]  = $record->value('variation');
 
       	  // Result in human readable format
           $labelsObj = $record->get('result_w');
@@ -2734,10 +2746,14 @@ RETURN average.milliseconds AS speed';
               'link'      => $links,
               'white'     => $whites,
               'white_elo' => $white_elos,
+              'white_cs'  => $white_cs,
               'black'     => $blacks,
               'black_elo' => $black_elos,
+              'black_cs'  => $black_cs,
               'result'    => $results,
               'eco'       => $ecos,
+              'opening'   => $openings,
+              'variation' => $variations,
               'event'     => $events,
               'date'      => $dates,
 //              'expiration_date' => new \DateTime('+7 days'),

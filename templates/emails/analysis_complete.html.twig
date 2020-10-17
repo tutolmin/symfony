@@ -24,22 +24,26 @@
 <tr>
   <th>#</th>
   <th>White</th>
+  <th><abbr title='Cheat Score'>CS</abbr></th>
   <th>Black</th>
+  <th><abbr title='Cheat Score'>CS</abbr></th>
   <th>Result</th>
-  <th>ECO</th>
+  <th><abbr title='Encyclopedia of Chess Openings'>ECO</abbr></th>
   <th>Event</th>
   <th>Date</th>
-  <th>Analysis</th>
+  <th><abbr title='Analysis page'>A</abbr></th>
 </tr>
 
 {% for i in game %}
 
 <tr>
   <td>{{ i + 1 }}</td>
-  <td>{{ cycle(white, i) }} ({{ cycle(white_elo, i) }})</td>
-  <td>{{ cycle(black, i) }} ({{ cycle(black_elo, i) }})</td>
+  <td>{{ cycle(white, i) }} {{ cycle(white_elo, i) }}</td>
+  <td>{{ cycle(white_cs, i) }}</td>
+  <td>{{ cycle(black, i) }} {{ cycle(black_elo, i) }}</td>
+  <td>{{ cycle(black_cs, i) }}</td>
   <td>{{ cycle(result, i) }}</td>
-  <td>{{ cycle(eco, i) }}</td>
+  <td><abbr title='{{ cycle(opening, i) }} {{ cycle(variation, i) }}'>{{ cycle(eco, i) }}</abbr></td>
   <td>{{ cycle(event, i) }}</td>
   <td>{{ cycle(date, i) }}</td>
   <td><a href="{{ cycle(link, i) }}">
