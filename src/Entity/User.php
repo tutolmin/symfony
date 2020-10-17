@@ -309,7 +309,9 @@ class User implements UserInterface
     {
         // Do not try to fetch more than 300 $records
         // It might lead to OOM error
-        return $this->complete_analyses->slice(0,300);
+        $collection = new ArrayCollection();
+        $collection = $this->complete_analyses->slice(0,300);
+        return $collection;
     }
 
     public function addCompleteAnalysis(CompleteAnalysis $completeAnalysis): self
