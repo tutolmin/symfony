@@ -2681,8 +2681,8 @@ RETURN average.milliseconds AS speed';
                   OPTIONAL MATCH (line)-[:HAS_GOT]->(sum_w:Summary:White)
                   OPTIONAL MATCH (line)-[:HAS_GOT]->(sum_b:Summary:Black)
                  RETURN game.hash, date_str, result_w, event.name, player_b.name, player_w.name,
-                  CASE WHEN elo_b.rating IS NULL THEN '' ELSE '('+elo_b.rating+')' END AS black_rating,
-                  CASE WHEN elo_w.rating IS NULL THEN '' ELSE '('+elo_w.rating+')' END AS white_rating,
+                  CASE WHEN elo_b.rating > 0 THEN '('+elo_b.rating+')' ELSE '' END AS black_rating,
+                  CASE WHEN elo_w.rating > 0 THEN '('+elo_w.rating+')' ELSE '' END AS white_rating,
                    game, line.hash, eco.code, opening.opening,
                   CASE WHEN opening.variation IS NULL THEN '' ELSE opening.variation END AS variation,
                   CASE WHEN sum_w.cheat_score IS NULL THEN '' ELSE sum_w.cheat_score END AS white_cs,
