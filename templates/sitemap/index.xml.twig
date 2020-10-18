@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+   <sitemap>
+     <loc>https://chesscheat.com/sitemap0.xml.gz</loc>
+   </sitemap>
+{% for i in files %}
+   <sitemap>
+     <loc>https://chesscheat.com/sitemap{{ i }}.xml.gz</loc>
+   </sitemap>
+{% endfor %}
+</sitemapindex>
