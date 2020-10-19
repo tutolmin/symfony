@@ -109,34 +109,15 @@ get_queue_length () {
 while [[ true ]]; do
 
 # Fill the queue with some items
-queue_fill
+#queue_fill
 
 get_queue_length "Pending"
 echo "Total Pending nodes: $queue_length"
 
-while [[ $queue_length -gt 15 ]]; do
+#while [[ $queue_length -gt 15 ]]; do
 
- change_status "Processing"
- queue_delete
- queue_promote
- change_status "Evaluated"
+while [[ true ]]; do
 
- change_status "Processing"
- queue_delete
- change_side
- change_status "Evaluated"
-
- change_status "Processing"
- queue_delete
- change_status
- change_status "Evaluated"
-
- change_status "Processing"
- queue_delete
- change_type
- change_status "Evaluated"
-
- change_status "Processing"
  queue_delete
  queue_delete
  queue_delete
