@@ -11,13 +11,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
-use App\Service\QueueManager;
 use Twig\Environment;
 use App\Entity\SitemapHashes;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Psr\Log\LoggerInterface;
-
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
 class SitemapGenerateCommand extends Command
 {
@@ -30,9 +29,6 @@ class SitemapGenerateCommand extends Command
     // Doctrine EntityManager
     private $em;
 
-    // Queue manager reference
-    private $queueManager;
-
     // Hash repo
     private $hashRepository;
 
@@ -42,25 +38,27 @@ class SitemapGenerateCommand extends Command
     private $records = array();
     private $index;
 
+    protected $parameterBag;
+
     // Logger reference
     private $logger;
 
     // Guard
     private $guardAuthenticatorHandler;
 
-    // Dependency injection of the Queue manager service
-    public function __construct( QueueManager $qm, EntityManagerInterface $em,
-      Environment $twig, LoggerInterface $logger)
+    // Dependency injection of the necessary services
+    public function __construct( EntityManagerInterface $em,
+      Environment $twig, LoggerInterface $logger, ParameterBagInterface $parameterBag)
     {
         parent::__construct();
 
         $this->logger = $logger;
 
-        $this->queueManager = $qm;
-
         $this->em = $em;
 
         $this->twig = $twig;
+
+        $this->parameterBag = $parameterBag;
 
         // get the Sitemap hash repository
         $this->hashRepository = $this->em->getRepository( SitemapHashes::class);
@@ -145,6 +143,9 @@ class SitemapGenerateCommand extends Command
         $this->flushHashes();
       }
 
+      $output->writeln( "Flushing index file: ".
+        $this->parameterBag->get('kernel.project_dir').'/public/sitemap_index.xml');
+
       // Prepare array of files
       $files = array();
       for($i=0;$i<$this->index;$i++)
@@ -158,7 +159,8 @@ class SitemapGenerateCommand extends Command
       $filesystem = new Filesystem();
       try {
 
-        $filesystem->dumpFile('public/sitemap_index.xml', $xmlContents);
+        $filesystem->dumpFile( $this->parameterBag->get('kernel.project_dir').
+          '/public/sitemap_index.xml', $xmlContents);
 
       } catch (IOExceptionInterface $exception) {
 
@@ -208,7 +210,8 @@ class SitemapGenerateCommand extends Command
       // Compress data
 //      $data = implode("", $xmlContents);
       $gzdata = gzencode($xmlContents, 9);
-      $fp = fopen("public/sitemap".$this->index.".xml.gz", "w");
+      $fp = fopen($this->parameterBag->get('kernel.project_dir').
+        "/public/sitemap".$this->index.".xml.gz", "w");
       fwrite($fp, $gzdata);
       fclose($fp);
     }
