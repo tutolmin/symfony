@@ -4,6 +4,14 @@ RewriteEngine On
 RewriteCond %{SERVER_PORT} !^443$
 RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
 
+# Show infamous Game 2 of the Deep Blue vs Kasparov rematch to robots
+RewriteCond "%{HTTP_USER_AGENT}" "(Lynx|Googlebot|Baiduspider|bingbot|YandexBot|msnbot|SemrushBot)"
+RewriteRule "^$" "bf1e5bd5a32b3b2a666ec6f68ec8faac18a0766f3438decd8eace48c5cc888c0" [L]
+
+# Deliver static HTML from Squid cache to robots via Apache reverse proxy
+RewriteCond "%{HTTP_USER_AGENT}" "(Lynx|Googlebot|Baiduspider|bingbot|YandexBot|msnbot|SemrushBot)"
+RewriteRule "^([0-9a-z]{64})$" "http://cache.chesscheat.com:3128/pages-$1.html" [P,E=CACHE]
+
 <Files "*">
 AuthName "Restricted Area"
 AuthType Basic
