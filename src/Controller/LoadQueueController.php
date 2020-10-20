@@ -772,7 +772,7 @@ LIMIT ".self::RECORDS_PER_PAGE;
 */
 
 	// Add web user parameter
-	if( $this->wu_id) {
+	if( $this->wu_id != -1) {
 	  $webuser = "{id:{wu_id}}";
 	  $params["wu_id"] = intval( $this->wu_id);
 	}

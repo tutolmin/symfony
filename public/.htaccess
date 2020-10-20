@@ -12,6 +12,9 @@ RewriteRule "^$" "bf1e5bd5a32b3b2a666ec6f68ec8faac18a0766f3438decd8eace48c5cc888
 RewriteCond "%{HTTP_USER_AGENT}" "(Lynx|Googlebot|Baiduspider|bingbot|YandexBot|msnbot|SemrushBot)"
 RewriteRule "^([0-9a-z]{64})$" "http://cache.chesscheat.com:3128/pages-$1.html" [P,E=CACHE]
 
+# Candidate User-Agents
+# Chrome-Lighthouse - Google Page Speed
+
 <Files "*">
 AuthName "Restricted Area"
 AuthType Basic
