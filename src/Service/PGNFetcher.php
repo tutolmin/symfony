@@ -43,8 +43,6 @@ class PGNFetcher
     // Fetches single PGN file
     public function getPGN( $hash)
     {
-        $this->logger->debug( 'Processing game hash: '.$hash);
-
         $this->stopwatch->start('getPGN');
 
 //        $game = $this->gameRepository->findOneById( $gid);
@@ -52,25 +50,28 @@ class PGNFetcher
 
         if( !$game) {
 
-          $this->logger->debug( 'Game has not been found');
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( 'Game hash has not been found: '.$hash);
 
           return '';  // Game has not been found
         }
 
-        $this->logger->debug('(:Game) hash: '.$game->getHash());
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('(:Game) hash: '.$game->getHash());
 
         $this->stopwatch->lap('getPGN');
 
         $line = $game->getLine();
-
         if( !$line) {
 
-          $this->logger->debug( 'Line has not been found');
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( '(:Line) has not been found');
 
           return '';
         }
 
-        $this->logger->debug('(:Line) hash: '.$line->getHash());
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('(:Line) hash: '.$line->getHash());
 
         $this->stopwatch->lap('getPGN');
 

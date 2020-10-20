@@ -10,7 +10,6 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\GameManager;
 use App\Service\QueueManager;
-use Psr\Log\LoggerInterface;
 
 class QueueExportHTMLCommand extends Command
 {
@@ -20,18 +19,13 @@ class QueueExportHTMLCommand extends Command
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'queue:export:html';
 
-    // Logger
-    private $logger;
-
     // Queue/Game manager reference
     private $queueManager;
     private $gameManager;
 
     // Dependency injection of the GameManager service
-    public function __construct( LoggerInterface $logger, GameManager $gm, QueueManager $qm)
+    public function __construct( GameManager $gm, QueueManager $qm)
     {
-        $this->logger = $logger;
-
         parent::__construct();
 
         $this->gameManager = $gm;

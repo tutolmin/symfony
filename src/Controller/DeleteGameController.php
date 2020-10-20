@@ -50,14 +50,13 @@ class DeleteGameController extends AbstractController
 
       if( is_array( $gids)) {
 
-        $this->logger->debug( "Game ids to delete: ". implode( ",", $gids));
-
         // Iterate through all the game IDs
         foreach( $gids as $key => $hash) {
 
           $gid = $this->gameManager->gameIdByHash( $hash);
 
-          $this->logger->debug( 'Deleting game ID: '.$gid);
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( 'Deleting game ID: '.$gid);
 
           // Delete game by id
           if( !$this->gameManager->deleteGame( $gid)) unset( $gids[$key]);

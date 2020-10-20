@@ -164,7 +164,7 @@ class SitemapGenerateCommand extends Command
 
       } catch (IOExceptionInterface $exception) {
 
-        $this->logger->debug( "An error occurred while writing sitemap index file ".$exception->getPath());
+        $this->logger->error( "An error occurred while writing sitemap index file ".$exception->getPath());
       }
 
       return 0;
@@ -173,7 +173,8 @@ class SitemapGenerateCommand extends Command
     // Function to save hash array to the file
     private function flushHashes() {
 
-      $this->logger->debug( "Current index: ".$this->index);
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Current index: ".$this->index);
 
       // TODO: Store date for each url in the DB and fetch it from there.
       $xmlContents = $this->twig->render('sitemap/data.xml.twig', [

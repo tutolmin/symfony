@@ -80,7 +80,7 @@ class LoadQueueController extends AbstractController
         $this->game_id = -1;
 
 	      $this->idx = 0;
-        $this->wu_id = null;
+        $this->wu_id = -1;
         $this->item_status = "";
         $this->item_interval = 0;
 

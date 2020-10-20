@@ -13,9 +13,6 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 class PromoteAnalysisController extends AbstractController
 {
-    // Neo4j client interface reference
-    private $neo4j_client;
-
     // Message bus
     private $bus;
 
@@ -45,12 +42,11 @@ class PromoteAnalysisController extends AbstractController
       // get Analysis IDs from the query
       $aids = json_decode( $request->request->get( 'aids'));
 
-      $this->logger->debug( "Analysis ids to promote: ". implode( ",", $aids));
-
       // Iterate through all the IDs
       foreach( $aids as $aid) {
 
-        $this->logger->debug( 'Promoting analysis ID: '.$aid);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( 'Promoting analysis ID: '.$aid);
 
         // will cause the QueueManagerCommandHandler to be called
         $this->bus->dispatch(new QueueManagerCommand( 'promote', ['analysis_id' => $aid]));

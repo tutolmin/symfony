@@ -23,21 +23,6 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 class QueueManager
 {
-/*
-    // Array of Analysis node statuses
-    const STATUS = ['Pending','Processing','Partially',
-	'Skipped','Evaluated','Exported','Complete'];
-
-    // Array of valit analysis node actions
-    const ACTION = ['Creation','Promotion','StatusChange',
-	'DepthChange','SideChange'];
-
-    // Array of valid analysis node actions
-    const SIDE = ['White' => 'WhiteSide', 'Black' => 'BlackSide'];
-
-    // Default number of games to export
-    const NUMBER = 20;
-*/
     // Analysis types
     private $depth = ['fast' => 0, 'deep' => 0];
 
@@ -103,32 +88,32 @@ class QueueManager
     // Getter/setter for the flags
     private function getUpdateCurrentQueueNodeFlag() {
 
-	return $this->updateCurrentFlag;
+    	return $this->updateCurrentFlag;
     }
 
     private function setUpdateCurrentQueueNodeFlag( $value) {
 
-	$this->updateCurrentFlag = $value;
+    	$this->updateCurrentFlag = $value;
     }
 
     private function getAnalysisNodeExistsFlag() {
 
-	return $this->analysisNodeExistsFlag;
+    	return $this->analysisNodeExistsFlag;
     }
 
     private function setAnalysisNodeExistsFlag( $value) {
 
-	$this->analysisNodeExistsFlag = $value;
+    	$this->analysisNodeExistsFlag = $value;
     }
 
     private function getQueueGraphExistsFlag() {
 
-	return $this->queueGraphExistsFlag;
+    	return $this->queueGraphExistsFlag;
     }
 
     private function setQueueGraphExistsFlag( $value) {
 
-	$this->queueGraphExistsFlag = $value;
+    	$this->queueGraphExistsFlag = $value;
     }
 
 
@@ -136,30 +121,32 @@ class QueueManager
     // Checks if there is an analysis queue present
     private function queueGraphExists()
     {
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Checking for queue graph existance: '.
-	    ($this->getQueueGraphExistsFlag()?"skip":"proceed"));
+    	if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Checking for queue graph existance: '.
+	      ($this->getQueueGraphExistsFlag()?"skip":"proceed"));
 
-	// Queue graph existance has been checked already
-	if( $this->getQueueGraphExistsFlag()) return true;
+    	// Queue graph existance has been checked already
+    	if( $this->getQueueGraphExistsFlag()) return true;
 
-        // If there is at least one :Queue node in the db
-        $query = 'MATCH (h:Head) MATCH (t:Tail) MATCH (c:Current)
+      // If there is at least one :Queue node in the db
+      $query = 'MATCH (h:Head) MATCH (t:Tail) MATCH (c:Current)
 MATCH (p:Status{status:"Pending"})
-RETURN id(h) AS head, id(t) AS tail, id(c) AS current, id(p) AS pending LIMIT 1';
-        $result = $this->neo4j_client->run($query, null);
+RETURN id(h) AS head, id(t) AS tail, id(c) AS current, id(p) AS pending
+LIMIT 1';
+      $result = $this->neo4j_client->run($query, null);
 
-        // We expect a single record or null
-        foreach ( $result->getRecords() as $record)
-          if( $record->value('head') != null &&
-	      $record->value('tail') != null &&
-	      $record->value('current') != null &&
-	      $record->value('pending') != null) {
-	    $this->setQueueGraphExistsFlag( true);
-	    return true;
-	  }
+      // We expect a single record or null
+      foreach ( $result->getRecords() as $record)
+        if( $record->value('head')  != null &&
+  	      $record->value('tail')    != null &&
+  	      $record->value('current') != null &&
+  	      $record->value('pending') != null) {
 
-	if( $_ENV['APP_DEBUG'])
+	        $this->setQueueGraphExistsFlag( true);
+	        return true;
+	      }
+
+        if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Queue graph does NOT exist!');
 
         return false;
@@ -170,27 +157,27 @@ RETURN id(h) AS head, id(t) AS tail, id(c) AS current, id(p) AS pending LIMIT 1'
     // check :Queue node existance in the database
     private function queueNodeExists( $qid)
     {
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug( "Checking for queue node ".$qid." existance.");
+	    if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Checking for queue node ".$qid." existance.");
 
-	// Check if queue node present
-	if( !$this->queueGraphExists()) return false;
+      // Check if queue node present
+    	if( !$this->queueGraphExists()) return false;
 
-        $query = 'MATCH (q:Queue) WHERE id(q) = {qid}
+      $query = 'MATCH (q:Queue) WHERE id(q) = {qid}
 RETURN id(q) AS qid LIMIT 1';
 
-        $params = ["qid" => intval( $qid)];
-        $result = $this->neo4j_client->run($query, $params);
+      $params = ["qid" => intval( $qid)];
+      $result = $this->neo4j_client->run($query, $params);
 
-        foreach ($result->records() as $record)
-          if( $record->value('qid') != null)
-            return true;
+      foreach ($result->records() as $record)
+        if( $record->value('qid') != null)
+          return true;
 
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Queue node does NOT exist');
+	    if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Queue node does NOT exist');
 
-        // Return
-        return false;
+      // Return
+      return false;
     }
 
 
@@ -198,33 +185,33 @@ RETURN id(q) AS qid LIMIT 1';
     // check :Analysis node existance in the database
     private function analysisNodeExists( $aid)
     {
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug( "Checking for analysis node ".$aid." existance: ".
-		($this->getAnalysisNodeExistsFlag()?"skip":"proceed"));
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Checking for analysis node ".$aid." existance: ".
+		      ($this->getAnalysisNodeExistsFlag()?"skip":"proceed"));
 
-	// Analysis node existance has been checked already
-	if( $this->getAnalysisNodeExistsFlag()) return true;
+    	// Analysis node existance has been checked already
+    	if( $this->getAnalysisNodeExistsFlag()) return true;
 
-	// Check if analysis graph present
-	if( !$this->queueGraphExists()) return false;
+    	// Check if analysis graph present
+    	if( !$this->queueGraphExists()) return false;
 
-        $query = 'MATCH (a:Analysis) WHERE id(a) = {aid}
+      $query = 'MATCH (a:Analysis) WHERE id(a) = {aid}
 RETURN id(a) AS aid LIMIT 1';
 
-        $params = ["aid" => intval( $aid)];
-        $result = $this->neo4j_client->run($query, $params);
+      $params = ["aid" => intval( $aid)];
+      $result = $this->neo4j_client->run($query, $params);
 
-        foreach ($result->records() as $record)
-          if( $record->value('aid') != null) {
-	    $this->setAnalysisNodeExistsFlag( true);
-            return true;
-	  }
+      foreach ($result->records() as $record)
+        if( $record->value('aid') != null) {
+	        $this->setAnalysisNodeExistsFlag( true);
+          return true;
+	      }
 
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Analysis node does NOT exist');
+	    if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Analysis node does NOT exist');
 
-        // Return
-        return false;
+      // Return
+      return false;
     }
 
 
@@ -232,28 +219,28 @@ RETURN id(a) AS aid LIMIT 1';
     // Init empty analysis queue graph
     public function initQueueGraph()
     {
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Initializing analysis queue graph');
+	    if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Initializing analysis queue graph');
 
-	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
-	  return false;
-	}
+    	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
 
-	// Check if there is already analysis graph present
-	if( $this->queueGraphExists()){
+        $this->logger->error('Access denied while initializing graph');
+    	  return false;
+    	}
 
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Queue graph already exists');
+    	// Check if there is already analysis graph present
+    	if( $this->queueGraphExists()){
 
-	  return false;
-	}
+    	  if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Queue graph already exists');
 
-        // Create default empty analysis queue
-        $this->neo4j_client->run( "CREATE (:Queue:Head:Current:Tail)", null);
+    	  return false;
+    	}
 
-	return true;
+      // Create default empty analysis queue
+      $this->neo4j_client->run( 'CREATE (:Queue:Head:Current:Tail)', null);
+
+	    return true;
     }
 
 
@@ -261,31 +248,31 @@ RETURN id(a) AS aid LIMIT 1';
     // Erase existing Analysis node
     public function eraseAnalysisNode( $aid)
     {
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Erasing analysis node id: '. $aid);
+    	if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Erasing analysis node id: '. $aid);
 
-	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
-	  return false;
-	}
+    	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
 
-	// Disconnect analysis node from it's current place
-	$this->detachAnalysisNode( $aid);
+        $this->logger->error('Access denied while erasing Analysis node');
+    	  return false;
+    	}
 
-	// Disconnect analysis node from status queue
-	$this->detachStatusRels( $aid);
+    	// Disconnect analysis node from it's current place
+    	$this->detachAnalysisNode( $aid);
 
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Erasing analysis action nodes');
+    	// Disconnect analysis node from status queue
+    	$this->detachStatusRels( $aid);
 
-        // Erase Analysis node and all relationships
-        $params = ["aid" => intval( $aid)];
-        $this->neo4j_client->run( "MATCH (a:Analysis) WHERE id(a)={aid}
+	    if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Erasing analysis action nodes');
+
+      // Erase Analysis node and all relationships
+      $params = ["aid" => intval( $aid)];
+      $this->neo4j_client->run( "MATCH (a:Analysis) WHERE id(a)={aid}
 OPTIONAL MATCH (a)<-[:WAS_TAKEN_ON]-(c:Action)
 DETACH DELETE a,c", $params);
 
-	return true;
+	    return true;
     }
 
 
@@ -293,25 +280,26 @@ DETACH DELETE a,c", $params);
     // Erase existing queue graph
     public function eraseQueueGraph()
     {
-	if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Erasing analysis queue graph');
+	    if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Erasing analysis queue graph');
 
-	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
-	  return false;
-	}
+    	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
 
-	// Get random Analysis nodes one by one
-	while( ($aid = $this->getRandomAnalysisNode()) != -1)
-	{
-	  // Error occured while deleting analysis node
-	  if( !$this->eraseAnalysisNode( $aid)) return false;
+        $this->logger->error('Access denied erasing queue graph');
+    	  return false;
+    	}
 
-	  // Reset analysis existance flag for each new node
-	  $this->setAnalysisNodeExistsFlag( false);
-	}
-	return true;
+    	// Get random Analysis nodes one by one
+    	while( ($aid = $this->getRandomAnalysisNode()) != -1)
+    	{
+    	  // Error occured while deleting analysis node
+    	  if( !$this->eraseAnalysisNode( $aid)) return false;
+
+    	  // Reset analysis existance flag for each new node
+    	  $this->setAnalysisNodeExistsFlag( false);
+    	}
+
+    	return true;
     }
 
 
@@ -722,8 +710,7 @@ RETURN count(a) AS items LIMIT 1';
 
 	if( !$this->security->isGranted('ROLE_USER')) {
 
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
+            $this->logger->error('Access denied while checking user limit');
 
 	  return false;
 	}
@@ -731,7 +718,7 @@ RETURN count(a) AS items LIMIT 1';
 	// Queue manager is allowed to override the limit
         if ($this->security->isGranted('ROLE_QUEUE_MANAGER')) {
 
-          $this->logger->debug(
+          $this->logger->info(
 		'User posesses a queue manager privileges.');
 
 	  return true;
@@ -760,8 +747,8 @@ RETURN count(a) AS items LIMIT 1';
           $this->logger->debug('Getting '.$type.' queue node item(s)');
 
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
+
+            $this->logger->error('Access denied while getting Queue node items');
 	  return false;
 	}
 
@@ -1518,8 +1505,8 @@ DELETE r';
 	if( ($first == -1 && $last != -1) ||
 		($first != -1 && $last == -1)) {
 
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Inconsistent status queue');
+    $this->logger->error('Inconsistent status queue');
+
 	  return false;
 	}
 
@@ -1690,8 +1677,7 @@ REMOVE a:'.$statusLabels.' SET a:'.$label;
 		implode( ':', $sides));
 
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
+            $this->logger->error('Access denied while setting analysis side');
 	  return false;
 	}
 
@@ -1755,8 +1741,7 @@ SET a:' . implode( ':', $sides);
           $this->logger->debug('Setting analysis node depth '.$depth);
 
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
+            $this->logger->error('Access denied while setting analysis depth');
 	  return false;
 	}
 
@@ -1883,8 +1868,7 @@ RETURN t.status AS status';
           $this->logger->debug('Getting '.$type.' queue node');
 
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
+            $this->logger->error('Access denied while getting queue node');
 	  return false;
 	}
 
@@ -2115,7 +2099,7 @@ RETURN u.id AS uid';
           $this->logger->debug('Promoting analysis node');
 
 	if( !$this->security->isGranted('ROLE_QUEUE_MANAGER')) {
-          $this->logger->debug('Access denied');
+          $this->logger->error('Access denied while promoting an Analysis');
 	  return false;
 	}
 
@@ -2449,8 +2433,7 @@ RETURN id(a) AS aid LIMIT 1';
           $this->logger->debug('Staring game anaysis enqueueing process.');
 
 	if( !$this->security->isGranted('ROLE_USER')) {
-	  if( $_ENV['APP_DEBUG'])
-            $this->logger->debug('Access denied');
+            $this->logger->error('Access denied while enqueueing game analysis');
 	  return -1;
 	}
 

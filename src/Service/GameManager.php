@@ -56,7 +56,8 @@ class GameManager
     // Find :Game node in the database
     public function gameExists( $gid)
     {
-        $this->logger->debug( "Checking for game existance");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Checking for game existance, gid: " . $gid);
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 RETURN id(g) AS gid LIMIT 1';
@@ -76,7 +77,8 @@ RETURN id(g) AS gid LIMIT 1';
     // Find :Game node in the database by it's hash
     public function gameIdByHash( $hash)
     {
-        $this->logger->debug( "Looking for a game id");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Looking for a game id by hash: " . $hash);
 
         $query = 'MATCH (g:Game) WHERE g.hash = {hash}
 RETURN id(g) AS gid LIMIT 1';
@@ -96,7 +98,8 @@ RETURN id(g) AS gid LIMIT 1';
     // Find :Game hash in the database by it's node id
     public function gameHashById( $gid)
     {
-        $this->logger->debug( "Looking for a game hash");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Looking for a game hash by id: " . $gid);
 
         // Checks if game exists
         if( !$this->gameExists( $gid))
@@ -124,8 +127,21 @@ RETURN g.hash AS hash LIMIT 1';
           $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
         $counter = 0;
+        $cacheVarName = 'gamesTotal';
 
-        $result = $this->neo4j_client->run( 'MATCH (g:Game) RETURN count(g) AS ttl', null);
+      	// Check if the value is in the cache
+      	if( apcu_exists( $cacheVarName))
+      	  $counter = apcu_fetch( $cacheVarName);
+
+        // Return counter, stored in the cache
+      	if( $counter > 0) {
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Total games = ' . $counter . ' (cached)');
+      	  return $counter;
+      	}
+
+        $result = $this->neo4j_client->run( 'MATCH (g:Game)
+RETURN count(g) AS ttl', null);
 
         foreach ($result->records() as $record)
           if( $record->value('ttl') != null)
@@ -134,7 +150,10 @@ RETURN g.hash AS hash LIMIT 1';
         if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Total games = ' .$counter);
 
-	return $counter;
+        // Storing the value in cache
+      	apcu_add( $cacheVarName, $counter, 3600);
+
+	      return $counter;
     }
 
 
@@ -142,97 +161,105 @@ RETURN g.hash AS hash LIMIT 1';
     // get number of Games of certain type and length
     public function getGamesNumber( $type = "", $plycount = 80)
     {
-        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
         $counter = 0;
-	$cacheVarName = 'gamesTotal'.$type.$plycount;
+	      $cacheVarName = 'gamesTotal'.$type.$plycount;
 
-	// Check if the value is in the cache
-	if( apcu_exists( $cacheVarName))
-	  $counter = apcu_fetch( $cacheVarName);
+      	// Check if the value is in the cache
+      	if( apcu_exists( $cacheVarName))
+      	  $counter = apcu_fetch( $cacheVarName);
 
-	// Return counter, stored in the cache
-	if( $counter > 0) {
-          $this->logger->debug('Total games of type '.
-	    $type. ' and length '.$plycount.' = ' .$counter. ' (cached)');
-	  return $counter;
-	}
+      	// Return counter, stored in the cache
+      	if( $counter > 0) {
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Total games of type '.
+      	      $type. ' and length '.$plycount.' = ' .$counter. ' (cached)');
+      	  return $counter;
+      	}
 
         $params["counter"] = intval( $plycount);
 
+        // Common start
         $query = 'MATCH (:PlyCount{counter:{counter}})-[:LONGER*0..]->';
 
-	switch( $type) {
+      	switch( $type) {
 
-	  case "checkmate":
-      $query .= '(p:CheckMatePlyCount) WITH p LIMIT 1
+      	  case "checkmate":
+            $query .= '(p:CheckMatePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:CHECKMATE_HAS_LENGTH]-(:CheckMate)<-[:FINISHED_ON]-(g:Game)';
 
-      // Check if there are ANY checkmates in the DB
-      if( $plycount == -1)
-        $query = 'MATCH (:CheckMate)<-[:FINISHED_ON]-(g:Game) WITH g LIMIT 1';
+            // Check if there are ANY checkmates in the DB
+            if( $plycount == -1)
+              $query = 'MATCH (:CheckMate)<-[:FINISHED_ON]-(g:Game) WITH g LIMIT 1';
 
-		  break;
+      		  break;
 
-	  case "stalemate":
-      $query .= '(p:StaleMatePlyCount) WITH p LIMIT 1
+      	  case "stalemate":
+            $query .= '(p:StaleMatePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:STALEMATE_HAS_LENGTH]-(:StaleMate)<-[:FINISHED_ON]-(g:Game)';
 
-      // Check if there are ANY stalemates in the DB
-      if( $plycount == -1)
-        $query = 'MATCH (:CheckMate)<-[:FINISHED_ON]-(g:Game) WITH g LIMIT 1';
+            // Check if there are ANY stalemates in the DB
+            if( $plycount == -1)
+              $query = 'MATCH (:CheckMate)<-[:FINISHED_ON]-(g:Game) WITH g LIMIT 1';
 
-		  break;
+      		  break;
 
-	  case "1-0":
-      $query .= '(p:GamePlyCount) WITH p LIMIT 1
+      	  case "1-0":
+            $query .= '(p:GamePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
 
-      // Check if there are ANY 1-0 in the DB
-      if( $plycount == -1)
-        $query = 'MATCH (g:Game)-[:ENDED_WITH]->(r:Result:Win)
+            // Check if there are ANY 1-0 in the DB
+            if( $plycount == -1)
+              $query = 'MATCH (g:Game)-[:ENDED_WITH]->(r:Result:Win)
 MATCH (r)<-[:ACHIEVED]-(:Side:White) WITH g LIMIT 1';
 
-		  break;
+      		  break;
 
-	  case "0-1":
-      $query .= '(p:GamePlyCount) WITH p LIMIT 1
+      	  case "0-1":
+            $query .= '(p:GamePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
 
-      // Check if there are ANY 0-1 in the DB
-      if( $plycount == -1)
-        $query = 'MATCH (g:Game)-[:ENDED_WITH]->(r:Result:Win)
+            // Check if there are ANY 0-1 in the DB
+            if( $plycount == -1)
+              $query = 'MATCH (g:Game)-[:ENDED_WITH]->(r:Result:Win)
 MATCH (r)<-[:ACHIEVED]-(:Side:Black) WITH g LIMIT 1';
 
-		  break;
+      		  break;
 
-	  default:
-      $query .= '(p:GamePlyCount) WITH p LIMIT 1
+      	  default:
+            $query .= '(p:GamePlyCount) WITH p LIMIT 1
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
 
-      // Check if there are ANY games in the DB
-      if( $plycount == -1)
-        $query = 'MATCH (g:Game) WITH g LIMIT 1';
+            // Check if there are ANY games in the DB
+            if( $plycount == -1)
+              $query = 'MATCH (g:Game) WITH g LIMIT 1';
 
-		  break;
-	}
+      		  break;
+      	}
 
-	$query .= ' RETURN count(g) AS ttl LIMIT 1';
+        // Common query ending
+      	$query .= ' RETURN count(g) AS ttl LIMIT 1';
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Query: ' . $query);
 
         $result = $this->neo4j_client->run( $query, $params);
 
         foreach ($result->records() as $record)
           $counter = $record->value('ttl');
 
-        $this->logger->debug('Total games of type '.
-		$type. ' and length '.$plycount.' = ' .$counter);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Total games of type '.
+		        $type. ' and length '.$plycount.' = ' .$counter);
 
-	// Storing the value in cache
-	apcu_add( $cacheVarName, $counter, 3600);
+      	// Storing the value in cache
+      	apcu_add( $cacheVarName, $counter, 3600);
 
-	return $counter;
+	      return $counter;
     }
 
 
@@ -240,60 +267,73 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
     // get maximum ply count for a certain game type
     private function getMaxPlyCount( $type = "")
     {
+      if( $_ENV['APP_DEBUG'])
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
-	$counter=0;
-	$cacheVarName = 'maxPlyCount'.$type;
+    	$counter=0;
+    	$cacheVarName = 'maxPlyCount'.$type;
 
-	// Check if the value is in the cache
-	if( apcu_exists( $cacheVarName))
-	  $counter = apcu_fetch( $cacheVarName);
+    	// Check if the value is in the cache
+    	if( apcu_exists( $cacheVarName))
+    	  $counter = apcu_fetch( $cacheVarName);
 
-	// Return counter, stored in the cache
-	if( $counter > 0) {
+    	// Return counter, stored in the cache
+    	if( $counter > 0) {
+        if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Maximum ply counter for game type '.
-	    $type.' = '.$counter. ' (cached)');
-	  return $counter;
-	}
+    	      $type.' = '.$counter. ' (cached)');
+    	  return $counter;
+	    }
 
-        $query = 'MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-';
+      // Common query start
+      $query = 'MATCH (:PlyCount{counter:999})<-[:LONGER*0..]-';
 
-	switch( $type) {
-	  case "checkmate":
-        	$query .= '(p:CheckMatePlyCount)';
-		break;
-	  case "stalemate":
-        	$query .= '(p:StaleMatePlyCount)';
-		break;
-	  case "1-0":
-        	$query .= '(p:GamePlyCount) WITH p
+    	switch( $type) {
+
+    	  case "checkmate":
+            	$query .= '(p:CheckMatePlyCount)';
+    		break;
+
+    	  case "stalemate":
+            	$query .= '(p:StaleMatePlyCount)';
+    		break;
+
+    	  case "1-0":
+            	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
-		break;
-	  case "0-1":
-        	$query .= '(p:GamePlyCount) WITH p
+    		break;
+
+    	  case "0-1":
+            	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
-		break;
-	  default:
-        	$query .= '(p:GamePlyCount)';
-		break;
-	}
+    		break;
 
-	$query .= " RETURN p.counter as counter LIMIT 1";
+    	  default:
+            	$query .= '(p:GamePlyCount)';
+    		break;
+    	}
 
-        $result = $this->neo4j_client->run( $query, null);
+      // Common query end
+      $query .= " RETURN p.counter as counter LIMIT 1";
 
-        foreach ($result->records() as $record)
-          $counter = $record->value('counter');
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Query: ' . $query);
 
+      $result = $this->neo4j_client->run( $query, null);
+
+      foreach ($result->records() as $record)
+        $counter = $record->value('counter');
+
+      if( $_ENV['APP_DEBUG'])
         $this->logger->debug('Maximum ply counter for game type '.
-		$type.' = '.$counter);
+		      $type.' = '.$counter);
 
-	// Storing the value in cache
-	apcu_add( $cacheVarName, $counter, 3600);
+    	// Storing the value in cache
+    	apcu_add( $cacheVarName, $counter, 3600);
 
-	return $counter;
+	    return $counter;
     }
 
 
@@ -301,60 +341,73 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
     // get minimum ply count for a certain game type
     private function getMinPlyCount( $type = "")
     {
+      if( $_ENV['APP_DEBUG'])
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
-	$counter=0;
-	$cacheVarName = 'minPlyCount'.$type;
+    	$counter=0;
+    	$cacheVarName = 'minPlyCount'.$type;
 
-	// Check if the value is in the cache
-	if( apcu_exists( $cacheVarName))
-	  $counter = apcu_fetch( $cacheVarName);
+    	// Check if the value is in the cache
+    	if( apcu_exists( $cacheVarName))
+    	  $counter = apcu_fetch( $cacheVarName);
 
-	// Return counter, stored in the cache
-	if( $counter > 0) {
+    	// Return counter, stored in the cache
+    	if( $counter > 0) {
+        if( $_ENV['APP_DEBUG'])
           $this->logger->debug('Maximum ply counter for game type '.
-	    $type.' = '.$counter. ' (cached)');
-	  return $counter;
-	}
+    	      $type.' = '.$counter. ' (cached)');
+    	  return $counter;
+    	}
 
-        $query = 'MATCH (:PlyCount{counter:0})-[:LONGER*0..999]->';
+      // Common query start
+      $query = 'MATCH (:PlyCount{counter:0})-[:LONGER*0..999]->';
 
-	switch( $type) {
-	  case "checkmate":
-        	$query .= '(p:CheckMatePlyCount)';
-		break;
-	  case "stalemate":
-        	$query .= '(p:StaleMatePlyCount)';
-		break;
-	  case "1-0":
-        	$query .= '(p:GamePlyCount) WITH p
+    	switch( $type) {
+
+    	  case "checkmate":
+            	$query .= '(p:CheckMatePlyCount)';
+    		break;
+
+    	  case "stalemate":
+            	$query .= '(p:StaleMatePlyCount)';
+    		break;
+
+    	  case "1-0":
+            	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
-		break;
-	  case "0-1":
-        	$query .= '(p:GamePlyCount) WITH p
+    		break;
+
+    	  case "0-1":
+            	$query .= '(p:GamePlyCount) WITH p
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game) WITH p,g
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
-		break;
-	  default:
-        	$query .= '(p:GamePlyCount)';
-		break;
-	}
+    		break;
 
-	$query .= " RETURN p.counter as counter LIMIT 1";
+    	  default:
+            	$query .= '(p:GamePlyCount)';
+    		break;
+    	}
 
-        $result = $this->neo4j_client->run( $query, null);
+      // Common query end
+    	$query .= " RETURN p.counter as counter LIMIT 1";
 
-        foreach ($result->records() as $record)
-          $counter = $record->value('counter');
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Query: ' . $query);
 
+      $result = $this->neo4j_client->run( $query, null);
+
+      foreach ($result->records() as $record)
+        $counter = $record->value('counter');
+
+      if( $_ENV['APP_DEBUG'])
         $this->logger->debug('Minimum ply counter for game type '.
-		$type.' = '.$counter);
+		      $type.' = '.$counter);
 
-	// Storing the value in cache
-	apcu_add( $cacheVarName, $counter, 3600);
+      // Storing the value in cache
+      apcu_add( $cacheVarName, $counter, 3600);
 
-	return $counter;
+      return $counter;
     }
 
 
@@ -362,70 +415,83 @@ MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
     // get random game
     public function getRandomGameId( $type = "")
     {
+      if( $_ENV['APP_DEBUG'])
         $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
-	$skip = 0;
-	$params["counter"] = 0;
-	do {
+      $skip = 0;
+      $params["counter"] = 0;
 
-	  // If there are NO games of this type, exit immediately
-	  if( $this->getGamesNumber( $type, -1) == 0)
-	    break;
+      // Only attempt to randomly select a game of that type
+      // If there ARE games of that type in the DB
+      if( $this->getGamesNumber( $type, -1) > 0)
+        do {
 
-	  // Select a game plycount
+          // Select a game plycount
           $params["counter"] = rand( $this->getMinPlyCount( $type),
-				$this->getMaxPlyCount( $type));
+      			$this->getMaxPlyCount( $type));
 
-          $this->logger->debug('Selected game plycount '.$params["counter"]);
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('Selected game plycount '.$params["counter"]);
 
-	// Repeat if there are NO games of this type for certain plycount
-	} while( ($skip = $this->getGamesNumber( $type, $params["counter"])) == 0);
+        // Repeat if there are NO games of this type for certain plycount
+        } while( ($skip = $this->getGamesNumber( $type, $params["counter"])) == 0);
 
         // Use SKIP to get a pseudo random game
-	if( $skip > 1000) $skip = 1000; else $skip--;
+	      if( $skip > 1000) $skip = 1000; else $skip--;
         $params["SKIP"] = rand( 0, $skip);
 
-        $this->logger->debug('Skipping '.$params["SKIP"]. ' games');
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Skipping '. $params["SKIP"] . ' games');
 
+        // Common beginning of the query
         $query = 'MATCH (:PlyCount{counter:{counter}})-[:LONGER*0..]->';
 
-	switch( $type) {
-	  case "checkmate":
-        	$query .= '(p:CheckMatePlyCount)
+        switch( $type) {
+
+          case "checkmate":
+              	$query .= '(p:CheckMatePlyCount)
 MATCH (p)<-[:CHECKMATE_HAS_LENGTH]-(:CheckMate)<-[:FINISHED_ON]-(g:Game)';
-		break;
-	  case "stalemate":
-        	$query .= '(p:StaleMatePlyCount)
+        	break;
+
+          case "stalemate":
+              	$query .= '(p:StaleMatePlyCount)
 MATCH (p)<-[:STALEMATE_HAS_LENGTH]-(:StaleMate)<-[:FINISHED_ON]-(g:Game)';
-		break;
-	  case "1-0":
-        	$query .= '(p:GamePlyCount)
+        	break;
+
+          case "1-0":
+              	$query .= '(p:GamePlyCount)
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:White)';
-		break;
-	  case "0-1":
-        	$query .= '(p:GamePlyCount)
+        	break;
+
+          case "0-1":
+              	$query .= '(p:GamePlyCount)
 MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)
 MATCH (g)-[:ENDED_WITH]->(:Result:Win)<-[:ACHIEVED]-(:Side:Black)';
-		break;
-	  default:
-        	$query .= '(p:GamePlyCount)
-MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
-		break;
-	}
+        	break;
 
-	$query .= " RETURN id(g) as id SKIP {SKIP} LIMIT 1";
+          default:
+              	$query .= '(p:GamePlyCount)
+MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
+        	break;
+        }
+
+        // Common end of query
+        $query .= " RETURN id(g) as id SKIP {SKIP} LIMIT 1";
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Query: ' . $query);
 
         $result = $this->neo4j_client->run( $query, $params);
 
-	$gid=-1;
-        foreach ($result->records() as $record) {
+	      $gid=-1;
+        foreach ($result->records() as $record)
           $gid = $record->value('id');
-        }
 
-        $this->logger->debug('Selected game id '.$gid);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Selected game id '.$gid);
 
-	return $gid;
+	      return $gid;
     }
 
 
@@ -433,13 +499,15 @@ MATCH (p)<-[:GAME_HAS_LENGTH]-(:Line)<-[:FINISHED_ON]-(g:Game)';
     // Check if the move line has been already loaded for a game
     public function lineExists( $gid)
     {
-        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
         // Checks if game exists
         if( !$this->gameExists( $gid))
-	  return false;
+	        return false;
 
-        $this->logger->debug( "Checking move line existance");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Checking move line existance");
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 MATCH (g)-[:FINISHED_ON]->(l:Line) WITH g,l LIMIT 1
@@ -453,7 +521,7 @@ RETURN length(path) AS length LIMIT 1';
           if( $record->value('length') != null)
             return true;
 
-	return false;
+	      return false;
     }
 
 
@@ -461,13 +529,15 @@ RETURN length(path) AS length LIMIT 1';
     // Check if there are any :Analysis nodes attached to the :game
     private function gameAnalysisExists( $gid)
     {
-        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Memory usage (".memory_get_usage().")");
 
         // Checks if game exists
         if( !$this->gameExists( $gid))
 	        return false;
 
-        $this->logger->debug( "Checking :Analysis existance");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Checking :Analysis existance");
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid}
 OPTIONAL MATCH (g)<-[:REQUESTED_FOR]-(a:Analysis)
@@ -487,7 +557,13 @@ RETURN count(a) AS ttl';
     // delete Game by id
     public function deleteGame( $gid)
     {
-        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
+        if( !$this->security->isGranted('ROLE_GAMES_MANAGER')) {
+          $this->logger->error('Access denied while deleting a game');
+      	  return false;
+      	}
 
         // Checks if game exists
         if( !$this->gameExists( $gid))
@@ -497,7 +573,8 @@ RETURN count(a) AS ttl';
         if( $this->gameAnalysisExists( $gid))
           return false;
 
-        $this->logger->debug( "Deleting :Game node");
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Deleting :Game node id: " . $gid);
 
         $query = 'MATCH (g:Game) WHERE id(g) = {gid} DETACH DELETE g';
 
@@ -511,9 +588,11 @@ RETURN count(a) AS ttl';
     // Merge :Lines for the :Games into the DB
     public function loadLines( $gids)
     {
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
       if( !$this->security->isGranted('ROLE_USER')) {
-    	  if( $_ENV['APP_DEBUG'])
-          $this->logger->debug('Access denied');
+        $this->logger->error('Access denied while loading lines');
     	  return false;
     	}
 
@@ -528,15 +607,14 @@ RETURN count(a) AS ttl';
         if( !$this->lineExists( $gid))
           $gameHashes[] = $this->gameHashById( $gid);
 
-      $this->logger->debug( "Game ids to fetch: ". implode( ",", $gameHashes));
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Game hashes to fetch: ". implode( ",", $gameHashes));
 
       // Exit if array is empty
       if( count( $gameHashes) == 0) return 0;
 
       // Fetch the games from the cache
       $PGNstring = $this->fetcher->getPGNs( $gameHashes);
-
-//      $this->logger->debug( "Fetched games: ". $PGNstring);
 
       $filesystem = new Filesystem();
       $tmp_file = '';
@@ -551,7 +629,7 @@ RETURN count(a) AS ttl';
 
       } catch (IOExceptionInterface $exception) {
 
-        $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+        $this->logger->error( "An error occurred while creating a temp file ".$exception->getPath());
       }
 
       // Put the file into special uploads directory
@@ -563,13 +641,17 @@ RETURN count(a) AS ttl';
     // Exports single HTML file for a game
     public function exportHTMLFile( $gid)
     {
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
+      // Check the game existance
       $game = $this->gameRepository->findOneById( $gid);
+      if( $game == NULL) return false;
 
-      $this->logger->debug('(:Game) hash: '.$game->getHash());
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('(:Game) hash: '.$game->getHash());
 
-      $line = $game->getLine();
-
-      $PGNstring = $this->fetcher->fetchPGN( $line->getHash().'.pgn');
+      $PGNstring = $this->fetcher->fetchPGN( $game->getLine()->getHash().'.pgn');
 
       $sides = ["White" => "W_", "Black" => "B_"];
       foreach( $sides as $prefix) {
@@ -721,7 +803,7 @@ RETURN count(a) AS ttl';
       		$gameInfo[$prefix.'perp_len'] = $summaryObj->value('perp_len');
     	}
 
-
+      // Render template
       $htmlContents = $this->twig->render('game.html.twig', [
         'white'     => $gameInfo['White'],
         'white_elo' => $gameInfo['W_ELO'],
@@ -785,12 +867,13 @@ RETURN count(a) AS ttl';
 
       } catch (IOExceptionInterface $exception) {
 
-        $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+        $this->logger->error( "An error occurred while creating a temp file ".$exception->getPath());
 
 	      return false;
       }
 
-      $this->logger->debug( "Saving file into uploads dir.");
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Saving file into uploads dir.");
 
       // Put the file into special uploads directory
       $this->uploader->uploadHTML( $tmp_file, $this->gameHashById( $gid));
@@ -818,6 +901,9 @@ RETURN count(a) AS ttl';
     // Exports single JSON file for a game
     public function exportJSONFile( $gid, $sides_depth)
     {
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Memory usage (".memory_get_usage().")");
+
       // Checks if the move line for a game exists
       if( !$this->lineExists( $gid)) return false;
 
@@ -862,93 +948,95 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
       $deltas = array();
 
       $Totals = array(
-	'White' => array(
-		'plies' => 0,
-		't1' => 0,
-		't2' => 0,
-		't3' => 0,
-		'ecos' => 0,
-		'forced' => 0,
-		'best' => 0,
-		'sound' => 0,
-		'analyzed' => 0,
-		),
-	'Black' => array(
-		'plies' => 0,
-		't1' => 0,
-		't2' => 0,
-		't3' => 0,
-		'ecos' => 0,
-		'forced' => 0,
-		'best' => 0,
-		'sound' => 0,
-		'analyzed' => 0,
-		)
-		);
+      	'White' => array(
+      		'plies' => 0,
+      		't1' => 0,
+      		't2' => 0,
+      		't3' => 0,
+      		'ecos' => 0,
+      		'forced' => 0,
+      		'best' => 0,
+      		'sound' => 0,
+      		'analyzed' => 0,
+      	),
+      	'Black' => array(
+      		'plies' => 0,
+      		't1' => 0,
+      		't2' => 0,
+      		't3' => 0,
+      		'ecos' => 0,
+      		'forced' => 0,
+      		'best' => 0,
+      		'sound' => 0,
+      		'analyzed' => 0,
+      	)
+		  );
       $effectiveResult = ['White' => 'EffectiveDraw', 'Black' => 'EffectiveDraw'];
       $prev_ply_eval_idx = -1;
 
       // Go through all the game moves
       foreach( $lids as $key => $lid) {
 
-        $this->logger->debug( "Line id: ". $lid);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Line id: ". $lid);
 
-	// Switch side/depth based on ply number
-	$side = 'White';
-	if( $key % 2) $side = 'Black';
-	$depth = $sides_depth[$side];
-//	if( $depth == 0) continue;
+      	// Switch side/depth based on ply number
+      	$side = 'White';
+      	if( $key % 2) $side = 'Black';
+      	$depth = $sides_depth[$side];
+        //	if( $depth == 0) continue;
 
-	// We will need it to decide later if it was best move
-	$move_score_idx	= -1;
+      	// We will need it to decide later if it was best move
+      	$move_score_idx	= -1;
 
-	// Push move SAN as first element
-	$item = array();
-	$item['san'] = $moves[$key];
+      	// Push move SAN as first element
+      	$item = array();
+      	$item['san'] = $moves[$key];
 
-	// total plies counter
-	$Totals[$side]['plies']++;
+      	// total plies counter
+      	$Totals[$side]['plies']++;
 
-	// Add eco info for respective moves
-	if( strlen( $ecos[$key])) {
-	  $item['eco'] = $ecos[$key];
-	  $Totals[$side]['ecos']++;
-	}
-	if( strlen( $openings[$key]))
-	  $item['opening'] = $openings[$key];
-	if( strlen( $variations[$key]))
-	  $item['variation'] = $variations[$key];
+      	// Add eco info for respective moves
+      	if( strlen( $ecos[$key])) {
+      	  $item['eco'] = $ecos[$key];
+      	  $Totals[$side]['ecos']++;
+      	}
+      	if( strlen( $openings[$key]))
+      	  $item['opening'] = $openings[$key];
+      	if( strlen( $variations[$key]))
+      	  $item['variation'] = $variations[$key];
 
-	// We can only fetch Forced mark from DB
-	if( strlen( $marks[$key])) {
-	  $item['mark'] = $marks[$key];
-	  $Totals[$side]['forced']++;
-	}
+      	// We can only fetch Forced mark from DB
+      	if( strlen( $marks[$key])) {
+      	  $item['mark'] = $marks[$key];
+      	  $Totals[$side]['forced']++;
+      	}
 
-        $this->logger->debug( "Fetching eval data for ". $item['san']);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( "Fetching eval data for ". $item['san']);
 
-	// Get best evaluation for the current move
-	if( $best_eval = $this->getBestEvaluation( $lid, $depth)) {
+      	// Get best evaluation for the current move
+      	if( $best_eval = $this->getBestEvaluation( $lid, $depth)) {
 
-	  $item['depth'] = $best_eval['depth'];
-	  $item['time']  = $best_eval['time'];
-	  $item['score'] = $best_eval['score'];
-	  $move_score_idx = $best_eval['idx'];
-	}
+      	  $item['depth'] = $best_eval['depth'];
+      	  $item['time']  = $best_eval['time'];
+      	  $item['score'] = $best_eval['score'];
+      	  $move_score_idx = $best_eval['idx'];
+      	}
 
-	// Final move, store effective result
-	if( $key == $plycount-1) {
+        // Final move, store effective result
+        if( $key == $plycount-1) {
 
-	  // Valid eval data present
-	  if( $move_score_idx != -1) {
+          // Valid eval data present
+          if( $move_score_idx != -1) {
 
-	    $effectiveResult['White'] = $this->getEffectiveResult( $move_score_idx, $key);
+            $effectiveResult['White'] = $this->getEffectiveResult( $move_score_idx, $key);
 
-	  // Consider previous move
-	  } else {
+          // Consider previous move
+          } else {
 
-	    $effectiveResult['White'] = $this->getEffectiveResult( $prev_ply_eval_idx, $key - 1);
-	  }
+            $effectiveResult['White'] = $this->getEffectiveResult( $prev_ply_eval_idx, $key - 1);
+          }
 
 	  // Set opposite result for Black
 	  if( $effectiveResult['White'] == 'EffectiveWin')
@@ -962,6 +1050,7 @@ RETURN l.hash, lids, movelist, ecos, openings, variations, marks LIMIT 1';
         if( (!array_key_exists( 'mark', $item) || $item['mark'] != "Forced") &&
 		!array_key_exists( 'eco', $item) && $depth != 0) {
 
+      if( $_ENV['APP_DEBUG'])
           $this->logger->debug( "Fetching alternatives for ". $lid);
 
 	  // Find top 3 alternative lines
@@ -985,6 +1074,7 @@ UNWIND slice AS node RETURN id(node) AS node_id';
 	    // Push alternative move score into array
 	    $T_scores[] = $alt_eval['idx'];
 
+      if( $_ENV['APP_DEBUG'])
             $this->logger->debug( "Alternative move score idx: ". $alt_eval['idx'].
 		" for node id: ". $record_a->value('node_id'));
 
@@ -1011,6 +1101,7 @@ RETURN ply.san, id(node) AS node_id';
 	      // Always store SAN
 	      $var['san'] = $record_v->value('ply.san');
 
+        if( $_ENV['APP_DEBUG'])
               $this->logger->debug( "Fetching eval data for variation ". $var['san']);
 
 	      // Optionally add evaluations
@@ -1124,17 +1215,19 @@ RETURN ply.san, id(node) AS node_id';
 
       } catch (IOExceptionInterface $exception) {
 
-        $this->logger->debug( "An error occurred while creating a temp file ".$exception->getPath());
+        $this->logger->error( "An error occurred while creating a temp file ".$exception->getPath());
 
 	      return false;
       }
 
-      $this->logger->debug( "Saving file into uploads dir.");
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Saving file into uploads dir.");
 
       // Put the file into special uploads directory
       $this->uploader->uploadEvals( $tmp_file, $record->value('l.hash'));
 
-      $this->logger->debug( "Requesting local cache invalidation.");
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Requesting local cache invalidation.");
 
       // Invalidate local cached
       $this->fetcher->invalidateLocalCache(
@@ -1168,7 +1261,8 @@ RETURN ply.san, id(node) AS node_id';
           $result = "EffectiveWin";
       }
 
-      $this->logger->debug( "Effective game result for white: ".$result);
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Effective game result for white: ".$result);
 
       return $result;
     }
@@ -1181,64 +1275,67 @@ RETURN ply.san, id(node) AS node_id';
       // Deltas arrays for both sides
       $Deltas = array( 'White' => array(), 'Black' => array());
       foreach( $deltas as $key => $delta)
-	if( $delta > 0)
-	  if( $key % 2)
-	    $Deltas['Black'][] = $delta;
-	  else
-	    $Deltas['White'][] = $delta;
+	      if( $delta > 0)
+	        if( $key % 2)
+	          $Deltas['Black'][] = $delta;
+	        else
+	          $Deltas['White'][] = $delta;
 
-      $this->logger->debug( "Deltas white: ".implode(',', $Deltas['White']));
-      $this->logger->debug( "Deltas black: ".implode(',', $Deltas['Black']));
+      if( $_ENV['APP_DEBUG']) {
+        $this->logger->debug( "Deltas white: ".implode(',', $Deltas['White']));
+        $this->logger->debug( "Deltas black: ".implode(',', $Deltas['Black']));
+      }
 
       // Counters and rates
       foreach( ['White','Black'] as $side) {
 
-	$Totals[$side]['analyzed'] = $Totals[$side]['plies'] -
-		$Totals[$side]['ecos'] -
-		$Totals[$side]['forced'] -
-		$Totals[$side]['sound'];
+      	$Totals[$side]['analyzed'] = $Totals[$side]['plies'] -
+      		$Totals[$side]['ecos'] - $Totals[$side]['forced'] -
+      		$Totals[$side]['sound'];
 
         $Totals[$side]['deltas'] = count( $Deltas[$side]);
         $Totals[$side]['mean'] = $this->findMean( $Deltas[$side]);
         $Totals[$side]['median'] = $this->findMedian( $Deltas[$side]);
         $Totals[$side]['std_dev'] = $this->findStdDev( $Deltas[$side]);
 
-	$Totals[$side]['forced_rate'] = 0;
-	if( $Totals[$side]['plies'] > 0)
-	  $Totals[$side]['forced_rate'] = round( $Totals[$side]['forced'] * 100 / $Totals[$side]['plies'], 1);
+        $Totals[$side]['forced_rate'] = 0;
+        if( $Totals[$side]['plies'] > 0)
+          $Totals[$side]['forced_rate'] =
+            round( $Totals[$side]['forced'] * 100 / $Totals[$side]['plies'], 1);
 
-	$nonECOplies = ($Totals[$side]['plies']-$Totals[$side]['ecos']-$Totals[$side]['forced']);
+	      $nonECOplies = $Totals[$side]['plies'] -
+          $Totals[$side]['ecos'] - $Totals[$side]['forced'];
 
-	$Totals[$side]['t1_rate'] = 0;
-	$Totals[$side]['t2_rate'] = 0;
-	$Totals[$side]['t3_rate'] = 0;
-	$Totals[$side]['sound_rate'] = 0;
-	if( $nonECOplies > 0) {
-	  $Totals[$side]['t1_rate'] = round( $Totals[$side]['t1'] * 100 / $nonECOplies, 1);
-	  $Totals[$side]['t2_rate'] = round( ($Totals[$side]['t1'] + $Totals[$side]['t2']) * 100 / $nonECOplies, 1);
-	  $Totals[$side]['t3_rate'] = round( ($Totals[$side]['t1'] + $Totals[$side]['t2'] + $Totals[$side]['t3']) * 100 / $nonECOplies, 1);
-	  $Totals[$side]['sound_rate'] = round( $Totals[$side]['sound'] * 100 / $nonECOplies, 1);
+      	$Totals[$side]['t1_rate'] = 0;
+      	$Totals[$side]['t2_rate'] = 0;
+      	$Totals[$side]['t3_rate'] = 0;
+      	$Totals[$side]['sound_rate'] = 0;
+
+      	if( $nonECOplies > 0) {
+      	  $Totals[$side]['t1_rate'] = round( $Totals[$side]['t1'] * 100 / $nonECOplies, 1);
+      	  $Totals[$side]['t2_rate'] = round( ($Totals[$side]['t1'] + $Totals[$side]['t2']) * 100 / $nonECOplies, 1);
+      	  $Totals[$side]['t3_rate'] = round( ($Totals[$side]['t1'] + $Totals[$side]['t2'] + $Totals[$side]['t3']) * 100 / $nonECOplies, 1);
+      	  $Totals[$side]['sound_rate'] = round( $Totals[$side]['sound'] * 100 / $nonECOplies, 1);
         }
 
-	$nonForcedplies = ($Totals[$side]['plies']-$Totals[$side]['forced']);
+      	$nonForcedplies = ($Totals[$side]['plies']-$Totals[$side]['forced']);
 
-	$Totals[$side]['eco_rate'] = 0;
-	$Totals[$side]['et3'] = 0;
-	$Totals[$side]['et3_rate'] = 0;
-	if( $nonForcedplies > 0) {
-	  $Totals[$side]['eco_rate'] = round( $Totals[$side]['ecos'] * 100 / $nonForcedplies, 1);
-	  $Totals[$side]['et3'] = $Totals[$side]['ecos'] + $Totals[$side]['t1'] + $Totals[$side]['t2'] + $Totals[$side]['t3'];
-	  $Totals[$side]['et3_rate'] = round( $Totals[$side]['et3'] * 100 / $nonForcedplies, 1);
-	}
+      	$Totals[$side]['eco_rate'] = 0;
+      	$Totals[$side]['et3'] = 0;
+      	$Totals[$side]['et3_rate'] = 0;
+      	if( $nonForcedplies > 0) {
+      	  $Totals[$side]['eco_rate'] = round( $Totals[$side]['ecos'] * 100 / $nonForcedplies, 1);
+      	  $Totals[$side]['et3'] = $Totals[$side]['ecos'] + $Totals[$side]['t1'] + $Totals[$side]['t2'] + $Totals[$side]['t3'];
+      	  $Totals[$side]['et3_rate'] = round( $Totals[$side]['et3'] * 100 / $nonForcedplies, 1);
+      	}
 
-	$Totals[$side]['best_rate'] = 0;
-	if( $Totals[$side]['analyzed'] > 0) {
-	  $Totals[$side]['best_rate'] = round( $Totals[$side]['best'] * 100 / $Totals[$side]['analyzed'], 1);
-	}
+      	$Totals[$side]['best_rate'] = 0;
+      	if( $Totals[$side]['analyzed'] > 0) {
+      	  $Totals[$side]['best_rate'] = round( $Totals[$side]['best'] * 100 / $Totals[$side]['analyzed'], 1);
+      	}
 
-
-$Totals[$side]['perp_len'] = 0;
-$Totals[$side]['cheat_score'] = (int)$_ENV['ELO_START'];
+        $Totals[$side]['perp_len'] = 0;
+        $Totals[$side]['cheat_score'] = (int)$_ENV['ELO_START'];
 
     // Do not even attempt to calculate elo for erroneous games
     // We should have at least one delta
@@ -1248,18 +1345,20 @@ $Totals[$side]['cheat_score'] = (int)$_ENV['ELO_START'];
 //Plies: 16	ECOs: 7	Best: 13	Sound: 11	Forced: 0	Median: 16.00	Mean: 22.67
 //W: PerpLen,	DB:   0.00	   6.00
 
-    if( ($Totals[$side]['median'] > 0 || $Totals[$side]['best_rate'] > 0)
-  	   && $Totals[$side]['median'] < 50 && $Totals[$side]['mean'] < 100) {
+        if( ($Totals[$side]['median'] > 0 || $Totals[$side]['best_rate'] > 0)
+      	  && $Totals[$side]['median'] < 50 && $Totals[$side]['mean'] < 100) {
 
-      $t = (10000 - 100 * $Totals[$side]['best_rate'] +
-      50 * $Totals[$side]['median'] +
-      100 * $Totals[$side]['mean']) / 22500;
+          $t = (10000 - 100 * $Totals[$side]['best_rate'] +
+          50 * $Totals[$side]['median'] +
+          100 * $Totals[$side]['mean']) / 22500;
 
-      $x1 = 100 - 100 * $t;
-      $y1 = 50 * $t;
-      $z1 = 100 * $t;
+          $x1 = 100 - 100 * $t;
+          $y1 = 50 * $t;
+          $z1 = 100 * $t;
 
-        $this->logger->debug( "Calculating CS/Perp t:". $t . " x1:" . $x1 . " y1:" .$y1. " z1:".$z1 );
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Calculating CS/Perp t:".
+              $t . " x1:" . $x1 . " y1:" .$y1. " z1:".$z1 );
 //[2020-09-13 08:50:21] app.DEBUG: Calculating CS/Perp t:0.21955555555556 x1 78.044444444444 y1:10.977777777778 z1:21.955555555556 [] []
 //bestp: 81, t: 0.22, x1: 77.93, y1: 11.04, z1: 22.07
 
@@ -1267,22 +1366,22 @@ $Totals[$side]['cheat_score'] = (int)$_ENV['ELO_START'];
 
 //    return ELO_START + round( sqrt( pow( x1, 2) + pow( 50 - median, 2) + pow( 100 - avg_diff, 2)) * (ELO_END - ELO_START) / 150);
 
-      $Totals[$side]['perp_len'] = round( sqrt(
-        pow( $Totals[$side]['best_rate'] - $x1, 2) +
-        pow( $Totals[$side]['median'] - $y1, 2) +
-        pow( $Totals[$side]['mean'] - $z1, 2)
-      ), 1);
+          $Totals[$side]['perp_len'] = round( sqrt(
+            pow( $Totals[$side]['best_rate'] - $x1, 2) +
+            pow( $Totals[$side]['median'] - $y1, 2) +
+            pow( $Totals[$side]['mean'] - $z1, 2)
+          ), 1);
 
-      $Totals[$side]['cheat_score'] = $_ENV['ELO_START'] + (int)round(
-        sqrt(
-          pow( $x1, 2) +
-          pow( 50 - $Totals[$side]['median'], 2) +
-          pow( 100 - $Totals[$side]['mean'], 2)
-        ) * ($_ENV['ELO_END'] - $_ENV['ELO_START']) / 150, 0);
-    }
+          $Totals[$side]['cheat_score'] = $_ENV['ELO_START'] + (int)round(
+            sqrt(
+              pow( $x1, 2) +
+              pow( 50 - $Totals[$side]['median'], 2) +
+              pow( 100 - $Totals[$side]['mean'], 2)
+            ) * ($_ENV['ELO_END'] - $_ENV['ELO_START']) / 150, 0);
+        }
 
-
-        $this->logger->debug( $side.": ".http_build_query( $Totals[$side]));
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( $side.": ".http_build_query( $Totals[$side]));
 
         $query = 'MATCH (game:Game)-[:FINISHED_ON]->(line:Line) WHERE id(game) = $gid
 MATCH (game)-[:ENDED_WITH]->(wr)<-[:ACHIEVED]-(:White)
@@ -1300,10 +1399,12 @@ s.mean = $mean, s.median = $median, s.std_dev = $std_dev,
 s.perp_len = $perp_len, s.cheat_score = $cheat_score';
 
         $params = $Totals[$side];
-	$params['gid'] = intval( $gid);
+	      $params['gid'] = intval( $gid);
         $result = $this->neo4j_client->run( $query, $params);
       }
     }
+
+
 
     // find Median value
     private function findMedian( $array) {
@@ -1314,11 +1415,13 @@ s.perp_len = $perp_len, s.cheat_score = $cheat_score';
       if( $counter > 0)
         if ($counter % 2 != 0)
           return round($array[floor($counter/2)],1);
-	else
+	      else
           return round(($array[floor(($counter-1)/2)] + $array[$counter/2])/2,1);
 
       return 0;
     }
+
+
 
     // find Mean value
     private function findMean( $array) {
@@ -1330,6 +1433,8 @@ s.perp_len = $perp_len, s.cheat_score = $cheat_score';
 
       return 0;
     }
+
+
 
     // find StdDev value
     private function findStdDev( $array) {
@@ -1343,10 +1448,12 @@ s.perp_len = $perp_len, s.cheat_score = $cheat_score';
         $var += pow(($value - $mean), 2);
 
       if( $counter > 0)
-	return round( sqrt( $var / $counter),1);
+	      return round( sqrt( $var / $counter),1);
 
       return 0;
     }
+
+
 
     // Format evaluation time
     private function formatEvaluationTime( $minute, $second, $msec)
@@ -1373,7 +1480,8 @@ s.perp_len = $perp_len, s.cheat_score = $cheat_score';
     // Get evaluation data for the best move in the position
     private function getBestEvaluation( $node_id, $depth)
     {
-      $this->logger->debug( "Fetching eval data for node id: ".$node_id);
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Fetching eval data for node id: ".$node_id);
 
       // Get best :Evaluation :Score for the actual game move
       $query = 'MATCH (line:Line) WHERE id(line) = {node_id}

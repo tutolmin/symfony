@@ -12,7 +12,7 @@ use App\Service\QueueManager;
 
 class EvaluationSpeedController extends AbstractController
 {
-    // Number of games to take into account 
+    // Number of games to take into account
     private $NUMBER = 0;
 
     // Analysis types
@@ -29,7 +29,7 @@ class EvaluationSpeedController extends AbstractController
     private $queueManager;
 
     // Dependency injection of necessary services
-    public function __construct( Stopwatch $watch, 
+    public function __construct( Stopwatch $watch,
 	LoggerInterface $logger, QueueManager $qm)
     {
         $this->NUMBER = $_ENV['SPEED_EVAL_GAMES_LIMIT'];
@@ -57,11 +57,12 @@ class EvaluationSpeedController extends AbstractController
     {
       // HTTP request
       $request = Request::createFromGlobals();
-	
+
       // Get type from a query parameter
       $type = $request->request->get('type', "");
 
-      $this->logger->debug( "Type: ". $type);
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Type: ". $type);
 
       $speed = array();
 
@@ -77,8 +78,8 @@ class EvaluationSpeedController extends AbstractController
 
       $this->stopwatch->lap('evaluationSpeed');
 
-      $this->logger->debug( "Evaluation speed: ". 
-	implode( ",", $speed));
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Evaluation speed: ". implode( ",", $speed));
 
       // Encode in JSON and output
       return new JsonResponse( $speed);

@@ -14,9 +14,6 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 class SetAnalysisParametersController extends AbstractController
 {
-    // Neo4j client interface reference
-    private $neo4j_client;
-
     // Logger reference
     private $logger;
 
@@ -59,15 +56,13 @@ class SetAnalysisParametersController extends AbstractController
       // get Analysis IDs from the query
       $aids = json_decode( $request->request->get( 'aids'));
 
-      $this->logger->debug( "Analysis ids to change " .$param.
-        " to " . $value . " : ". implode( ",", $aids));
-
       // Iterate through all the IDs
       $counter = 0;
       foreach( $aids as $aid) {
 
-        $this->logger->debug( 'Changing analysis ' .$param.
-          ' (value: '.$value.') for Id: '.$aid);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( 'Changing analysis ' .$param.
+            ' (value: '.$value.') for Id: '.$aid);
 
         // change depth for a particular analysis node
         if( $param == "depth")

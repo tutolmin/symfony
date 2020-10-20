@@ -43,7 +43,9 @@ class AsIsController extends AbstractController
       $isActive = false;
       if( $this->security->isGranted('ROLE_USER')) {
           $isActive = true;
-          $this->logger->debug( "Activating form");
+
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug( "Activating form");
       }
 
 	// Build a form

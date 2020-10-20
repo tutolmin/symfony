@@ -85,8 +85,6 @@ class QueueGameAnalysisController extends AbstractController
       // get Game IDs from the query
       $gids = json_decode( $request->request->get( 'gids'));
 
-      $this->logger->debug( "Game ids to queue: ". implode( ",", $gids));
-
       // get Doctrine userId
       $userId = $this->getUser()->getId();
 
@@ -96,14 +94,11 @@ class QueueGameAnalysisController extends AbstractController
 
         $gid = $this->gameManager->gameIdByHash( $hash);
 
-        $this->logger->debug( 'Queueing game ID: '.$gid);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( 'Queueing game ID: '.$gid);
 
         // Check if game id represents a valid game
-        if( !$this->gameManager->gameExists( $gid)) {
-
-          $this->logger->debug('The game is invalid.');
-          continue;
-        }
+        if( !$this->gameManager->gameExists( $gid)) continue;
 
         // will cause the QueueManagerCommandHandler to be called
         $this->bus->dispatch(new QueueManagerCommand( 'enqueue',
@@ -116,10 +111,8 @@ class QueueGameAnalysisController extends AbstractController
 
       $this->stopwatch->lap('queueGameAnalysis');
 
-      $this->logger->debug( "Game ids to load: ". implode( ",", $this->gids));
-
-      // Request :Line load for the list of games
-//      $this->gameManager->loadLines( $this->gids);
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( "Game ids to load: ". implode( ",", $this->gids));
 
       // will cause the InputOutputOperationHandler to be called
       $this->bus->dispatch(new InputOutputOperation( 'load_lines',

@@ -28,7 +28,9 @@ class CacheFileFetcher
       $store = new Store( $this->getCacheDirectory());
 
       $URL = $_ENV['SQUID_CACHE_URL'].$filename;
-      $this->logger->debug('Invalidating URL '.$URL);
+
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug('Invalidating URL '.$URL);
 
       // Make sure local copy of the file is invalidated locally
       $store->invalidate( Request::create( $URL));
@@ -47,7 +49,9 @@ class CacheFileFetcher
 
 	      // Fetch the file from the cache
         $URL = $_ENV['SQUID_CACHE_URL'].$filename;
-        $this->logger->debug('URL '.$URL);
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('URL: '.$URL);
 
       	// Invalidate local cache entry to make sure
         // The URL is requested from remote cache
@@ -58,14 +62,18 @@ class CacheFileFetcher
 
         $statusCode = $response->getStatusCode();
         // $statusCode = 200
-        $this->logger->debug('Status code '.$statusCode);
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Status code '.$statusCode);
 
         if( $statusCode != 200) return null;
 /*
         try {
 */
         $contentType = $response->getHeaders()['content-type'][0];
-        $this->logger->debug('Content type '.$contentType);
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Content type '.$contentType);
 
 /*
         } catch (FileException $e) {

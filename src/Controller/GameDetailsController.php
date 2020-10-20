@@ -199,7 +199,8 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	foreach ($result->records() as $record) {
   	  $this->neo4j_node_id = $record->value('id');
 	}
-        $this->logger->debug('Root node id '.$this->neo4j_node_id);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Root node id '.$this->neo4j_node_id);
     }
 
     // Get move list
@@ -319,50 +320,6 @@ RETURN id(g) AS id SKIP {SKIP} LIMIT 1';
 	} else // Only SANs are present
 	  $this->moves = $response->toArray();
     }
-/*
-    // Fetch move list
-    private function fetchMoveList( )
-    {
- 	$store = new Store('/home/chchcom/cache/');
-	$client = HttpClient::create();
-	$client = new CachingHttpClient($client, $store, ["debug" => true]);
-
-	$URL = 'http://cache.chesscheat.com/'.$this->game["MoveListHash"].'.json';
-        $this->logger->debug('URL '.$URL);
-	$response = $client->request('GET', $URL);
-
-	$statusCode = $response->getStatusCode();
-	// $statusCode = 200
-        $this->logger->debug('Status code '.$statusCode);
-
-	$contentType = $response->getHeaders()['content-type'][0];
-        $this->logger->debug('Content type '.$contentType);
-	// $contentType = 'application/json'
-//	$content = gzdecode( $response->getContent());
-	$content = $response->getContent();
-//        $this->logger->debug('Content '.$content);
-	// $content = '{"id":521583, "name":"symfony-docs", ...}'
-//	$this->moves = json_decode( $content);
-	$this->moves = $response->toArray();
-	// $content = ['id' => 521583, 'name' => 'symfony-docs', ...]
-//        $this->logger->debug('Moves '.$this->moves);
-    }
-
-    // Get move list
-    private function getMoveList( $gid)
-    {
-	// Fetch game move list
-	$params = ["gid" => $gid];
-	$query = "MATCH (game:Game) WHERE id(game) = {gid} WITH game
-MATCH (game)-[:FINISHED_ON]->(:Line)-[:ROOT*0..]->(l:Line)-[:LEAF]->(ply:Ply)
-RETURN REVERSE( COLLECT( ply.san)) as movelist LIMIT 1";
-	$result = $this->neo4j_client->run( $query, $params);
-
-	foreach ($result->records() as $record) {
-  	  $this->moves = $record->value('movelist');
-	}
-    }
-*/
 
     // Get game summary for both players
     private function getSummary()

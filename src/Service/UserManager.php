@@ -45,20 +45,24 @@ class UserManager
     public function mergeUser( $uid)
     {
 /*
-	Can be called from Social authenticator for regular user
+	      Can be called from Social authenticator for regular user
 
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
           $this->logger->debug('Access denied');
           return false;
         }
 */
-	// Get the user by id
+      	// Get the user by id
         $user = $this->userRepository->findOneBy(['id' => $uid]);
+
+        if( $user == null) return false;
 
         $params["id"] = $user->getId();
         $params["limit"] = $user->getQueueLimit();
         $query = 'MERGE (w:WebUser{id:{id}}) SET w.queueLimit={limit}';
         $this->neo4j_client->run( $query, $params);
+
+        return true;
     }
 
 
@@ -67,7 +71,7 @@ class UserManager
     public function mergeAllUsers()
     {
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
-          $this->logger->debug('Access denied');
+          $this->logger->error('Access denied while merging users');
           return 0;
         }
 
@@ -78,13 +82,12 @@ class UserManager
 	      $counter = 0;
 
 	      // Iterate through all the users
-        foreach( $users as $user) {
+        foreach( $users as $user)
+          if( $this->mergeUser( $user->getId()))
+            $counter++;
 
-          $this->mergeUser( $user->getId());
-          $counter++;
-        }
-
-        $this->logger->debug('Merged '.$counter.' users');
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Merged '.$counter.' users');
 
         return $counter;
     }
@@ -94,18 +97,21 @@ class UserManager
     // Get WebUser id property by email
     public function fetchWebUserId( $email) {
 
-	// Get the user by email
-        $user = $this->userRepository->findOneBy(['email' => $email]);
+	    // Get the user by email
+      $user = $this->userRepository->findOneBy(['email' => $email]);
 
-	// Get the id if found
-	if( $user != null) {
+    	// Get the id if found
+    	if( $user != null) {
 
-	  $wu_id = $user->getId();
-          $this->logger->debug('User id '.$wu_id);
-	  return $wu_id;
-	}
+    	  $wu_id = $user->getId();
 
-	return null;
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('WebUser id: '.$wu_id);
+
+    	  return $wu_id;
+    	}
+
+	    return -1;
     }
 
 
@@ -114,7 +120,7 @@ class UserManager
     public function promoteUser( $email, $role) {
 
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
-          $this->logger->debug('Access denied');
+          $this->logger->error('Access denied while promoting user');
           return false;
         }
 
@@ -128,7 +134,8 @@ class UserManager
         // Get the roles, add a new role and save
         if( $user != null) {
 
-          $this->logger->debug('User id '.$user->getId());
+          if( $_ENV['APP_DEBUG'])
+            $this->logger->debug('WebUser id: '.$user->getId());
 
           $roles = $user->getRoles();
           $roles[] = $role;
@@ -148,9 +155,13 @@ class UserManager
     public function eraseUsers()
     {
         if( !$this->security->isGranted('ROLE_USER_MANAGER')) {
-          $this->logger->debug('Access denied');
+          $this->logger->error('Access denied while erasing users');
           return false;
         }
+
+
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug('Erasing all users');
 
         // Erase all nodes
         $this->neo4j_client->run( "MATCH (w:WebUser) DETACH DELETE w", null);

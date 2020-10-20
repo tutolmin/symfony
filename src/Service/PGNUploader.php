@@ -34,7 +34,8 @@ class PGNUploader
     	// Strip '/tmp/' from a filename
       $fileName = $this->getTargetDirectory() . "/pages-" . $hash . '.html';
 
-      $this->logger->debug( $fileName);
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( $fileName);
 
       $filesystem = new Filesystem();
       try {
@@ -44,8 +45,7 @@ class PGNUploader
 
       } catch (IOExceptionInterface $exception) {
 
-        $this->logger->debug( "An error occurred while moving a temp file ".$exception->getPath());
-
+        $this->logger->error( "An error occurred while moving a temp file ".$exception->getPath());
       }
     }
 
@@ -57,7 +57,8 @@ class PGNUploader
     	// Strip '/tmp/' from a filename
       $fileName = $this->getTargetDirectory() . "/evals-" . $hash . '.json';
 
-      $this->logger->debug( $fileName);
+      if( $_ENV['APP_DEBUG'])
+        $this->logger->debug( $fileName);
 
       $filesystem = new Filesystem();
       try {
@@ -67,31 +68,30 @@ class PGNUploader
 
       } catch (IOExceptionInterface $exception) {
 
-        $this->logger->debug( "An error occurred while moving a temp file ".$exception->getPath());
-
+        $this->logger->error( "An error occurred while moving a temp file ".$exception->getPath());
       }
     }
 
     public function uploadLines( $file)
     {
-	// Filename SHOULD contain 'lines' prefix in order to make sure
-	// the filename is never matches 'games' prefix, reserved for :Game-only db merge
-	// Strip '/tmp/' from a filename
-        $fileName = $this->getTargetDirectory() . substr( $file, 4) . '.pgn';
+    	// Filename SHOULD contain 'lines' prefix in order to make sure
+    	// the filename is never matches 'games' prefix, reserved for :Game-only db merge
+    	// Strip '/tmp/' from a filename
+      $fileName = $this->getTargetDirectory() . substr( $file, 4) . '.pgn';
 
+      if( $_ENV['APP_DEBUG'])
         $this->logger->debug( $fileName);
 
-	$filesystem = new Filesystem();
-	try {
+      $filesystem = new Filesystem();
+      try {
 
-	  // Copy the file to a special upload directory
-	  $filesystem->rename( $file, $fileName);
+        // Copy the file to a special upload directory
+        $filesystem->rename( $file, $fileName);
 
-        } catch (IOExceptionInterface $exception) {
+      } catch (IOExceptionInterface $exception) {
 
-          $this->logger->debug( "An error occurred while moving a temp file ".$exception->getPath());
-
-        }
+        $this->logger->error( "An error occurred while moving a temp file ".$exception->getPath());
+      }
     }
 
     public function uploadGames( UploadedFile $file)
@@ -101,12 +101,14 @@ class PGNUploader
         $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         $safeFilename = transliterator_transliterate('Any-Latin; Latin-ASCII; [^A-Za-z0-9_] remove; Lower()', $originalFilename);
 
-	// Filename SHOULD contain 'games' prefix in order to make sure
-	// the filename is never matches 'lines' prefix, reserved for :Line-only db merge
+      	// Filename SHOULD contain 'games' prefix in order to make sure
+      	// the filename is never matches 'lines' prefix, reserved for :Line-only db merge
         $fileName = 'games-'.$user->getID().'-'.$safeFilename.'-'.uniqid().'.'.$file->guessExtension();
 
-        $this->logger->debug( $this->getTargetDirectory());
-        $this->logger->debug( $fileName);
+        if( $_ENV['APP_DEBUG']) {
+          $this->logger->debug( $this->getTargetDirectory());
+          $this->logger->debug( $fileName);
+        }
 
         try {
 
@@ -114,7 +116,7 @@ class PGNUploader
 
         } catch (FileException $e) {
 
-            $this->logger->debug( $e->getMessage());
+            $this->logger->error( $e->getMessage());
             // ... handle exception if something happens during file upload
         }
 
@@ -125,12 +127,14 @@ class PGNUploader
     {
       $user = $this->security->getUser();
 
-// Filename SHOULD contain 'games' prefix in order to make sure
-// the filename is never matches 'lines' prefix, reserved for :Line-only db merge
+      // Filename SHOULD contain 'games' prefix in order to make sure
+      // the filename is never matches 'lines' prefix, reserved for :Line-only db merge
       $fileName = 'games-'.$user->getID().'-'.uniqid().'.pgn';
 
-      $this->logger->debug( $this->getTargetDirectory());
-      $this->logger->debug( $fileName);
+      if( $_ENV['APP_DEBUG']) {
+        $this->logger->debug( $this->getTargetDirectory());
+        $this->logger->debug( $fileName);
+      }
 
       $filesystem = new Filesystem();
       try {
@@ -140,7 +144,7 @@ class PGNUploader
 
       } catch (FileException $e) {
 
-          $this->logger->debug( $e->getMessage());
+          $this->logger->error( $e->getMessage());
           // ... handle exception if something happens during file upload
       }
 

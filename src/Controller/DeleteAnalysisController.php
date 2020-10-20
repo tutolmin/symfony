@@ -45,12 +45,11 @@ class DeleteAnalysisController extends AbstractController
       // get Analysis IDs from the query
       $aids = json_decode( $request->request->get( 'aids'));
 
-      $this->logger->debug( "Analysis ids to delete: ". implode( ",", $aids));
-
       // Iterate through all the IDs
       foreach( $aids as $aid) {
 
-        $this->logger->debug( 'Deleting analysis ID: '.$aid);
+        if( $_ENV['APP_DEBUG'])
+          $this->logger->debug( 'Deleting analysis ID: '.$aid);
 
         // will cause the QueueManagerCommandHandler to be called
         $this->bus->dispatch(new QueueManagerCommand( 'delete', ['analysis_id' => $aid]));

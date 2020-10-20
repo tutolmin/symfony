@@ -6,25 +6,17 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Stopwatch\Stopwatch;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
-use Psr\Log\LoggerInterface;
 use App\Service\PGNFetcher;
 use Symfony\Component\HttpKernel\EventListener\AbstractSessionListener;
 
 class ExportPGNController extends AbstractController
 {
-    private $logger;
     private $fetcher;
 
-    // StopWatch instance
-    private $stopwatch;
-
     // Dependency injection
-    public function __construct( Stopwatch $watch, LoggerInterface $logger, PGNFetcher $fetcher)
+    public function __construct( PGNFetcher $fetcher)
     {
-        $this->stopwatch = $watch;
-        $this->logger = $logger;
         $this->fetcher = $fetcher;
     }
 
