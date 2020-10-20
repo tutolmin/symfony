@@ -108,11 +108,14 @@ class QueueSyncStatusCommand extends Command
         while( $number-- > 0)
 
         	// Execute queue manager member function
-        	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1) {
+        	if( ($aid = $this->queueManager->syncAnalysisStatus( $optionValue)) != -1)
 
         	  $output->writeln( 'Analysis node '.$aid.' status sync complete!');
 
-	      }
+          else
+
+            // No need to try to sync status if there are no matching Analysis nodes
+            break;
 
       return 0;
     }
