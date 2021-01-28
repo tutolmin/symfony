@@ -34,6 +34,28 @@ class CacheFileFetcher
       $store->invalidate( Request::create( $URL));
     }
 
+
+    // check if the page is in SQUID cache
+    public function checkPage( $filename)
+    {
+        $client = HttpClient::create();
+
+	      // Fetch the file from the cache
+        $URL = $_ENV['SQUID_CACHE_URL']."pages-".$filename.".html";
+        $this->logger->debug('URL '.$URL);
+
+        $response = $client->request('GET', $URL, []);
+
+        $statusCode = $response->getStatusCode();
+        // $statusCode = 200
+        $this->logger->debug('Status code '.$statusCode);
+
+        if( $statusCode == 200) return true;
+
+        return false;
+    }
+
+
     // get a file from cache
     public function getFile( $filename, $reload = false)
     {

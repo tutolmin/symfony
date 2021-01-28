@@ -17,6 +17,8 @@ use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
+use App\Service\CacheFileFetcher;
+use App\Service\GameManager;
 
 class SitemapGenerateCommand extends Command
 {
@@ -28,6 +30,9 @@ class SitemapGenerateCommand extends Command
 
     // Doctrine EntityManager
     private $em;
+
+    // Game manager reference
+    private $gameManager;
 
     // Hash repo
     private $hashRepository;
@@ -43,20 +48,25 @@ class SitemapGenerateCommand extends Command
     // Logger reference
     private $logger;
 
+    private $fetcher;
+
     // Guard
     private $guardAuthenticatorHandler;
 
     // Dependency injection of the necessary services
     public function __construct( EntityManagerInterface $em,
-      Environment $twig, LoggerInterface $logger, ParameterBagInterface $parameterBag)
+      Environment $twig, LoggerInterface $logger, ParameterBagInterface $parameterBag,
+      CacheFileFetcher $fetcher, GameManager $gm)
     {
         parent::__construct();
 
         $this->logger = $logger;
 
         $this->em = $em;
-
+        $this->gameManager = $gm;
         $this->twig = $twig;
+
+        $this->fetcher = $fetcher;
 
         $this->parameterBag = $parameterBag;
 
@@ -102,7 +112,7 @@ class SitemapGenerateCommand extends Command
       $hashes = $this->hashRepository->findAll();
       if (!$hashes) {
 
-        $output->writeln( 'No :game hashes found');
+        $output->writeln( 'No :Game hashes found');
 
         return 1;
       }
@@ -112,6 +122,16 @@ class SitemapGenerateCommand extends Command
       foreach ($hashes as $key => $hash) {
 
 //        $output->writeln( "Working with :Game hash: ".$hash->getHash());
+
+        // Check if the URL is OK (200)
+        if( !$this->fetcher->checkPage( $hash->getHash())) {
+
+          $output->writeln( "Static page for ".$hash->getHash()." is missing in SQUID cache");
+
+          $this->gameManager->exportHTMLFile( $this->gameManager->gameIdByHash( $hash->getHash()));
+
+          continue;
+        }
 
         // Store hash in array
         $this->items[] = $hash->getHash();
