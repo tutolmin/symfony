@@ -85,6 +85,13 @@ class SitemapGenerateCommand extends Command
         ->setHelp('This command allows you to generate sitemap index
         and sitemap data files for all analyzed games.')
 
+        ->addOption(
+        'index',
+        null,
+        InputOption::VALUE_OPTIONAL,
+        'Please specify the sitemap index file to start with',
+        0 // this is the new default value, instead of null
+        )
         // option to confirm the graph deletion
         ->addOption(
         'confirm',
@@ -108,8 +115,20 @@ class SitemapGenerateCommand extends Command
         return 1;
       }
 
+      // Parse the user specified index to start with
+      $index = intval( $input->getOption('index'));
+
+      // Make sure index is valid number
+      if( $index < 0) $index = 0;
+
+      $output->writeln( 'We are going to start with sitemap #'. $index. ' file');
+
       // Find all the hashes
-      $hashes = $this->hashRepository->findAll();
+//      $hashes = $this->hashRepository->findAll();
+      // findBy (criteria, order, limit, offset)
+      $hashes = $this->hashRepository->findBy( array(), array( 'id' => 'ASC'),
+        null, $index * self::RECORDS_PER_FILE);
+
       if (!$hashes) {
 
         $output->writeln( 'No :Game hashes found');
@@ -118,7 +137,7 @@ class SitemapGenerateCommand extends Command
       }
 
       // Iterate through all the hashes
-      $counter = 0;
+      $counter = $index * self::RECORDS_PER_FILE;
       foreach ($hashes as $key => $hash) {
 
 //        $output->writeln( "Working with :Game hash: ".$hash->getHash());
@@ -150,6 +169,9 @@ class SitemapGenerateCommand extends Command
           // Empty hashes array
           $this->items = [];
           $this->records = [];
+
+          // Sleep to keep SQUID responsible to our queries
+          sleep( 3);
         }
       }
 
