@@ -138,7 +138,7 @@ class SitemapGenerateCommand extends Command
 
       // Iterate through all the hashes
       $counter = $index * self::RECORDS_PER_FILE;
-      $this->index = $index + 1;
+      $this->index = $index;
       foreach ($hashes as $key => $hash) {
 
 //        $output->writeln( "Working with :Game hash: ".$hash->getHash());
