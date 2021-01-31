@@ -19,4 +19,4 @@
 /public/uploads/PGNs/
 .composer
 
-public/.htaccess
+/public/.htaccess*
