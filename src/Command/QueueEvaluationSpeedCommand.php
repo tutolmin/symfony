@@ -9,9 +9,16 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Service\QueueManager;
+use Symfony\Component\Security\Guard\GuardAuthenticatorHandler;
+use Symfony\Component\HttpFoundation\Request;
+use App\Security\TokenAuthenticator;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\User;
 
 class QueueEvaluationSpeedCommand extends Command
 {
+    const FIREWALL_MAIN = "main";
+
     // Default number of games to take
     const NUMBER = 10;
 
@@ -21,12 +28,29 @@ class QueueEvaluationSpeedCommand extends Command
     // Service references
     private $queueManager;
 
+    // Doctrine EntityManager
+    private $em;
+
+    // User repo
+    private $userRepository;
+
+    // Guard
+    private $guardAuthenticatorHandler;
+
     // Dependency injection of the GameManager service
-    public function __construct( QueueManager $qm)
+    public function __construct( QueueManager $qm,
+          EntityManagerInterface $em, GuardAuthenticatorHandler $gah)
     {
         parent::__construct();
 
         $this->queueManager = $qm;
+
+        $this->em = $em;
+
+        // get the User repository
+        $this->userRepository = $this->em->getRepository( User::class);
+
+        $this->guardAuthenticatorHandler = $gah;
     }
 
     protected function configure()
@@ -66,6 +90,17 @@ class QueueEvaluationSpeedCommand extends Command
 	// Get specified option
 	$number = $input->getOption('number');
 
+         // Get the system user by email
+         $userId = $_ENV['SYSTEM_WEB_USER_ID'];
+         $user = $this->userRepository->findOneBy(['id' => $userId]);
+
+         $this->guardAuthenticatorHandler->authenticateUserAndHandleSuccess(
+           $user,
+           new Request(),
+           new TokenAuthenticator( $this->em),
+           self::FIREWALL_MAIN
+         );
+
 	// Call service method
 	$speed = $this->queueManager->getEvaluationSpeed( $depth, $number);
 
@@ -75,7 +110,7 @@ class QueueEvaluationSpeedCommand extends Command
 	  $output->writeln( 'Error while fetching evaluation speed');
 	  return 1;
 	}
-	
+
 	// Success
 	$output->writeln( 'Current analysis speed for depth '.$depth.
 		' based on '.$number.' games: ' . $speed . ' ms');
