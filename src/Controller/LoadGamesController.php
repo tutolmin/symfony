@@ -711,8 +711,6 @@ LIMIT 1";
 	$index++;
     }
 
-	$event = $this->stopwatch->stop('loadGames');
-
 	// Encode in JSON and output
         return new JsonResponse( $games);
 //var_dump($games);

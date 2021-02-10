@@ -2577,12 +2577,17 @@ duration.inSeconds(
 RETURN average.milliseconds AS speed';
 
         $params = ["level" => intval( $depth), "number" => intval( $number)];
+
+# 09.02.2012
+# The query is broken as there is no (a:Analysis)-[:EVALUATED]->(p:PlyCount) rel
+# Skip to default value for now as a quick fix
+/*
         $result = $this->neo4j_client->run( $query, $params);
 
         foreach ($result->records() as $record)
           if( $record->value('speed') != null)
             $speed = $record->value('speed');
-
+*/
 	// Nothing has been fetched from the DB, set dummy
 	if( $speed == 0)
 	  if( $depth == $this->depth['fast']) $speed = 2000;
